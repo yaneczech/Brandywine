@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./brandywine-logo.svg" alt="Brandywine" width="320" />
+  <img src="./brandywine-logo-n.svg" alt="Brandywine" width="32" />
 </p>
 
 <h1 align="center">Brandywine</h1>
