@@ -24,8 +24,8 @@
 	let showPassword = $state(false);
 	let tokenCopied = $state(false);
 	const manualUrl = $derived(typeof window !== 'undefined'
-		? `${window.location.origin}/manual`
-		: '/manual');
+		? `${window.location.origin}/${s.defaultLanguage ?? 'en'}/`
+		: `/${s.defaultLanguage ?? 'en'}/`);
 	const tokenUrl = $derived(s.accessMode === 'token' && (s as Record<string, unknown>).accessToken
 		? `${manualUrl}?token=${(s as Record<string, unknown>).accessToken}`
 		: '');
@@ -202,7 +202,7 @@
 					</label>
 					<p class="field-hint mt">
 						Disable only for strictly internal / air-gapped deployments. Public hosting requires this notice per the
-						<a href="https://github.com/brandywine/brandywine/blob/main/NOTICE" target="_blank">NOTICE file</a>.
+						<a href="https://github.com/yaneczech/Brandywine/blob/main/NOTICE" target="_blank">NOTICE file</a>.
 					</p>
 				</div>
 				<div class="field">
@@ -395,8 +395,8 @@
 							<strong>Apache License 2.0</strong>
 							<p>Free to use, modify, and distribute commercially. Attribution required in distributions. No warranty implied.</p>
 							<div class="lic-links">
-								<a href="https://github.com/brandywine/brandywine/blob/main/LICENSE" target="_blank">LICENSE ↗</a>
-								<a href="https://github.com/brandywine/brandywine/blob/main/NOTICE" target="_blank">NOTICE ↗</a>
+								<a href="https://github.com/yaneczech/Brandywine/blob/main/LICENSE" target="_blank">LICENSE ↗</a>
+								<a href="https://github.com/yaneczech/Brandywine/blob/main/NOTICE" target="_blank">NOTICE ↗</a>
 							</div>
 						</div>
 					</div>

@@ -87,5 +87,23 @@
 	"settings_license": "License & data",
 	"settings_license_sub": "Open-source under Apache 2.0. Your data stays on your infrastructure.",
 
-	"attribution_powered_by": "Powered by Brandywine"
+	"attribution_powered_by": "Powered by Brandywine",
+
+	"manual_kicker": "Brand Manual",
+	"manual_hero_desc_fallback": "Approved rules, assets, and design guidance for consistent brand work.",
+	"manual_metric_sections": "Main sections",
+	"manual_metric_subsections": "Subpages",
+	"manual_explore_kicker": "Explore",
+	"manual_sections_heading": "Manual sections",
+	"manual_card_action": "Open section",
+	"manual_empty_sections": "No sections published yet.",
+	"manual_not_configured": "Brand Manual is not configured yet.",
+	"manual_toc_label": "On this page",
+	"manual_empty_blocks": "This page is ready, but no content blocks have been published yet.",
+	"manual_admin_link": "Admin ↗",
+	"manual_made_with": "Made with",
+	"manual_open_section": "Open",
+	"manual_color_system_placeholder": "Color system — connected from brand palette",
+	"manual_typography_placeholder": "Typography — connected from type settings",
+	"manual_back_to_manual": "← Back to Manual"
 }

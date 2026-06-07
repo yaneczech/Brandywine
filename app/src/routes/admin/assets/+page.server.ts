@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$db';
 import { assets, folders } from '$db/schema';
-import { desc, count, eq } from 'drizzle-orm';
+import { desc, count, eq, asc } from 'drizzle-orm';
 
 export type FolderWithCount = {
 	id: string;
@@ -11,6 +11,7 @@ export type FolderWithCount = {
 	description: string | null;
 	color: string | null;
 	icon: string | null;
+	sortOrder: number;
 	assetCount: number;
 	children?: FolderWithCount[];
 };
@@ -66,12 +67,13 @@ export const load: PageServerLoad = async () => {
 			description: folders.description,
 			color:       folders.color,
 			icon:        folders.icon,
+			sortOrder:   folders.sortOrder,
 			assetCount:  count(assets.id),
 		})
 		.from(folders)
 		.leftJoin(assets, eq(assets.folderId, folders.id))
 		.groupBy(folders.id)
-		.orderBy(folders.path),
+		.orderBy(asc(folders.sortOrder), asc(folders.path)),
 		db.select({ total: count() }).from(assets),
 	]);
 

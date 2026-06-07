@@ -1,24 +1,36 @@
-import { pgTable, text, boolean, integer, jsonb, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, text, boolean, integer, jsonb, timestamp } from 'drizzle-orm/pg-core';
 import { createId } from '../id';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
-export const sectionTypeEnum = pgEnum('section_type', [
-	'logos',
-	'colors',
-	'typography',
-	'icons',
-	'imagery',
-	'illustrations',
-	'templates',
-	'strategy',
-	'custom'
-]);
+// Re-export from the client-safe module so server code can import from here too.
+export { BLOCK_TYPES, type BlockType } from '$lib/manual/blockTypes';
+import type { BlockType } from '$lib/manual/blockTypes';
 
-export const manualSections = pgTable('manual_sections', {
-	id: text('id').primaryKey().$defaultFn(createId),
-	type: sectionTypeEnum('type').notNull(),
-	enabled: boolean('enabled').notNull().default(true),
-	order: integer('order').notNull().default(0),
-	i18nContent: jsonb('i18n_content')
-		.$type<Record<string, { title: string; description?: string }>>()
-		.default({})
+// ── Pages ──────────────────────────────────────────────────────────────────────
+export const manualPages = pgTable('manual_pages', {
+	id:          text('id').primaryKey().$defaultFn(createId),
+	parentId:    text('parent_id').references((): AnyPgColumn => manualPages.id, { onDelete: 'set null' }),
+	title:       text('title').notNull(),
+	slug:        text('slug').notNull(),
+	description: text('description'),
+	sortOrder:    integer('sort_order').notNull().default(0),
+	enabled:      boolean('enabled').notNull().default(true),
+	isLanding:    boolean('is_landing').notNull().default(false),
+	featureImage: text('feature_image'),   // asset path or URL
+	bgColor:      text('bg_color'),        // hex from brand palette
+	createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Blocks ─────────────────────────────────────────────────────────────────────
+export const manualBlocks = pgTable('manual_blocks', {
+	id:        text('id').primaryKey().$defaultFn(createId),
+	pageId:    text('page_id').notNull().references(() => manualPages.id, { onDelete: 'cascade' }),
+	type:      text('type').$type<BlockType>().notNull(),
+	config:    jsonb('config').$type<Record<string, unknown>>().notNull().default({}),
+	sortOrder: integer('sort_order').notNull().default(0),
+	enabled:   boolean('enabled').notNull().default(true),
+	anchor:    text('anchor'),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

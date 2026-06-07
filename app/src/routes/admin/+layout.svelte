@@ -10,7 +10,8 @@
 		IconUsers,
 		IconSettings,
 		IconLogout,
-		IconMenu2
+		IconMenu2,
+		IconBook2
 	} from '@tabler/icons-svelte';
 	const { children, data } = $props();
 
@@ -45,6 +46,7 @@
 			label: m.admin_group_assets(),
 			items: [
 				{ href: '/admin/assets', label: m.admin_assets(), icon: IconFolder },
+					{ href: '/admin/manual', label: 'Brand Manual', icon: IconBook2 },
 			]
 		},
 		{

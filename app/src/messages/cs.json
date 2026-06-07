@@ -87,5 +87,23 @@
 	"settings_license": "Licence a data",
 	"settings_license_sub": "Open-source pod Apache 2.0. Vaše data zůstávají na vaší infrastruktuře.",
 
-	"attribution_powered_by": "Postaveno na Brandywine"
+	"attribution_powered_by": "Postaveno na Brandywine",
+
+	"manual_kicker": "Brand manuál",
+	"manual_hero_desc_fallback": "Schválená pravidla, assety a designové principy pro konzistentní práci se značkou.",
+	"manual_metric_sections": "Hlavní sekce",
+	"manual_metric_subsections": "Podstránky",
+	"manual_explore_kicker": "Obsah",
+	"manual_sections_heading": "Sekce manuálu",
+	"manual_card_action": "Otevřít sekci",
+	"manual_empty_sections": "Zatím nejsou publikovány žádné sekce.",
+	"manual_not_configured": "Brand manuál zatím není nakonfigurován.",
+	"manual_toc_label": "Na této stránce",
+	"manual_empty_blocks": "Stránka je připravena, ale obsah ještě nebyl přidán.",
+	"manual_admin_link": "Admin ↗",
+	"manual_made_with": "Vytvořeno pomocí",
+	"manual_open_section": "Otevřít",
+	"manual_color_system_placeholder": "Barevný systém — připojen z brand palety",
+	"manual_typography_placeholder": "Typografie — připojena z nastavení typografie",
+	"manual_back_to_manual": "← Zpět na manuál"
 }

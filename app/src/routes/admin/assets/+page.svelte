@@ -11,7 +11,7 @@
 		IconAlertTriangle, IconChevronRight, IconTag, IconDotsVertical, IconEdit,
 		IconArrowRight, IconRefresh, IconLayoutGrid, IconLayoutList, IconSortAscending,
 		IconPhoto, IconFileTypePdf, IconBrandAdobe, IconFileTypeDoc, IconFileZip,
-		IconLetterA, IconTypography, IconPackage, IconEye, IconArrowsDiff
+		IconLetterA, IconTypography, IconPackage, IconEye, IconArrowsDiff, IconGripVertical
 	} from '@tabler/icons-svelte';
 
 	const { data }: { data: PageData } = $props();
@@ -60,6 +60,65 @@
 	let convertAsset    = $state<Asset | null>(null);
 	let convertStatus   = $state<Record<string, 'queued' | 'exists' | 'error'>>({});
 	let showMobileSidebar = $state(false);
+
+	// ── Folder DnD ───────────────────────────────────────────────────────────────
+	let draggingFolderId = $state<string | null>(null);
+	let dropTarget = $state<{ id: string; position: 'before' | 'after' | 'inside' } | null>(null);
+	// Non-reactive — only used to gate dragstart to the handle element
+	let folderDragReady = false;
+
+	function startFolderDrag(e: DragEvent, f: FolderWithCount) {
+		if (!folderDragReady) { e.preventDefault(); return; }
+		draggingFolderId = f.id;
+		e.dataTransfer!.effectAllowed = 'move';
+		e.dataTransfer!.setData('text/plain', f.id);
+	}
+
+	function onFolderDragOver(e: DragEvent, f: FolderWithCount) {
+		if (!draggingFolderId || draggingFolderId === f.id) return;
+		e.preventDefault();
+		e.dataTransfer!.dropEffect = 'move';
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		const ratio = (e.clientY - rect.top) / rect.height;
+		const position: 'before' | 'after' | 'inside' =
+			ratio < 0.28 ? 'before' : ratio > 0.72 ? 'after' : 'inside';
+		dropTarget = { id: f.id, position };
+	}
+
+	async function onFolderDrop(e: DragEvent, f: FolderWithCount) {
+		e.preventDefault();
+		const draggedId = draggingFolderId;
+		clearFolderDrag();
+		if (!draggedId || draggedId === f.id) return;
+
+		const pos = dropTarget?.position ?? 'after';
+		let payload: { parentId: string | null; beforeId?: string; afterId?: string };
+
+		if (pos === 'inside') {
+			payload = { parentId: f.id };
+		} else {
+			payload = {
+				parentId: f.parentId,
+				...(pos === 'before' ? { beforeId: f.id } : { afterId: f.id }),
+			};
+		}
+
+		const res = await fetch(`/api/folders/${draggedId}/move`, {
+			method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload),
+		});
+		if (res.ok) await invalidateAll();
+		else {
+			const body = await res.json().catch(() => ({}));
+			folderActionError = body.message ?? 'Move failed';
+		}
+	}
+
+	function clearFolderDrag() {
+		draggingFolderId = null;
+		dropTarget = null;
+		folderDragReady = false;
+	}
 
 	// Folder rename / delete
 	let renamingFolderId    = $state<string | null>(null);
@@ -498,7 +557,17 @@
 		<!-- Folder tree -->
 		{#snippet folderNode(nodes: FolderWithCount[], depth: number)}
 			{#each nodes as f}
-				<div class="folder-item" style="--depth:{depth}">
+				<div class="folder-item" style="--depth:{depth}"
+					draggable={renamingFolderId !== f.id}
+					ondragstart={(e) => startFolderDrag(e, f)}
+					ondragover={(e) => onFolderDragOver(e, f)}
+					ondragleave={(e) => { if (!(e.currentTarget as Element).contains(e.relatedTarget as Node)) { if (dropTarget?.id === f.id) dropTarget = null; } }}
+					ondrop={(e) => onFolderDrop(e, f)}
+					ondragend={clearFolderDrag}
+					class:dnd-dragging={draggingFolderId === f.id}
+					class:dnd-over-before={dropTarget?.id === f.id && dropTarget.position === 'before'}
+					class:dnd-over-after={dropTarget?.id === f.id && dropTarget.position === 'after'}
+					class:dnd-over-inside={dropTarget?.id === f.id && dropTarget.position === 'inside'}>
 					{#if renamingFolderId === f.id}
 						<!-- Inline rename input -->
 						<div class="folder-row rename-row">
@@ -519,6 +588,13 @@
 						</div>
 					{:else}
 						<div class="folder-row folder-row-actionable" class:active={activeFolderId === f.id}>
+							<!-- Drag handle — mouse pointer triggers draggable on the whole row -->
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<span class="drag-handle"
+								onpointerenter={() => (folderDragReady = true)}
+								onpointerleave={() => (folderDragReady = false)}>
+								<IconGripVertical size={12} stroke={1.75} />
+							</span>
 							{#if f.children && f.children.length > 0}
 								<button type="button" class="chevron-btn" aria-label={expandedFolders.has(f.id) ? 'Collapse folder' : 'Expand folder'}
 									onclick={(e) => { e.stopPropagation(); toggleFolder(f.id); }}>
@@ -1277,7 +1353,31 @@
 	outline-offset:1px;
 	border-radius:6px;
 }
-.folder-item { display:block; position:relative; }
+/* ── Folder DnD ─────────────────────────────────────────────────────────── */
+.folder-item {
+	display:block; position:relative;
+	/* Drop indicator lines rendered via box-shadow so they don't shift layout */
+	transition:box-shadow 0.08s;
+}
+.dnd-dragging { opacity:0.4; pointer-events:none; }
+
+/* Before = top border highlight */
+.dnd-over-before { box-shadow:inset 0 2px 0 0 var(--brand); }
+/* After = bottom border highlight */
+.dnd-over-after  { box-shadow:inset 0 -2px 0 0 var(--brand); }
+/* Inside = brand-tinted background */
+.dnd-over-inside { background:color-mix(in srgb,var(--brand) 8%,transparent); border-radius:5px; }
+
+/* Drag handle — hidden until hover, always visible on touch */
+.drag-handle {
+	display:flex; align-items:center; justify-content:center;
+	width:16px; height:100%; flex-shrink:0;
+	color:var(--color-muted); opacity:0; cursor:grab;
+	transition:opacity 0.1s;
+}
+.folder-row-actionable:hover .drag-handle { opacity:1; }
+@media (pointer:coarse) { .drag-handle { opacity:0.5; } }
+.drag-handle:active { cursor:grabbing; }
 .chevron-btn {
 	display:flex; align-items:center; justify-content:center;
 	width:20px; height:30px; border:none; background:none; padding:0; cursor:pointer; flex-shrink:0;

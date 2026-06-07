@@ -11,6 +11,7 @@ export const folders = pgTable('folders', {
 	description: text('description'),
 	color: text('color'),   // hex barva pro vizuální rozlišení složky
 	icon: text('icon'),     // emoji nebo název Tabler ikony
+	sortOrder: integer('sort_order').notNull().default(0),
 	createdAt: timestamp('created_at').notNull().defaultNow()
 });
 

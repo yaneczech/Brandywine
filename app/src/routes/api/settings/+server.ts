@@ -17,7 +17,20 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
 	const body = await request.json();
 
-	const allowed = ['systemName', 'logoPath', 'faviconPath', 'primaryColor', 'name', 'showAttribution', 'customFooterText', 'accessMode', 'defaultLanguage'] as const;
+	const allowed = [
+		'systemName',
+		'logoPath',
+		'faviconPath',
+		'primaryColor',
+		'name',
+		'showAttribution',
+		'customFooterText',
+		'accessMode',
+		'accessPassword',
+		'emailWhitelist',
+		'activeLanguages',
+		'defaultLanguage'
+	] as const;
 	const update: BrandSettingsUpdate = {};
 	for (const key of allowed) {
 		if (key in body) Object.assign(update, { [key]: body[key] });

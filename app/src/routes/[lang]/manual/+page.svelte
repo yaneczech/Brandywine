@@ -1,1 +1,0 @@
-<p>TODO: manual</p>
