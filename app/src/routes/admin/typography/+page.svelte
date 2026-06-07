@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { invalidateAll } from '$app/navigation';
+	import { checkContrast } from '$lib/utils/colors';
 	import * as m from '$lib/paraglide/messages';
 	import {
 		IconPlus, IconPencil, IconTrash, IconX, IconDownload, IconUpload,
@@ -13,12 +14,16 @@
 	type StyleTheme = 'universal' | 'light' | 'dark';
 	type PreviewTheme = 'light' | 'dark';
 	type StyleTab = PreviewTheme | 'all';
-	type Style = { id: string; name: string; tag: string | null; size: number | null; lineHeight: number | null; tracking: number | null; weight: number | null; order: number; theme: StyleTheme };
+	type StyleColorToken = 'black' | 'white' | `color:${string}`;
+	type ColorOption = { token: StyleColorToken; name: string; hex: string; source: 'base' | 'brand' };
+	type BrandColor = { id: string; name: string; hex: string; order: number };
+	type Style = { id: string; name: string; tag: string | null; size: number | null; lineHeight: number | null; tracking: number | null; weight: number | null; order: number; theme: StyleTheme; allowedColors: StyleColorToken[] | null };
 	type VariableAxis = { tag: string; label: string; min: number; max: number; default: number };
 	type FontFile = { id: string; originalName: string; format: string; fileSize: number; isVariable: boolean; axes: VariableAxis[] };
 	type Font  = { id: string; name: string; foundry: string | null; license: string | null; sourceUrl: string | null; role: string; weights: number[]; isVariable: boolean; variableAxes: VariableAxis[]; order: number; styles: Style[]; files: FontFile[] };
 
 	let fonts = $state<Font[]>(data.fonts as Font[]);
+	let brandColors = $state<BrandColor[]>((data.colors ?? []) as BrandColor[]);
 	let saving = $state(false);
 	let error  = $state('');
 
@@ -56,6 +61,17 @@
 		{ label: 'Uppercase',            chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
 		{ label: 'Lowercase',            chars: 'abcdefghijklmnopqrstuvwxyz' },
 		{ label: 'Digits',               chars: '0123456789' },
+	];
+	const COVERAGE_GROUPS = [
+		{ label: 'Basic English',       sets: ['Basic Latin'] },
+		{ label: 'Western Europe',      sets: ['Latin-1 Supplement'] },
+		{ label: 'Central Europe',      sets: ['Latin Extended-A'] },
+		{ label: 'Extended Latin',      sets: ['Latin Extended-B'] },
+		{ label: 'Greek',               sets: ['Greek & Coptic'] },
+		{ label: 'Punctuation',         sets: ['General Punctuation'] },
+		{ label: 'Currency',            sets: ['Currency Symbols'] },
+		{ label: 'Math & symbols',      sets: ['Math Operators', 'Letterlike Symbols', 'Geometric Shapes'] },
+		{ label: 'Case & numbers',      sets: ['Uppercase', 'Lowercase', 'Digits'] }
 	];
 	let glyphSetIndex = $state<Record<string, number>>({});
 	let glyphWeights = $state<Record<string, number>>({});
@@ -105,7 +121,7 @@
 	let showStyleModal  = $state(false);
 	let editingStyle    = $state<Style | null>(null);
 	let styleFontId     = $state('');
-	let styleForm       = $state({ name: '', tag: '', size: 16, lineHeight: 1.5, tracking: 0, weight: 400, theme: 'universal' as StyleTheme });
+	let styleForm       = $state({ name: '', tag: '', size: 16, lineHeight: 1.5, tracking: 0, weight: 400, theme: 'universal' as StyleTheme, allowedColors: ['black', 'white'] as StyleColorToken[] });
 
 	// ── Style theme tabs ───────────────────────────────────────────────────────
 	let styleTab = $state<Record<string, StyleTab>>({});
@@ -138,6 +154,30 @@
 		if (theme === 'universal') return 'Both';
 		return theme === 'light' ? 'Light' : 'Dark';
 	}
+	function colorOptions(): ColorOption[] {
+		return [
+			{ token: 'black', name: 'Black', hex: '#000000', source: 'base' },
+			{ token: 'white', name: 'White', hex: '#FFFFFF', source: 'base' },
+			...brandColors.map(c => ({ token: `color:${c.id}` as StyleColorToken, name: c.name, hex: c.hex, source: 'brand' as const }))
+		];
+	}
+	function colorOption(token: StyleColorToken): ColorOption | null {
+		return colorOptions().find(c => c.token === token) ?? null;
+	}
+	function colorHex(token: StyleColorToken | null | undefined, fallback = 'currentColor') {
+		return token ? (colorOption(token)?.hex ?? fallback) : fallback;
+	}
+	function allowedColorsForStyle(s: Style): StyleColorToken[] {
+		return Array.isArray(s.allowedColors) ? s.allowedColors : [];
+	}
+	function stylePreviewColor(s: Style) {
+		return colorHex(allowedColorsForStyle(s)[0], 'inherit');
+	}
+	function toggleAllowedColor(token: StyleColorToken) {
+		const set = new Set(styleForm.allowedColors);
+		set.has(token) ? set.delete(token) : set.add(token);
+		styleForm.allowedColors = [...set];
+	}
 
 	// ── Type tester ────────────────────────────────────────────────────────────
 	let testerText      = $state('The quick brown fox jumps over the lazy dog');
@@ -160,6 +200,10 @@
 	];
 	function previewGlyphCount(): number {
 		return new Set(GLYPH_SETS.flatMap(set => set.chars.split(''))).size;
+	}
+	function coverageTooltip(group: (typeof COVERAGE_GROUPS)[number]): string {
+		const count = group.sets.reduce((sum, label) => sum + (GLYPH_SETS.find(set => set.label === label)?.chars.length ?? 0), 0);
+		return `${group.sets.join(', ')} · ${count} preview glyphs`;
 	}
 	function toggleOTFeature(fontId: string, tag: string) {
 		const current = new Set(testerFeatures[fontId] ?? []);
@@ -186,6 +230,7 @@
 	async function refresh() {
 		await invalidateAll();
 		fonts = data.fonts as Font[];
+		brandColors = (data.colors ?? []) as BrandColor[];
 	}
 
 	// ── Font CRUD ──────────────────────────────────────────────────────────────
@@ -247,14 +292,14 @@
 	function openAddStyle(fontId: string, theme?: StyleTheme) {
 		styleFontId = fontId;
 		editingStyle = null;
-		styleForm = { name: '', tag: '', size: 16, lineHeight: 1.5, tracking: 0, weight: 400, theme: theme ?? 'universal' };
+		styleForm = { name: '', tag: '', size: 16, lineHeight: 1.5, tracking: 0, weight: 400, theme: theme ?? 'universal', allowedColors: ['black', 'white'] };
 		error = '';
 		showStyleModal = true;
 	}
 	function openEditStyle(fontId: string, s: Style) {
 		styleFontId = fontId;
 		editingStyle = s;
-		styleForm = { name: s.name, tag: s.tag ?? '', size: s.size ?? 16, lineHeight: s.lineHeight ?? 1.5, tracking: s.tracking ?? 0, weight: s.weight ?? 400, theme: s.theme ?? 'universal' };
+		styleForm = { name: s.name, tag: s.tag ?? '', size: s.size ?? 16, lineHeight: s.lineHeight ?? 1.5, tracking: s.tracking ?? 0, weight: s.weight ?? 400, theme: s.theme ?? 'universal', allowedColors: allowedColorsForStyle(s) };
 		error = '';
 		showStyleModal = true;
 	}
@@ -638,13 +683,13 @@
 									</div>
 									<div class="fi-row">
 										<span class="fi-label">Glyphs</span>
-										<span class="fi-value">{previewGlyphCount()} preview glyphs in {GLYPH_SETS.length} sets</span>
+										<span class="fi-value">{previewGlyphCount()} preview characters across {COVERAGE_GROUPS.length} coverage groups</span>
 									</div>
 									<div class="fi-row fi-row-tags">
 										<span class="fi-label">Coverage</span>
 										<div class="fi-tags">
-											{#each GLYPH_SETS as set}
-												<span class="fi-tag" title="{set.chars.length} glyphs">{set.label}</span>
+											{#each COVERAGE_GROUPS as group}
+												<span class="fi-tag" title={coverageTooltip(group)}>{group.label}</span>
 											{/each}
 										</div>
 									</div>
@@ -713,9 +758,10 @@
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<div class="section-actions" onclick={(e) => e.stopPropagation()}>
 									{#if f.styles.length === 0}
-										<button class="text-btn" onclick={() => addDefaultStyles(f.id)} disabled={saving}>+ Defaults</button>
+										<button type="button" class="text-btn" onclick={(e) => { e.stopPropagation(); addDefaultStyles(f.id); }} disabled={saving}>+ Defaults</button>
 									{/if}
-									<button class="text-btn" onclick={() => {
+									<button type="button" class="text-btn" onclick={(e) => {
+										e.stopPropagation();
 										const tab = getStyleTab(f.id);
 										openAddStyle(f.id, tab === 'all' ? 'universal' : tab);
 									}}>+ Add</button>
@@ -739,7 +785,7 @@
 								{#if visibleStylesList(f.id, f.styles).length > 0}
 									<div class="scale-table">
 										<div class="scale-row scale-row-header">
-											<span></span><span>Name</span><span>Size</span><span>Weight</span><span>Line height</span><span>Tracking</span><span></span>
+											<span></span><span>Name</span><span>Size</span><span>Weight</span><span>Line height</span><span>Tracking</span><span>Colors</span><span></span>
 										</div>
 										{#each visibleStylesList(f.id, f.styles) as s (s.id)}
 											<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -766,6 +812,21 @@
 												<span class="scale-val">{s.weight ?? '–'}</span>
 												<span class="scale-val">{s.lineHeight ?? '–'}</span>
 												<span class="scale-val">{s.tracking != null ? `${s.tracking}em` : '–'}</span>
+												<span class="style-color-dots">
+													{#if allowedColorsForStyle(s).length > 0}
+														{#each allowedColorsForStyle(s).slice(0, 4) as token}
+															{@const option = colorOption(token)}
+															{#if option}
+																<span class="style-color-dot" title={option.name} style="background:{option.hex}"></span>
+															{/if}
+														{/each}
+														{#if allowedColorsForStyle(s).length > 4}
+															<span class="style-color-more">+{allowedColorsForStyle(s).length - 4}</span>
+														{/if}
+													{:else}
+														<span class="scale-muted">Any</span>
+													{/if}
+												</span>
 												<span class="scale-btns">
 													<button class="icon-btn-xs" onclick={() => openEditStyle(f.id, s)} title="Edit"><IconPencil size={11} stroke={1.75} /></button>
 													<button class="icon-btn-xs icon-btn-xs-danger" onclick={() => deleteStyle(f.id, s)} title="Delete"><IconX size={11} stroke={2} /></button>
@@ -806,7 +867,7 @@
 												<div class="preview-row"
 													style="font-size:{Math.min(s.size ?? 16, 48)}px; font-weight:{s.weight ?? 400}; line-height:{s.lineHeight ?? 1.5}; letter-spacing:{s.tracking ?? 0}em;">
 													<span class="preview-label">{s.name}</span>
-													<span class="preview-text">The quick brown fox jumps over the lazy dog</span>
+													<span class="preview-text" style="color:{stylePreviewColor(s)}">The quick brown fox jumps over the lazy dog</span>
 												</div>
 											{/each}
 										</div>
@@ -1113,6 +1174,41 @@
 							<input id="s-tr" type="number" bind:value={styleForm.tracking} step="0.01" />
 						</div>
 					</div>
+					<div class="field">
+						<span class="field-label-text">Allowed colors</span>
+						<p class="field-hint">Colors this text style is allowed to use. Contrast is checked against white and black.</p>
+						<div class="allowed-color-grid">
+							{#each colorOptions() as color}
+								<button
+									type="button"
+									class="allowed-color-option"
+									class:selected={styleForm.allowedColors.includes(color.token)}
+									onclick={() => toggleAllowedColor(color.token)}
+								>
+									<span class="allowed-color-swatch" style="background:{color.hex}"></span>
+									<span class="allowed-color-name">{color.name}</span>
+									<span class="allowed-color-source">{color.source === 'base' ? 'Base' : 'Brand'}</span>
+								</button>
+							{/each}
+						</div>
+						{#if styleForm.allowedColors.length > 0}
+							<div class="style-contrast-list">
+								{#each styleForm.allowedColors as token}
+									{@const option = colorOption(token)}
+									{#if option}
+										<div class="style-contrast-row">
+											<span class="style-color-dot" title={option.name} style="background:{option.hex}"></span>
+											<span class="style-contrast-name">{option.name}</span>
+											<span class="contrast-pill" class:fail={checkContrast(option.hex, '#FFFFFF').level === 'Fail'}>{checkContrast(option.hex, '#FFFFFF').ratioDisplay} on white</span>
+											<span class="contrast-pill" class:fail={checkContrast(option.hex, '#000000').level === 'Fail'}>{checkContrast(option.hex, '#000000').ratioDisplay} on black</span>
+										</div>
+									{/if}
+								{/each}
+							</div>
+						{:else}
+							<p class="field-hint">No restriction set yet. The manual will treat this style as allowing any brand color.</p>
+						{/if}
+					</div>
 				</div>
 				{#if error}<div class="modal-error">{error}</div>{/if}
 			</div>
@@ -1368,7 +1464,7 @@
 	/* ── Scale table ──────────────────────────────────────────────────────────── */
 	.scale-table { display: flex; flex-direction: column; gap: 0; margin-bottom: 1rem; min-width: 0; }
 	.scale-row {
-		display: grid; grid-template-columns: 20px minmax(0, 1fr) 70px 70px 90px 90px 56px;
+		display: grid; grid-template-columns: 20px minmax(0, 1fr) 70px 70px 90px 90px 88px 56px;
 		align-items: center; gap: 8px;
 		padding: 6px 0; border-bottom: 1px solid var(--color-border);
 		min-width: 0;
@@ -1387,7 +1483,16 @@
 	font-family: var(--font-mono); letter-spacing: 0; flex-shrink: 0;
 }
 .scale-val { font-size: 0.8125rem; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.scale-muted { font-size: 0.75rem; color: var(--color-muted); }
 .scale-btns { display: flex; gap: 4px; justify-content: flex-end; }
+.style-color-dots { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.style-color-dot {
+	display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+	border: 1px solid color-mix(in srgb, var(--color-border) 70%, #000);
+	box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+	flex: 0 0 auto;
+}
+.style-color-more { font-size: 0.6875rem; color: var(--color-muted); }
 
 /* ── DnD ──────────────────────────────────────────────────────────────────── */
 .drag-handle {
@@ -1645,7 +1750,8 @@ details[open] .section-chevron { transform: rotate(180deg); }
 
 /* ── Form fields ──────────────────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 5px; }
-.field label { font-size: 0.8125rem; font-weight: 500; color: var(--color-text); }
+.field label,
+.field-label-text { font-size: 0.8125rem; font-weight: 500; color: var(--color-text); }
 .field-hint { font-size: 0.75rem; color: var(--color-muted); margin-top: 2px; }
 .req { color: var(--color-danger); }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -1658,6 +1764,57 @@ details[open] .section-chevron { transform: rotate(180deg); }
 	transition: border-color 0.15s;
 }
 .field input:focus, .field select:focus { border-color: var(--brand); }
+
+.allowed-color-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	gap: 6px;
+}
+.allowed-color-option {
+	display: grid; grid-template-columns: 18px minmax(0, 1fr) auto;
+	align-items: center; gap: 7px; min-width: 0;
+	min-height: 34px; padding: 6px 8px;
+	border: 1.5px solid var(--color-border); border-radius: 8px;
+	background: var(--color-surface); color: var(--color-text);
+	font-size: 0.8125rem; text-align: left;
+}
+.allowed-color-option:hover { border-color: color-mix(in srgb, var(--brand) 35%, var(--color-border)); background: var(--color-surface-raised); }
+.allowed-color-option.selected {
+	border-color: var(--brand);
+	background: color-mix(in srgb, var(--brand) 8%, transparent);
+}
+.allowed-color-swatch {
+	width: 16px; height: 16px; border-radius: 50%;
+	border: 1px solid var(--color-border);
+	box-shadow: inset 0 0 0 1px rgba(255,255,255,.22);
+}
+.allowed-color-name {
+	min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	font-weight: 500;
+}
+.allowed-color-source {
+	font-size: 0.625rem; color: var(--color-muted);
+	text-transform: uppercase; letter-spacing: 0.04em;
+}
+.style-contrast-list {
+	display: flex; flex-direction: column; gap: 5px;
+	margin-top: 8px;
+}
+.style-contrast-row {
+	display: grid; grid-template-columns: 14px minmax(0, 1fr) auto auto;
+	align-items: center; gap: 6px;
+	min-width: 0; font-size: 0.75rem;
+}
+.style-contrast-name {
+	min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	color: var(--color-text);
+}
+.contrast-pill {
+	padding: 2px 6px; border-radius: 999px;
+	background: #ecfdf5; color: #047857;
+	font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.contrast-pill.fail { background: #fef2f2; color: #b91c1c; }
 
 /* ── Weights grid ─────────────────────────────────────────────────────────── */
 .weights-grid { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1963,6 +2120,13 @@ details[open] .section-chevron { transform: rotate(180deg); }
 			justify-content: flex-start;
 			margin-left: 0;
 		}
+		.section-actions .text-btn {
+			min-height: 32px;
+			padding: 6px 9px;
+			border: 1px solid var(--color-border);
+			border-radius: 7px;
+			background: var(--color-surface);
+		}
 		.section-body { padding: 1rem; }
 		.section-body-no-pt { padding-top: 0; }
 		.theme-tabs { margin-left: -1rem; margin-right: -1rem; padding-left: 1rem; padding-right: 1rem; }
@@ -1978,6 +2142,7 @@ details[open] .section-chevron { transform: rotate(180deg); }
 		.scale-row .scale-preview { grid-column: 2; grid-row: 1; }
 		.scale-row .scale-btns { grid-column: 3; grid-row: 1; align-self: center; }
 		.scale-row .scale-val { display: none; }
+		.scale-row .style-color-dots { grid-column: 2 / 4; grid-row: 3; }
 		.scale-preview {
 			flex-wrap: wrap;
 			white-space: normal;

@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
-import { typographyFontFiles } from '$db/schema';
+import { typographyFontFiles, assets } from '$db/schema';
 import { eq, and } from 'drizzle-orm';
 import { deleteFile } from '$lib/server/storage';
 import { readFile } from 'fs/promises';
@@ -84,5 +84,13 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 
 	await deleteFile(file.storagePath).catch(() => {/* ignore if already gone */});
 	await db.delete(typographyFontFiles).where(eq(typographyFontFiles.id, params.fileId));
+
+	// If this font file had a linked asset, delete that too
+	if ((file as typeof file & { assetId?: string | null }).assetId) {
+		await db.delete(assets)
+			.where(eq(assets.id, (file as typeof file & { assetId: string }).assetId))
+			.catch(() => {});
+	}
+
 	return json({ ok: true });
 };

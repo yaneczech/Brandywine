@@ -15,9 +15,13 @@ export async function svgProcessor(job: Job<{ assetId: string; storagePath: stri
 		}
 	}
 
+	// SVGO v3 plugin names (no camelCase, use 'preset-default' as base)
 	const result = optimize(svg, {
 		multipass: true,
-		plugins: ['removeScripts', 'removeXMLNS']
+		plugins: [
+			'preset-default',
+			{ name: 'removeXMLNS' },
+		],
 	});
 	await writeFile(fullPath, result.data, 'utf8');
 }

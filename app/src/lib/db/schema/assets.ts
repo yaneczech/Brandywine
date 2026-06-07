@@ -7,7 +7,11 @@ export const folders = pgTable('folders', {
 	// Self-referential FK — callback form required by Drizzle to avoid circular init
 	parentId: text('parent_id').references((): AnyPgColumn => folders.id, { onDelete: 'set null' }),
 	name: text('name').notNull(),
-	path: text('path').notNull()
+	path: text('path').notNull(),
+	description: text('description'),
+	color: text('color'),   // hex barva pro vizuální rozlišení složky
+	icon: text('icon'),     // emoji nebo název Tabler ikony
+	createdAt: timestamp('created_at').notNull().defaultNow()
 });
 
 export const assets = pgTable('assets', {
@@ -18,6 +22,7 @@ export const assets = pgTable('assets', {
 	size: bigint('size', { mode: 'number' }).notNull(),
 	storagePath: text('storage_path').notNull(),
 	thumbnailPath: text('thumbnail_path'),
+	convertedPaths: jsonb('converted_paths').$type<{ webp?: string; avif?: string }>().default({}),
 	folderId: text('folder_id').references(() => folders.id, { onDelete: 'set null' }),
 	tags: jsonb('tags').$type<string[]>().default([]),
 	metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),

@@ -3,6 +3,7 @@ import { createId } from '../id';
 
 export type FontRole = 'display' | 'body' | 'mono' | 'accent';
 export type StyleTheme = 'universal' | 'light' | 'dark';
+export type StyleColorToken = 'black' | 'white' | `color:${string}`;
 export type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
 export type FontFormat = 'woff2' | 'woff' | 'ttf' | 'otf' | 'eot';
 
@@ -38,7 +39,9 @@ export const typographyFontFiles = pgTable('typography_font_files', {
 	isVariable: boolean('is_variable').default(false),
 	// For variable fonts — detected axes stored here too for quick access
 	axes: json('axes').$type<VariableAxis[]>().default([]),
-	uploadedAt: text('uploaded_at').notNull().$defaultFn(() => new Date().toISOString())
+	uploadedAt: text('uploaded_at').notNull().$defaultFn(() => new Date().toISOString()),
+	// Link to the shared assets table — set when file is registered as an asset
+	assetId: text('asset_id'),  // FK added via migration (avoids circular import)
 });
 
 export const typographyStyles = pgTable('typography_styles', {
@@ -51,5 +54,6 @@ export const typographyStyles = pgTable('typography_styles', {
 	tracking: real('tracking'),             // em
 	weight: integer('weight'),              // 400 or variable axis value
 	order: integer('order').notNull().default(0),
-	theme: text('theme').$type<StyleTheme>().notNull().default('universal')
+	theme: text('theme').$type<StyleTheme>().notNull().default('universal'),
+	allowedColors: json('allowed_colors').$type<StyleColorToken[]>().default([])
 });
