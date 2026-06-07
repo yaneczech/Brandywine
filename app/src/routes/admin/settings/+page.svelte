@@ -1,14 +1,46 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { languageTag } from '$lib/paraglide/runtime';
+	import { languageTag, setLanguageTag } from '$lib/paraglide/runtime';
 	import { invalidate } from '$app/navigation';
 	import * as m from '$lib/paraglide/messages';
+	import {
+		IconCheck, IconAlertTriangle,
+		IconScale, IconLock, IconGlobe, IconKey, IconAt, IconCopy, IconRefresh,
+		IconEye, IconEyeOff
+	} from '@tabler/icons-svelte';
 	const { data }: { data: PageData } = $props();
 
 	let s = $state({ ...data.settings });
 	let saving = $state(false);
 	let saved = $state(false);
 	let error = $state('');
+
+	// Track unsaved changes
+	let original = JSON.stringify(data.settings);
+	let isDirty = $derived(JSON.stringify(s) !== original);
+
+	// Access section
+	let accessPassword = $state('');
+	let showPassword = $state(false);
+	let tokenCopied = $state(false);
+	const manualUrl = $derived(typeof window !== 'undefined'
+		? `${window.location.origin}/manual`
+		: '/manual');
+	const tokenUrl = $derived(s.accessMode === 'token' && (s as Record<string, unknown>).accessToken
+		? `${manualUrl}?token=${(s as Record<string, unknown>).accessToken}`
+		: '');
+
+	async function copyUrl(url: string) {
+		await navigator.clipboard.writeText(url);
+		tokenCopied = true;
+		setTimeout(() => (tokenCopied = false), 2000);
+	}
+
+	function generateToken() {
+		const arr = new Uint8Array(24);
+		crypto.getRandomValues(arr);
+		(s as Record<string, unknown>).accessToken = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+	}
 
 	// Display preferences (localStorage / cookie — no DB needed)
 	let pantoneLabel = $state<'PMS' | 'Pantone'>(
@@ -22,12 +54,13 @@
 	}
 
 	let currentLang = $state(languageTag());
-	// Keep radio in sync when ParaglideJS updates languageTag (e.g. after invalidation)
+	// Keep select in sync when ParaglideJS updates languageTag (e.g. after invalidation)
 	$effect(() => { currentLang = languageTag(); });
 
 	async function switchLang(lang: 'en' | 'cs') {
 		currentLang = lang;
-		document.cookie = `paraglide_lang=${lang};path=/;max-age=31536000`;
+		setLanguageTag(lang);
+		document.cookie = `paraglide_lang=${lang};path=/;max-age=31536000;SameSite=Lax`;
 		// Trigger layout.server.ts re-run → data.lang updates → ParaglideJS prop changes
 		// → ParaglideJS calls setLanguageTag() and re-renders with {#key lang}
 		await invalidate('paraglide:lang');
@@ -42,6 +75,7 @@
 				body: JSON.stringify(s)
 			});
 			if (!res.ok) throw new Error((await res.json()).message ?? 'Error saving');
+			original = JSON.stringify(s);
 			saved = true;
 			setTimeout(() => (saved = false), 2500);
 			if (s.primaryColor) {
@@ -66,23 +100,55 @@
 		<div class="topbar-actions">
 			{#if saved}
 				<span class="saved-badge">
-					<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+					<IconCheck size={14} stroke={2} />
 					{m.settings_saved()}
 				</span>
 			{/if}
-			<button class="btn-save" onclick={save} disabled={saving}>
+			<button class="btn-save" onclick={save} disabled={saving || !isDirty}>
 				{saving ? '…' : m.settings_save()}
 			</button>
 		</div>
 	</div>
 
+	<!-- Anchor nav -->
+	<nav class="anchor-nav" aria-label="Sections">
+		<a href="#identity" class="anav-item">Identity</a>
+		<a href="#attribution" class="anav-item">Attribution</a>
+		<a href="#display" class="anav-item">Display</a>
+		<a href="#access" class="anav-item">Access</a>
+		<a href="#license" class="anav-item">License</a>
+	</nav>
+
 	<div class="sections">
 
 		<!-- Identity -->
-		<section class="section">
+		<section id="identity" class="section">
 			<div class="section-meta">
 				<h2>{m.settings_identity()}</h2>
 				<p>{m.settings_identity_sub()}</p>
+
+				<!-- Live preview — sits below the description in the left column -->
+				<div class="live-preview">
+					<p class="preview-label">Live preview</p>
+					<div class="preview-sidebar">
+						<div class="preview-logo">
+							{#if s.logoPath}
+								<img src={s.logoPath} alt="logo" class="preview-logo-img" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
+							{/if}
+							<span class="preview-logo-text" style="color:{s.primaryColor ?? 'var(--brand)'}">
+								{s.systemName || 'Brandywine'}
+							</span>
+						</div>
+						<div class="preview-nav">
+							<div class="preview-nav-item active" style="background:{s.primaryColor ? s.primaryColor + '14' : 'rgba(74,18,4,.08)'}; color:{s.primaryColor ?? 'var(--brand)'}">
+								Dashboard
+							</div>
+							<div class="preview-nav-item">Colors</div>
+							<div class="preview-nav-item">Typography</div>
+						</div>
+						<div class="preview-btn" style="background:{s.primaryColor ?? 'var(--brand)'}">Save</div>
+					</div>
+				</div>
 			</div>
 			<div class="section-fields">
 				<div class="field">
@@ -117,7 +183,7 @@
 		</section>
 
 		<!-- Attribution -->
-		<section class="section">
+		<section id="attribution" class="section">
 			<div class="section-meta">
 				<h2>{m.settings_attribution()}</h2>
 				<p>{m.settings_attribution_sub()}</p>
@@ -148,62 +214,175 @@
 		</section>
 
 		<!-- Display preferences -->
-		<section class="section">
+		<section id="display" class="section">
 			<div class="section-meta">
 				<h2>{m.settings_display()}</h2>
 				<p>{m.settings_display_sub()}</p>
 			</div>
-			<div class="section-fields">
-				<div class="field">
-					<label>Interface language</label>
-					<p class="field-hint">Applied immediately, saved in your browser.</p>
-					<div class="radio-group">
-						<label class="radio-option">
-							<input type="radio" name="lang" value="en" checked={currentLang === 'en'} onchange={() => switchLang('en')} />
-							<span class="radio-label"><strong>English</strong></span>
-						</label>
-						<label class="radio-option">
-							<input type="radio" name="lang" value="cs" checked={currentLang === 'cs'} onchange={() => switchLang('cs')} />
-							<span class="radio-label"><strong>Čeština</strong></span>
-						</label>
+				<div class="section-fields">
+					<div class="field">
+						<label for="interfaceLanguage">Interface language</label>
+						<p class="field-hint">Applied immediately, saved in your browser.</p>
+						<select
+							id="interfaceLanguage"
+							value={currentLang}
+							onchange={(e) => switchLang((e.currentTarget as HTMLSelectElement).value as 'en' | 'cs')}
+						>
+							<option value="en">English</option>
+							<option value="cs">Čeština</option>
+						</select>
+					</div>
+					<div class="field">
+						<label for="pantoneLabel">{m.settings_pantone_label()}</label>
+						<select
+							id="pantoneLabel"
+							value={pantoneLabel}
+							onchange={(e) => setPantoneLabel((e.currentTarget as HTMLSelectElement).value as 'PMS' | 'Pantone')}
+						>
+							<option value="PMS">PMS — Pantone Matching System</option>
+							<option value="Pantone">Pantone — full brand name</option>
+						</select>
 					</div>
 				</div>
-				<div class="field">
-					<label>{m.settings_pantone_label()}</label>
-					<div class="radio-group">
-						<label class="radio-option">
-							<input type="radio" name="pantoneLabel" value="PMS" checked={pantoneLabel === 'PMS'} onchange={() => setPantoneLabel('PMS')} />
-							<span class="radio-label"><strong>PMS</strong> — Pantone Matching System (industry standard)</span>
-						</label>
-						<label class="radio-option">
-							<input type="radio" name="pantoneLabel" value="Pantone" checked={pantoneLabel === 'Pantone'} onchange={() => setPantoneLabel('Pantone')} />
-							<span class="radio-label"><strong>Pantone</strong> — full brand name</span>
-						</label>
-					</div>
-				</div>
-			</div>
 		</section>
 
-		<section class="section">
+		<section id="access" class="section">
 			<div class="section-meta">
 				<h2>{m.settings_access()}</h2>
 				<p>{m.settings_access_sub()}</p>
 			</div>
 			<div class="section-fields">
+				<!-- Mode cards -->
 				<div class="field">
-					<label for="accessMode">{m.settings_access_mode()}</label>
-					<select id="accessMode" bind:value={s.accessMode}>
-						<option value="public">Public — anyone with the link</option>
-						<option value="password">Password protected</option>
-						<option value="email_whitelist">Email whitelist</option>
-						<option value="token">Secret token link</option>
-					</select>
+					<label>{m.settings_access_mode()}</label>
+					<div class="access-mode-cards">
+						<label class="access-card" class:selected={s.accessMode === 'public'}>
+							<input type="radio" name="accessMode" value="public" bind:group={s.accessMode} />
+							<span class="access-card-icon"><IconGlobe size={18} stroke={1.5} /></span>
+							<span class="access-card-body">
+								<strong>Public</strong>
+								<span>Anyone with the link can view the brand manual</span>
+							</span>
+						</label>
+						<label class="access-card" class:selected={s.accessMode === 'password'}>
+							<input type="radio" name="accessMode" value="password" bind:group={s.accessMode} />
+							<span class="access-card-icon"><IconLock size={18} stroke={1.5} /></span>
+							<span class="access-card-body">
+								<strong>Password</strong>
+								<span>Visitors must enter a shared password</span>
+							</span>
+						</label>
+						<label class="access-card" class:selected={s.accessMode === 'token'}>
+							<input type="radio" name="accessMode" value="token" bind:group={s.accessMode} />
+							<span class="access-card-icon"><IconKey size={18} stroke={1.5} /></span>
+							<span class="access-card-body">
+								<strong>Secret link</strong>
+								<span>Access via a unique token URL, no login needed</span>
+							</span>
+						</label>
+						<label class="access-card" class:selected={s.accessMode === 'email_whitelist'}>
+							<input type="radio" name="accessMode" value="email_whitelist" bind:group={s.accessMode} />
+							<span class="access-card-icon"><IconAt size={18} stroke={1.5} /></span>
+							<span class="access-card-body">
+								<strong>Email whitelist</strong>
+								<span>Only approved email addresses can log in</span>
+							</span>
+						</label>
+					</div>
 				</div>
+
+				<!-- Contextual fields -->
+				{#if s.accessMode === 'public'}
+					<div class="access-info">
+						<span class="access-info-icon"><IconGlobe size={14} stroke={1.5} /></span>
+						Brand manual is publicly accessible at
+						<a href={manualUrl} target="_blank" class="access-url">{manualUrl}</a>
+					</div>
+				{/if}
+
+				{#if s.accessMode === 'password'}
+					<div class="field">
+						<label for="accessPassword">Set new password</label>
+						<p class="field-hint">Leave empty to keep the current password.</p>
+						<div class="pw-wrap">
+							<span class="pw-icon"><IconLock size={15} stroke={1.75} /></span>
+							<input
+								id="accessPassword"
+								type={showPassword ? 'text' : 'password'}
+								bind:value={accessPassword}
+								placeholder="New password…"
+								autocomplete="new-password"
+								class="pw-input"
+							/>
+							{#if accessPassword}
+								<button
+									type="button"
+									class="pw-toggle"
+									onclick={() => (showPassword = !showPassword)}
+									aria-label={showPassword ? 'Hide password' : 'Show password'}
+								>
+									{#if showPassword}
+										<IconEyeOff size={15} stroke={1.75} />
+									{:else}
+										<IconEye size={15} stroke={1.75} />
+									{/if}
+								</button>
+							{/if}
+						</div>
+						{#if accessPassword}
+							{@const score = [/.{8,}/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter(r => r.test(accessPassword)).length}
+							{@const scoreColor = score <= 1 ? '#ef4444' : score === 2 ? '#f97316' : score === 3 ? '#eab308' : '#22c55e'}
+							{@const scoreLabel = score <= 1 ? 'Weak' : score === 2 ? 'Fair' : score === 3 ? 'Good' : 'Strong'}
+							<div class="pw-strength">
+								<div class="pw-bars">
+									{#each [1,2,3,4] as n}
+										<div class="pw-bar" style="background:{score >= n ? scoreColor : ''}"></div>
+									{/each}
+								</div>
+								<span class="pw-label" style="color:{scoreColor}">{scoreLabel}</span>
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				{#if s.accessMode === 'token'}
+					<div class="field">
+						<label>Secret token link</label>
+						<p class="field-hint">Share this URL — no account required. Regenerate to revoke access.</p>
+						{#if tokenUrl}
+							<div class="token-row">
+								<input type="text" readonly value={tokenUrl} class="token-input" />
+								<button class="btn-icon-sm" onclick={() => copyUrl(tokenUrl)} title="Copy">
+									{#if tokenCopied}<IconCheck size={14} stroke={2} />{:else}<IconCopy size={14} stroke={1.75} />{/if}
+								</button>
+								<button class="btn-icon-sm" onclick={generateToken} title="Regenerate token">
+									<IconRefresh size={14} stroke={1.75} />
+								</button>
+							</div>
+						{:else}
+							<button class="btn-generate" onclick={generateToken}>
+								<IconKey size={14} stroke={1.75} /> Generate token
+							</button>
+						{/if}
+					</div>
+				{/if}
+
+				{#if s.accessMode === 'email_whitelist'}
+					<div class="field">
+						<label for="emailWhitelist">Allowed email addresses</label>
+						<p class="field-hint">One email per line. Wildcards like <code>*@company.com</code> are supported.</p>
+						<textarea id="emailWhitelist" rows="5"
+							value={(s as Record<string,unknown>).emailWhitelist as string ?? ''}
+							oninput={(e) => (s as Record<string,unknown>).emailWhitelist = (e.target as HTMLTextAreaElement).value}
+							placeholder="alice@company.com&#10;*@partner.com"
+							class="whitelist-textarea"></textarea>
+					</div>
+				{/if}
 			</div>
 		</section>
 
 		<!-- License -->
-		<section class="section">
+		<section id="license" class="section">
 			<div class="section-meta">
 				<h2>{m.settings_license()}</h2>
 				<p>{m.settings_license_sub()}</p>
@@ -211,7 +390,7 @@
 			<div class="section-fields">
 				<div class="lic-cards">
 					<div class="lic-card">
-						<div class="lic-icon">⚖️</div>
+						<div class="lic-icon"><IconScale size={22} stroke={1.5} /></div>
 						<div>
 							<strong>Apache License 2.0</strong>
 							<p>Free to use, modify, and distribute commercially. Attribution required in distributions. No warranty implied.</p>
@@ -222,7 +401,7 @@
 						</div>
 					</div>
 					<div class="lic-card">
-						<div class="lic-icon">🔒</div>
+						<div class="lic-icon"><IconLock size={22} stroke={1.5} /></div>
 						<div>
 							<strong>Data privacy</strong>
 							<p>Self-hosted only. Brand assets, colors, typography, and user data never leave your infrastructure. You control everything.</p>
@@ -236,6 +415,22 @@
 
 	{#if error}
 		<div class="error-toast">{error}</div>
+	{/if}
+
+	<!-- Sticky unsaved changes bar -->
+	{#if isDirty && !saving}
+		<div class="unsaved-bar">
+			<span class="unsaved-msg">
+				<IconAlertTriangle size={14} stroke={2} />
+				Unsaved changes
+			</span>
+			<div class="unsaved-actions">
+				<button class="btn-discard" onclick={() => { s = { ...data.settings }; }}>Discard</button>
+				<button class="btn-save-bar" onclick={save} disabled={saving}>
+					{saving ? '…' : m.settings_save()}
+				</button>
+			</div>
+		</div>
 	{/if}
 </div>
 
@@ -261,7 +456,87 @@
 
 .saved-badge { display:inline-flex; align-items:center; gap:5px; font-size:0.8125rem; color:var(--color-success); font-weight:500; }
 
-.sections { padding:0 2rem 2.5rem; }
+/* ── Anchor nav ──────────────────────────────────────────────────────────── */
+.anchor-nav {
+	display:flex; gap:2px; padding:0 2rem;
+	border-bottom:1px solid var(--color-border);
+	overflow-x:auto; scrollbar-width:none;
+}
+.anchor-nav::-webkit-scrollbar { display:none; }
+.anav-item {
+	padding:8px 12px; font-size:0.8125rem; font-weight:500;
+	color:var(--color-muted); white-space:nowrap;
+	border-bottom:2px solid transparent; margin-bottom:-1px;
+	transition:color 0.15s, border-color 0.15s;
+}
+.anav-item:hover { color:var(--color-text); }
+
+/* ── Unsaved bar ─────────────────────────────────────────────────────────── */
+.unsaved-bar {
+	position:fixed; bottom:0; left:var(--sidebar-width); right:0;
+	display:flex; align-items:center; justify-content:space-between;
+	padding:12px 2rem;
+	background:var(--color-surface);
+	border-top:1px solid var(--color-border);
+	box-shadow:0 -4px 16px rgba(0,0,0,.06);
+	z-index:50;
+	animation:slide-up 0.2s ease;
+}
+@keyframes slide-up {
+	from { transform:translateY(100%); opacity:0; }
+	to   { transform:translateY(0);    opacity:1; }
+}
+.unsaved-msg {
+	display:flex; align-items:center; gap:6px;
+	font-size:0.8125rem; color:var(--color-muted); font-weight:500;
+}
+.unsaved-actions { display:flex; align-items:center; gap:8px; }
+.btn-discard {
+	height:34px; padding:0 14px; border-radius:7px;
+	border:1.5px solid var(--color-border); background:none;
+	font-size:0.8125rem; font-weight:500; color:var(--color-text);
+	cursor:pointer; transition:background 0.1s;
+}
+.btn-discard:hover { background:var(--color-surface-raised); }
+.btn-save-bar {
+	height:34px; padding:0 16px; border-radius:7px;
+	background:var(--brand); color:#fff; border:none;
+	font-size:0.8125rem; font-weight:600; cursor:pointer;
+	transition:background 0.15s;
+}
+.btn-save-bar:hover { background:var(--brand-light); }
+.btn-save-bar:disabled { opacity:0.6; pointer-events:none; }
+
+/* ── Live preview ────────────────────────────────────────────────────────── */
+.live-preview {
+	margin-top:1.25rem;
+}
+.preview-label {
+	font-size:0.6875rem; font-weight:600; text-transform:uppercase;
+	letter-spacing:0.07em; color:var(--color-muted); margin-bottom:10px;
+}
+.preview-sidebar {
+	display:flex; flex-direction:column; gap:6px;
+	background:var(--color-surface); border:1px solid var(--color-border);
+	border-radius:10px; padding:12px; width:180px;
+}
+.preview-logo { display:flex; align-items:center; gap:8px; padding-bottom:8px; border-bottom:1px solid var(--color-border); margin-bottom:4px; }
+.preview-logo-img { height:20px; width:auto; }
+.preview-logo-text { font-size:0.8125rem; font-weight:700; letter-spacing:-0.02em; }
+.preview-nav { display:flex; flex-direction:column; gap:2px; }
+.preview-nav-item {
+	font-size:0.75rem; font-weight:500; padding:5px 8px; border-radius:6px;
+	color:var(--color-muted); transition:background 0.1s;
+}
+.preview-nav-item.active { font-weight:600; }
+.preview-btn {
+	margin-top:6px; height:28px; border-radius:6px;
+	font-size:0.75rem; font-weight:600; color:#fff;
+	display:flex; align-items:center; justify-content:center;
+}
+
+/* ── Sections ────────────────────────────────────────────────────────────── */
+.sections { padding:0 2rem 5rem; }
 
 .section {
 	display:grid; grid-template-columns:260px 1fr; gap:3rem;
@@ -279,12 +554,7 @@
 .field label { font-size:0.8125rem; font-weight:500; }
 .field-hint { font-size:0.8rem; color:var(--color-muted); line-height:1.5; }
 .field-hint a { color:var(--brand); }
-.radio-group { display:flex; flex-direction:column; gap:6px; margin-top:2px; }
-.radio-option { display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px 10px; border:1.5px solid var(--color-border); border-radius:8px; transition:border-color 0.15s, background 0.15s; }
-.radio-option:has(input:checked) { border-color:var(--brand); background:rgba(74,18,4,.04); }
-.radio-option input[type="radio"] { accent-color:var(--brand); width:15px; height:15px; flex-shrink:0; }
-.radio-label { font-size:0.875rem; color:var(--color-text); }
-.mt { margin-top:4px; }
+	.mt { margin-top:4px; }
 
 input[type="text"], select {
 	height:38px; padding:0 12px;
@@ -321,13 +591,110 @@ input[type="color"] { width:44px; height:38px; border:1.5px solid var(--color-bo
 	padding:1px 6px; border-radius:4px; margin-left:6px; vertical-align:middle;
 }
 
-/* License cards */
+/* ── Access mode cards ───────────────────────────────────────────────────── */
+.access-mode-cards { display:flex; flex-direction:column; gap:6px; margin-top:4px; }
+.access-card {
+	display:flex; align-items:center; gap:12px;
+	padding:10px 14px; border:1.5px solid var(--color-border); border-radius:10px;
+	cursor:pointer; transition:border-color 0.15s, background 0.15s;
+}
+.access-card input[type="radio"] { display:none; }
+.access-card:hover { background:var(--color-surface-raised); }
+.access-card.selected { border-color:var(--brand); background:color-mix(in srgb, var(--brand) 5%, transparent); }
+.access-card-icon {
+	width:34px; height:34px; border-radius:8px; flex-shrink:0;
+	display:flex; align-items:center; justify-content:center;
+	background:var(--color-surface-raised); color:var(--color-muted);
+	transition:background 0.15s, color 0.15s;
+}
+.access-card.selected .access-card-icon { background:color-mix(in srgb, var(--brand) 12%, transparent); color:var(--brand); }
+.access-card-body { display:flex; flex-direction:column; gap:1px; }
+.access-card-body strong { font-size:0.875rem; font-weight:600; color:var(--color-text); }
+.access-card-body span { font-size:0.8rem; color:var(--color-muted); line-height:1.4; }
+
+.access-info {
+	display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+	font-size:0.8125rem; color:var(--color-muted);
+	background:var(--color-surface-raised); border:1px solid var(--color-border);
+	border-radius:8px; padding:10px 12px;
+}
+.access-info-icon { display:flex; align-items:center; color:var(--color-muted); flex-shrink:0; }
+.access-url { color:var(--brand); font-weight:500; word-break:break-all; }
+
+/* ── Password input ──────────────────────────────────────────────────────── */
+.pw-wrap {
+	position:relative; display:flex; align-items:center;
+}
+.pw-icon {
+	position:absolute; left:12px; display:flex; align-items:center;
+	color:var(--color-muted); pointer-events:none;
+}
+.pw-input {
+	width:100%; height:38px; padding:0 40px 0 36px;
+	border:1.5px solid var(--color-border); border-radius:8px;
+	font-size:0.875rem; background:var(--color-surface); color:var(--color-text);
+	outline:none; transition:border-color 0.15s, box-shadow 0.15s;
+}
+.pw-input:focus { border-color:var(--brand); box-shadow:0 0 0 3px color-mix(in srgb, var(--brand) 10%, transparent); }
+.pw-toggle {
+	position:absolute; right:10px; display:flex; align-items:center;
+	padding:4px; border:none; background:none; cursor:pointer;
+	color:var(--color-muted); border-radius:5px;
+	transition:color 0.1s, background 0.1s;
+}
+.pw-toggle:hover { color:var(--color-text); background:var(--color-surface-raised); }
+
+.pw-strength {
+	display:flex; align-items:center; gap:8px; margin-top:6px;
+}
+.pw-bars { display:flex; gap:3px; }
+.pw-bar {
+	width:32px; height:3px; border-radius:99px;
+	background:var(--color-border);
+	transition:background 0.2s;
+}
+.pw-label { font-size:0.75rem; font-weight:600; }
+
+.token-row { display:flex; align-items:center; gap:6px; }
+.token-input {
+	flex:1; font-family:var(--font-mono); font-size:0.75rem;
+	color:var(--color-muted); background:var(--color-surface-raised);
+	border:1.5px solid var(--color-border); border-radius:8px;
+	height:38px; padding:0 10px; outline:none; cursor:text;
+}
+.btn-icon-sm {
+	display:flex; align-items:center; justify-content:center;
+	width:36px; height:36px; border-radius:8px; flex-shrink:0;
+	border:1.5px solid var(--color-border); background:var(--color-surface);
+	color:var(--color-muted); cursor:pointer; transition:background 0.1s, color 0.1s;
+}
+.btn-icon-sm:hover { background:var(--color-surface-raised); color:var(--color-text); }
+.btn-generate {
+	display:inline-flex; align-items:center; gap:6px;
+	height:36px; padding:0 14px; border-radius:8px;
+	border:1.5px solid var(--color-border); background:none;
+	font-size:0.875rem; font-weight:500; color:var(--color-text);
+	cursor:pointer; transition:background 0.1s;
+}
+.btn-generate:hover { background:var(--color-surface-raised); }
+.whitelist-textarea {
+	width:100%; padding:10px 12px; resize:vertical;
+	border:1.5px solid var(--color-border); border-radius:8px;
+	font-size:0.875rem; background:var(--color-surface); color:var(--color-text);
+	font-family:var(--font-mono); line-height:1.6; outline:none;
+	transition:border-color 0.15s, box-shadow 0.15s;
+}
+.whitelist-textarea:focus { border-color:var(--brand); box-shadow:0 0 0 3px color-mix(in srgb, var(--brand) 10%, transparent); }
+.whitelist-textarea::placeholder { color:var(--color-muted); font-family:var(--font-mono); }
+.field-hint code { font-family:var(--font-mono); font-size:0.8rem; background:var(--color-surface-raised); padding:1px 5px; border-radius:4px; }
+
+/* ── License cards ───────────────────────────────────────────────────────── */
 .lic-cards { display:flex; flex-direction:column; gap:10px; }
 .lic-card {
 	display:flex; gap:12px; padding:14px 16px;
 	background:var(--color-surface-raised); border:1px solid var(--color-border); border-radius:10px;
 }
-.lic-icon { font-size:1.375rem; flex-shrink:0; }
+.lic-icon { display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:8px; background:var(--color-surface); color:var(--color-muted); flex-shrink:0; }
 .lic-card strong { font-size:0.875rem; font-weight:600; display:block; margin-bottom:4px; }
 .lic-card p { font-size:0.8125rem; color:var(--color-muted); margin:0; line-height:1.5; }
 .lic-links { display:flex; gap:12px; margin-top:8px; }
@@ -342,6 +709,9 @@ input[type="color"] { width:44px; height:38px; border:1.5px solid var(--color-bo
 
 @media (max-width: 768px) {
 	.topbar, .sections { padding-left:1rem; padding-right:1rem; }
+	.anchor-nav { padding:0 1rem; }
+	.unsaved-bar { left:0; padding:10px 1rem; }
 	.section { grid-template-columns:1fr; gap:1rem; padding:1.75rem 0; }
+	.preview-sidebar { width:100%; }
 }
 </style>

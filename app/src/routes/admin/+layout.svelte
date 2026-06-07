@@ -1,6 +1,17 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import * as m from '$lib/paraglide/messages';
+	import {
+		IconLayoutDashboard,
+		IconRosette,
+		IconPalette,
+		IconTypography,
+		IconFolder,
+		IconUsers,
+		IconSettings,
+		IconLogout,
+		IconMenu2
+	} from '@tabler/icons-svelte';
 	const { children, data } = $props();
 
 	const brand = $derived(data.brand);
@@ -16,30 +27,31 @@
 	let mobileOpen = $state(false);
 	$effect(() => { mobileOpen = false; });
 
-	type NavItem = { href: string; label: string; icon: string; };
+	import type { Component } from 'svelte';
+	type NavItem = { href: string; label: string; icon: Component<{ size?: number; stroke?: number }> };
 
 	// $derived so nav labels re-evaluate when language changes
 	const navGroups: { label: string; items: NavItem[] }[] = $derived([
 		{
 			label: m.admin_group_brand(),
 			items: [
-				{ href: '/admin',            label: m.admin_dashboard(), icon: `<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="8.5" y="1" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="1" y="8.5" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.4"/></svg>` },
-				{ href: '/admin/brand',       label: m.admin_brand(),      icon: `<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1.5l1.8 4.2 4.2.3-3.2 2.7 1 4.1-3.8-2.3-3.8 2.3 1-4.1L1.5 6l4.2-.3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>` },
-				{ href: '/admin/colors',      label: m.admin_colors(),     icon: `<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M7.5 1.5C9.5 3 11.5 5 11.5 7.5S9.5 12 7.5 13.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>` },
-				{ href: '/admin/typography',  label: m.admin_typography(), icon: `<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 4h11M7.5 4v8M5 12h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>` },
+				{ href: '/admin',            label: m.admin_dashboard(), icon: IconLayoutDashboard },
+				{ href: '/admin/brand',       label: m.admin_brand(),     icon: IconRosette },
+				{ href: '/admin/colors',      label: m.admin_colors(),    icon: IconPalette },
+				{ href: '/admin/typography',  label: m.admin_typography(),icon: IconTypography },
 			]
 		},
 		{
 			label: m.admin_group_assets(),
 			items: [
-				{ href: '/admin/assets', label: m.admin_assets(), icon: `<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="3" width="12" height="9.5" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M1.5 6.5h12" stroke="currentColor" stroke-width="1.4"/><path d="M5 3V1.5M10 3V1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>` },
+				{ href: '/admin/assets', label: m.admin_assets(), icon: IconFolder },
 			]
 		},
 		{
 			label: m.admin_group_admin(),
 			items: [
-				{ href: '/admin/users',    label: m.admin_users(),    icon: `<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="5.5" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M1 13c0-2.5 2-4 4.5-4S10 10.5 10 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M11 7c1.5 0 3 .8 3 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="11.5" cy="4" r="1.5" stroke="currentColor" stroke-width="1.4"/></svg>` },
-				{ href: '/admin/settings', label: m.admin_settings(), icon: `<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" stroke-width="1.4"/><path d="M7.5 1v1.5M7.5 12.5V14M14 7.5h-1.5M2.5 7.5H1M12.36 3.64l-1.06 1.06M3.7 11.3l-1.06 1.06M12.36 11.36l-1.06-1.06M3.7 3.7L2.64 2.64" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>` },
+				{ href: '/admin/users',    label: m.admin_users(),    icon: IconUsers },
+				{ href: '/admin/settings', label: m.admin_settings(), icon: IconSettings },
 			]
 		}
 	]);
@@ -51,6 +63,9 @@
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -->
+{#snippet iconSnippet(Icon: NavItem['icon'])}
+	<Icon size={15} stroke={1.75} />
+{/snippet}
 
 <!-- Mobile overlay -->
 {#if mobileOpen}
@@ -61,7 +76,7 @@
 <!-- Mobile topbar -->
 <div class="mobile-topbar">
 	<button class="hamburger" onclick={() => (mobileOpen = !mobileOpen)} aria-label="Menu">
-		<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+		<IconMenu2 size={18} stroke={1.75} />
 	</button>
 	<span class="mobile-brand">{systemName}</span>
 </div>
@@ -88,7 +103,7 @@
 							class:active={isActive(item.href)}
 							aria-current={isActive(item.href) ? 'page' : undefined}
 						>
-							<span class="nav-icon">{@html item.icon}</span>
+							<span class="nav-icon">{@render iconSnippet(item.icon)}</span>
 							<span>{item.label}</span>
 							{#if isActive(item.href)}
 								<span class="nav-dot"></span>
@@ -112,7 +127,7 @@
 					</div>
 					<form method="POST" action="/api/auth/logout" class="logout-form">
 						<button type="submit" class="logout-btn" title="Sign out">
-							<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M5 13H2.5a.5.5 0 01-.5-.5v-10a.5.5 0 01.5-.5H5M9.5 10.5L12.5 7.5M12.5 7.5L9.5 4.5M12.5 7.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+							<IconLogout size={15} stroke={1.75} />
 						</button>
 					</form>
 				</div>
@@ -314,6 +329,7 @@
 	.main {
 		margin-left: var(--sidebar-width);
 		flex: 1;
+		min-width: 0;
 		min-height: 100vh;
 		background: var(--color-bg);
 	}
@@ -347,6 +363,9 @@
 	}
 
 	@media (max-width: 900px) {
+		.shell {
+			display: block;
+		}
 		.sidebar {
 			transform: translateX(-100%);
 			transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
@@ -360,6 +379,8 @@
 		.mobile-overlay { display: block; }
 		.main {
 			margin-left: 0;
+			width: 100%;
+			max-width: 100%;
 			padding-top: 52px;
 		}
 	}

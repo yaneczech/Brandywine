@@ -11,6 +11,10 @@ declare global {
 		}
 		interface Locals {
 			user?: User;
+			paraglide?: {
+				lang: 'en' | 'cs';
+				textDirection: 'ltr' | 'rtl';
+			};
 		}
 		interface PageData {
 			user?: User;

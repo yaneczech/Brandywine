@@ -5,8 +5,8 @@ import { eq } from 'drizzle-orm';
 
 const DEFAULTS = {
 	systemName: 'Brandywine',
-	logoPath: null,
-	faviconPath: null,
+	logoPath: '/logo.svg',
+	faviconPath: '/favicon.svg',
 	primaryColor: '#4A1204',
 	name: 'My Brand',
 	showAttribution: true,

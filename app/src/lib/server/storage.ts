@@ -9,10 +9,12 @@ function safeFilename(originalName: string): string {
 	return `${id}${ext}`;
 }
 
-export async function saveFile(originalFilename: string, buffer: Buffer): Promise<string> {
+export async function saveFile(originalFilename: string, buffer: Buffer, subfolder?: string): Promise<string> {
 	const filename = safeFilename(originalFilename);
 	const datePart = new Date().toISOString().slice(0, 10);
-	const relativePath = join(datePart, filename);
+	const relativePath = subfolder
+		? join(subfolder, datePart, filename)
+		: join(datePart, filename);
 	const fullPath = join(UPLOAD_DIR, relativePath);
 
 	// Ujisti se, že fullPath skutečně leží uvnitř UPLOAD_DIR

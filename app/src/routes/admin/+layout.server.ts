@@ -8,8 +8,8 @@ const PUBLIC_ADMIN_PATHS = ['/admin/login', '/admin/setup'];
 
 const DEFAULT_BRAND = {
 	systemName: 'Brandywine',
-	logoPath: null as string | null,
-	faviconPath: null as string | null,
+	logoPath: '/logo.svg' as string | null,
+	faviconPath: '/favicon.svg' as string | null,
 	primaryColor: '#4A1204',
 	name: 'My Brand',
 	showAttribution: true,

@@ -4,6 +4,9 @@ import { brandSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
+type BrandSettingsInsert = typeof brandSettings.$inferInsert;
+type BrandSettingsUpdate = Partial<Omit<BrandSettingsInsert, 'id'>>;
+
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
 	const [row] = await db.select().from(brandSettings).where(eq(brandSettings.id, 1));
@@ -14,16 +17,16 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
 	const body = await request.json();
 
-	const allowed = ['systemName', 'logoPath', 'faviconPath', 'primaryColor', 'name', 'showAttribution', 'customFooterText', 'accessMode', 'defaultLanguage'];
-	const update: Record<string, unknown> = {};
+	const allowed = ['systemName', 'logoPath', 'faviconPath', 'primaryColor', 'name', 'showAttribution', 'customFooterText', 'accessMode', 'defaultLanguage'] as const;
+	const update: BrandSettingsUpdate = {};
 	for (const key of allowed) {
-		if (key in body) update[key] = body[key];
+		if (key in body) Object.assign(update, { [key]: body[key] });
 	}
 
 	// Upsert singleton
 	const existing = await db.select({ id: brandSettings.id }).from(brandSettings).where(eq(brandSettings.id, 1));
 	if (existing.length === 0) {
-		await db.insert(brandSettings).values({ id: 1, ...update } as Parameters<typeof db.insert>[0]['values']);
+		await db.insert(brandSettings).values({ id: 1, ...update });
 	} else {
 		await db.update(brandSettings).set(update).where(eq(brandSettings.id, 1));
 	}

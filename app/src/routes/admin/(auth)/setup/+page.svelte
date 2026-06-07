@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
 	import * as m from '$lib/paraglide/messages';
+	import { IconInfoCircle, IconArrowRight } from '@tabler/icons-svelte';
 	const { form, data }: { form: ActionData; data: PageData } = $props();
 
 	const systemName = data.brand?.systemName ?? 'Brandywine';
@@ -37,7 +38,7 @@
 
 			{#if form?.error}
 				<div class="alert" role="alert">
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3.5M8 11h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+					<IconInfoCircle size={16} stroke={1.5} />
 					{form.error}
 				</div>
 			{/if}
@@ -83,7 +84,7 @@
 
 				<button type="submit" class="submit-btn">
 					{m.auth_create_account()}
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+					<IconArrowRight size={16} stroke={1.75} />
 				</button>
 			</form>
 		</div>

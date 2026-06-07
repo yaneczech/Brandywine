@@ -8,6 +8,11 @@
 	} from '$lib/utils/colors';
 	import { invalidateAll } from '$app/navigation';
 	import * as m from '$lib/paraglide/messages';
+	import {
+		IconPlus, IconDownload, IconChevronDown, IconPencil, IconTrash,
+		IconArrowUp, IconArrowDown, IconX, IconCheck,
+		IconGripVertical
+	} from '@tabler/icons-svelte';
 
 	const { data }: { data: PageData } = $props();
 
@@ -392,9 +397,19 @@
 	}
 </script>
 
-<svelte:window onclick={(e) => {
-	if (exportOpen && !(e.target as Element).closest('.export-menu')) exportOpen = false;
-}} />
+<svelte:window
+	onclick={(e) => {
+		if (exportOpen && !(e.target as Element).closest('.export-menu')) exportOpen = false;
+	}}
+	onkeydown={(e) => {
+		if (e.key !== 'Escape') return;
+		if (showColorModal) { showColorModal = false; return; }
+		if (showPaletteModal) { showPaletteModal = false; paletteName = ''; editingPaletteId = null; return; }
+		if (showGradientModal) { showGradientModal = false; return; }
+		if (shadesModal) { shadesModal = null; return; }
+		if (exportOpen) { exportOpen = false; return; }
+	}}
+/>
 
 <svelte:head><title>{m.colors_title()} · Brandywine</title></svelte:head>
 
@@ -415,9 +430,9 @@
 					aria-expanded={exportOpen}
 					aria-haspopup="listbox"
 				>
-					<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 10v2h10v-2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+					<IconDownload size={14} stroke={1.75} />
 					<span class="btn-label">{m.colors_export()}</span>
-					<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="transition:transform 0.15s" style:transform={exportOpen ? 'rotate(180deg)' : ''}><path d="M2.5 4l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+					<span style="display:flex;transition:transform 0.15s;transform:{exportOpen ? 'rotate(180deg)' : 'none'}"><IconChevronDown size={11} stroke={2} /></span>
 				</button>
 				{#if exportOpen}
 					<div class="export-dropdown" role="listbox">
@@ -437,17 +452,17 @@
 				{/if}
 			</div>
 			<button class="action-btn" onclick={openNewPalette}>
-				<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+				<IconPlus size={13} stroke={2} />
 				<span class="btn-label">{m.colors_add_group()}</span>
 			</button>
 			{#if activeTab === 'gradients'}
 				<button class="action-btn action-btn-primary" onclick={openAddGradient}>
-					<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+					<IconPlus size={13} stroke={2} />
 					{m.colors_add_gradient()}
 				</button>
 			{:else}
 				<button class="action-btn action-btn-primary" onclick={openAddColor}>
-					<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+					<IconPlus size={13} stroke={2} />
 					{m.colors_add()}
 				</button>
 			{/if}
@@ -478,10 +493,10 @@
 						}</span>
 					</button>
 					<button class="ptab-action" onclick={() => openEditPalette(p.id, p.name)} title="Rename group">
-						<svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1 6.5L6 1.5l1.5 1.5L3 8H1V6.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+						<IconPencil size={9} stroke={2} />
 					</button>
 					<button class="ptab-action ptab-del" onclick={() => deletePalette(p.id, p.name)} title="Delete group">
-						<svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 1.5l6 6M7.5 1.5l-6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+						<IconX size={9} stroke={2} />
 					</button>
 				</div>
 			{/each}
@@ -515,7 +530,7 @@
 										onclick={() => movePalette(group.paletteId!, -1)}
 										title="Move up"
 									>
-										<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 8.5V2.5M2.5 5.5l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+										<IconArrowUp size={11} stroke={2} />
 									</button>
 									<button
 										class="palette-order-btn"
@@ -523,14 +538,14 @@
 										onclick={() => movePalette(group.paletteId!, 1)}
 										title="Move down"
 									>
-										<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 2.5v6M2.5 5.5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+										<IconArrowDown size={11} stroke={2} />
 									</button>
 									<button
 										class="palette-order-btn"
 										onclick={() => openEditPalette(group.paletteId!, group.paletteName!)}
 										title="Rename group"
 									>
-										<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 8L7 2.5l1.5 1.5L3 9.5H1.5V8z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+										<IconPencil size={11} stroke={2} />
 									</button>
 								</div>
 							{/if}
@@ -553,15 +568,15 @@
 									ondragend={() => { dragId = null; dragOver = null; }}
 								>
 									<div class="drag-handle" title="Drag to reorder">
-										<svg width="10" height="14" viewBox="0 0 10 14" fill="none"><circle cx="3" cy="2.5" r="1.2" fill="currentColor"/><circle cx="7" cy="2.5" r="1.2" fill="currentColor"/><circle cx="3" cy="7" r="1.2" fill="currentColor"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/><circle cx="3" cy="11.5" r="1.2" fill="currentColor"/><circle cx="7" cy="11.5" r="1.2" fill="currentColor"/></svg>
+										<IconGripVertical size={12} stroke={1.5} />
 									</div>
 									<div class="swatch" style="background:{c.hex}">
 										<div class="swatch-overlay">
 											<button class="swatch-btn" onclick={() => openEditColor(row)} title="Edit">
-												<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M9 2l2 2-6.5 6.5H3v-2.5L9 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+												<IconPencil size={13} stroke={1.75} />
 											</button>
 											<button class="swatch-btn swatch-btn-del" onclick={() => deleteColor(c.id)} title="Delete">
-												<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2.5 2.5l8 8M10.5 2.5l-8 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+												<IconX size={13} stroke={2} />
 											</button>
 										</div>
 										<button class="hex-chip" class:flash={copied === `${c.id}-hex`} onclick={() => copy(c.hex.toUpperCase(), `${c.id}-hex`)}>{c.hex.toUpperCase()}</button>
@@ -573,15 +588,15 @@
 										<div class="color-values">
 											<button class="vrow" class:flash={copied === `${c.id}-rgb`} onclick={() => copy(`rgb(${fmt.rgb.r}, ${fmt.rgb.g}, ${fmt.rgb.b})`, `${c.id}-rgb`)}>
 												<span class="vlabel">RGB</span><span class="vval">{fmt.rgb.r} {fmt.rgb.g} {fmt.rgb.b}</span>
-												{#if copied === `${c.id}-rgb`}<svg class="vrow-check" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>{/if}
+												{#if copied === `${c.id}-rgb`}<IconCheck class="vrow-check" size={11} stroke={2} />{/if}
 											</button>
 											<button class="vrow" class:flash={copied === `${c.id}-hsl`} onclick={() => copy(`hsl(${fmt.hsl.h}, ${fmt.hsl.s}%, ${fmt.hsl.l}%)`, `${c.id}-hsl`)}>
 												<span class="vlabel">HSL</span><span class="vval">{fmt.hsl.h}° {fmt.hsl.s}% {fmt.hsl.l}%</span>
-												{#if copied === `${c.id}-hsl`}<svg class="vrow-check" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>{/if}
+												{#if copied === `${c.id}-hsl`}<IconCheck class="vrow-check" size={11} stroke={2} />{/if}
 											</button>
 											<button class="vrow" class:flash={copied === `${c.id}-cmyk`} onclick={() => copy(`cmyk(${fmt.cmyk.c}%, ${fmt.cmyk.m}%, ${fmt.cmyk.y}%, ${fmt.cmyk.k}%)`, `${c.id}-cmyk`)}>
 												<span class="vlabel">CMYK</span><span class="vval">{fmt.cmyk.c} {fmt.cmyk.m} {fmt.cmyk.y} {fmt.cmyk.k}</span>
-												{#if copied === `${c.id}-cmyk`}<svg class="vrow-check" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>{/if}
+												{#if copied === `${c.id}-cmyk`}<IconCheck class="vrow-check" size={11} stroke={2} />{/if}
 											</button>
 											{#if c.pantoneRef}<div class="vrow static"><span class="vlabel">{pantoneLabel}</span><span class="vval">{c.pantoneRef}</span></div>{/if}
 											{#if c.ralRef}<div class="vrow static"><span class="vlabel">RAL</span><span class="vval">{c.ralRef}</span></div>{/if}
@@ -642,16 +657,16 @@
 								ondragend={() => { dragId = null; dragOver = null; }}
 							>
 								<div class="drag-handle" title="Drag to reorder">
-									<svg width="10" height="14" viewBox="0 0 10 14" fill="none"><circle cx="3" cy="2.5" r="1.2" fill="currentColor"/><circle cx="7" cy="2.5" r="1.2" fill="currentColor"/><circle cx="3" cy="7" r="1.2" fill="currentColor"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/><circle cx="3" cy="11.5" r="1.2" fill="currentColor"/><circle cx="7" cy="11.5" r="1.2" fill="currentColor"/></svg>
+									<IconGripVertical size={12} stroke={1.5} />
 								</div>
 								<!-- Swatch -->
 								<div class="swatch" style="background:{c.hex}">
 									<div class="swatch-overlay">
 										<button class="swatch-btn" onclick={() => openEditColor(row)} title="Edit">
-											<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M9 2l2 2-6.5 6.5H3v-2.5L9 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+											<IconPencil size={13} stroke={1.75} />
 										</button>
 										<button class="swatch-btn swatch-btn-del" onclick={() => deleteColor(c.id)} title="Delete">
-											<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2.5 2.5l8 8M10.5 2.5l-8 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+											<IconX size={13} stroke={2} />
 										</button>
 									</div>
 									<button
@@ -673,19 +688,19 @@
 											onclick={() => copy(`rgb(${fmt.rgb.r}, ${fmt.rgb.g}, ${fmt.rgb.b})`, `${c.id}-rgb`)}>
 											<span class="vlabel">RGB</span>
 											<span class="vval">{fmt.rgb.r} {fmt.rgb.g} {fmt.rgb.b}</span>
-											{#if copied === `${c.id}-rgb`}<svg class="vrow-check" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>{/if}
+											{#if copied === `${c.id}-rgb`}<IconCheck class="vrow-check" size={11} stroke={2} />{/if}
 										</button>
 										<button class="vrow" class:flash={copied === `${c.id}-hsl`}
 											onclick={() => copy(`hsl(${fmt.hsl.h}, ${fmt.hsl.s}%, ${fmt.hsl.l}%)`, `${c.id}-hsl`)}>
 											<span class="vlabel">HSL</span>
 											<span class="vval">{fmt.hsl.h}° {fmt.hsl.s}% {fmt.hsl.l}%</span>
-											{#if copied === `${c.id}-hsl`}<svg class="vrow-check" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>{/if}
+											{#if copied === `${c.id}-hsl`}<IconCheck class="vrow-check" size={11} stroke={2} />{/if}
 										</button>
 										<button class="vrow" class:flash={copied === `${c.id}-cmyk`}
 											onclick={() => copy(`cmyk(${fmt.cmyk.c}%, ${fmt.cmyk.m}%, ${fmt.cmyk.y}%, ${fmt.cmyk.k}%)`, `${c.id}-cmyk`)}>
 											<span class="vlabel">CMYK</span>
 											<span class="vval">{fmt.cmyk.c} {fmt.cmyk.m} {fmt.cmyk.y} {fmt.cmyk.k}</span>
-											{#if copied === `${c.id}-cmyk`}<svg class="vrow-check" width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>{/if}
+											{#if copied === `${c.id}-cmyk`}<IconCheck class="vrow-check" size={11} stroke={2} />{/if}
 										</button>
 										{#if c.pantoneRef}
 											<div class="vrow static">
@@ -757,10 +772,10 @@
 							<div class="gradient-swatch" style="background:{css}">
 								<div class="swatch-overlay">
 									<button class="swatch-btn" onclick={() => openEditGradient(g)} title="Edit">
-										<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M9 2l2 2-6.5 6.5H3v-2.5L9 2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+										<IconPencil size={13} stroke={1.75} />
 									</button>
 									<button class="swatch-btn swatch-btn-del" onclick={() => deleteGradient(g.id)} title="Delete">
-										<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2.5 2.5l8 8M10.5 2.5l-8 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+										<IconX size={13} stroke={2} />
 									</button>
 								</div>
 								<button class="hex-chip" onclick={() => copy(`background: ${css};`, `${g.id}-css`)}>CSS</button>
@@ -795,8 +810,8 @@
 		<div class="modal" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
 				<h2>{editingColor ? 'Edit color' : 'Add color'}</h2>
-				<button class="modal-close" onclick={() => (showColorModal = false)}>
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+				<button class="modal-close" aria-label="Close" onclick={() => (showColorModal = false)}>
+					<IconX size={16} stroke={1.75} />
 				</button>
 			</div>
 
@@ -903,8 +918,8 @@
 		<div class="modal modal-sm" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
 				<h2>{editingPaletteId ? 'Rename group' : 'New group'}</h2>
-				<button class="modal-close" onclick={() => (showPaletteModal = false)}>
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+				<button class="modal-close" aria-label="Close" onclick={() => (showPaletteModal = false)}>
+					<IconX size={16} stroke={1.75} />
 				</button>
 			</div>
 			<div class="modal-body">
@@ -932,8 +947,8 @@
 		<div class="modal modal-lg" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
 				<h2>{editingGradient ? 'Edit gradient' : 'New gradient'}</h2>
-				<button class="modal-close" onclick={() => (showGradientModal = false)}>
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+				<button class="modal-close" aria-label="Close" onclick={() => (showGradientModal = false)}>
+					<IconX size={16} stroke={1.75} />
 				</button>
 			</div>
 			<div class="modal-body">
@@ -982,7 +997,7 @@
 											<div class="stop-palette-header">
 												<span>Pick from palette</span>
 												<button class="stop-palette-close" onclick={() => stopPickerIndex = null}>
-													<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 1.5l8 8M9.5 1.5l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+													<IconX size={11} stroke={2} />
 												</button>
 											</div>
 											<div class="stop-palette-swatches">
@@ -1014,12 +1029,12 @@
 								</div>
 
 								<button class="stop-del" onclick={() => removeStop(i)} disabled={gradientForm.stops.length <= 2} title="Remove stop">
-									<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+									<IconX size={12} stroke={2} />
 								</button>
 							</div>
 						{/each}
 						<button class="action-btn" onclick={addStop} style="align-self:flex-start; margin-top:4px">
-							<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+							<IconPlus size={12} stroke={2} />
 							Add stop
 						</button>
 					</div>
@@ -1059,8 +1074,8 @@
 						<p class="shades-modal-base">{shadesModal.hex.toUpperCase()}</p>
 					</div>
 				</div>
-				<button class="modal-close" onclick={closeShades}>
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+				<button class="modal-close" aria-label="Close" onclick={closeShades}>
+					<IconX size={16} stroke={1.75} />
 				</button>
 			</div>
 			<div class="shades-modal-body">
@@ -1079,7 +1094,7 @@
 						>
 							<div class="shade-card-swatch" style="background:{s.hex}">
 								{#if copied === `shade-modal-${s.step}`}
-									<svg class="shade-copied-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3.5 3.5 5.5-6" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+									<IconCheck class="shade-copied-icon" size={14} stroke={2} color="white" />
 								{/if}
 							</div>
 							<div class="shade-card-info">
@@ -1225,18 +1240,20 @@
 .palette-order-btn:hover:not(:disabled) { background:var(--color-surface-raised); border-color:var(--color-muted); color:var(--color-text); }
 .palette-order-btn:disabled { opacity:0.3; cursor:default; }
 
-/* ── Color grid ─────────────────────────────────────────────────────────── */
-.color-grid {
-	display:grid;
-	grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
-	gap:1rem;
-}
-.color-card {
-	border:1px solid var(--color-border); border-radius:12px; overflow:hidden;
-	background:var(--color-surface);
-	transition:box-shadow 0.15s, transform 0.15s, border-color 0.15s;
-	position:relative;
-}
+	/* ── Color grid ─────────────────────────────────────────────────────────── */
+	.color-grid {
+		display:grid;
+		grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+		gap:1rem;
+		min-width:0;
+	}
+	.color-card {
+		border:1px solid var(--color-border); border-radius:12px; overflow:hidden;
+		background:var(--color-surface);
+		transition:box-shadow 0.15s, transform 0.15s, border-color 0.15s;
+		position:relative;
+		min-width:0;
+	}
 .color-card:hover { box-shadow:var(--shadow); transform:translateY(-1px); }
 .color-card.drag-over {
 	border-color:var(--brand);
@@ -1282,24 +1299,25 @@
 .hex-chip.flash { background:#fff; box-shadow:0 0 0 2px var(--brand); }
 
 /* Color body */
-.color-body { padding:12px; }
+	.color-body { padding:12px; min-width:0; }
 .color-header-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
 .color-name { font-weight:600; font-size:0.875rem; color:var(--color-text); }
 .palette-chip { font-size:0.6875rem; color:var(--color-muted); background:var(--color-surface-raised); border:1px solid var(--color-border); padding:1px 6px; border-radius:20px; white-space:nowrap; }
 
 /* Values */
 .color-values { display:flex; flex-direction:column; gap:1px; margin-bottom:8px; }
-.vrow {
-	display:flex; justify-content:space-between; align-items:center;
-	font-size:0.75rem; padding:4px 6px; border-radius:5px;
-	background:none; border:none; width:100%; cursor:pointer; text-align:left;
-	transition:background 0.1s; color:var(--color-text);
-}
+	.vrow {
+		display:grid; grid-template-columns:minmax(58px, max-content) minmax(0, 1fr); align-items:center; gap:8px;
+		font-size:0.75rem; padding:4px 6px; border-radius:5px;
+		background:none; border:none; width:100%; cursor:pointer; text-align:left;
+		transition:background 0.1s; color:var(--color-text);
+		min-width:0;
+	}
 .vrow:not(.static):hover { background:var(--color-surface-raised); }
 .vrow.static { cursor:default; }
 .vrow.flash { background:rgba(74,18,4,.06); }
-.vlabel { color:var(--color-muted); font-weight:600; font-size:0.6875rem; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0; width:34px; }
-.vval { font-family:var(--font-mono); font-size:0.75rem; text-align:right; }
+	.vlabel { color:var(--color-muted); font-weight:600; font-size:0.6875rem; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0; min-width:58px; white-space:nowrap; }
+	.vval { font-family:var(--font-mono); font-size:0.75rem; text-align:right; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ── Contrast checker ───────────────────────────────────────────────────── */
 .contrast-section {
@@ -1309,10 +1327,10 @@
 }
 .contrast-label { font-size:0.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--color-muted); margin-bottom:5px; }
 .contrast-rows { display:flex; flex-direction:column; gap:4px; }
-.contrast-row { display:flex; align-items:center; gap:6px; font-size:0.75rem; }
-.contrast-preview { display:flex; align-items:center; gap:5px; flex:1; }
-.contrast-dot { width:14px; height:14px; border-radius:50%; display:inline-block; flex-shrink:0; }
-.contrast-bg-label { color:var(--color-muted); font-size:0.75rem; }
+	.contrast-row { display:grid; grid-template-columns:minmax(0, 1fr) auto auto; align-items:center; gap:6px; font-size:0.75rem; min-width:0; }
+	.contrast-preview { display:flex; align-items:center; gap:5px; min-width:0; }
+	.contrast-dot { width:14px; height:14px; border-radius:50%; display:inline-block; flex-shrink:0; }
+	.contrast-bg-label { color:var(--color-muted); font-size:0.75rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .contrast-ratio { font-family:var(--font-mono); font-size:0.75rem; font-weight:600; color:var(--color-text); flex-shrink:0; }
 .contrast-badge {
 	font-size:0.625rem; font-weight:700; letter-spacing:0.04em;
@@ -1422,7 +1440,7 @@ input[type="color"] { width:44px; height:38px; border:1.5px solid var(--color-bo
 }
 .shades-trigger:hover { background:rgba(74,18,4,.04); }
 .shades-trigger:hover .shades-trigger-label { color:var(--brand); }
-.shades-mini-strip { display:flex; gap:2px; flex:1; }
+	.shades-mini-strip { display:flex; gap:2px; flex:1; min-width:0; }
 .shades-mini-dot { height:8px; border-radius:2px; flex:1; transition:height 0.12s; }
 .shades-trigger:hover .shades-mini-dot { height:10px; }
 .shades-trigger-label { font-size:0.625rem; font-weight:700; color:var(--color-muted); letter-spacing:0.06em; text-transform:uppercase; white-space:nowrap; transition:color 0.12s; }
@@ -1542,19 +1560,63 @@ input[type="color"] { width:44px; height:38px; border:1.5px solid var(--color-bo
 	.field-row { grid-template-columns:1fr; }
 }
 
-/* Phone — 600px and below: single column */
-@media (max-width: 600px) {
+	/* Phone — 600px and below: single column */
+	@media (max-width: 600px) {
 	.topbar { padding:1rem 0.875rem 0; }
+	/* Keep export visible; hide low-priority actions */
 	.topbar-actions .action-btn:not(.action-btn-primary):not(.export-menu .action-btn) { display:none; }
 	.export-menu { display:flex; }
 
 	.palette-bar { padding:0 0.875rem; }
 	.grid-area { padding:0 0.875rem 2rem; }
 
-	.color-grid { grid-template-columns:1fr; gap:0.625rem; }
-	.gradient-grid { grid-template-columns:1fr; }
+		/* Single-column cards */
+		.color-grid { grid-template-columns:minmax(0, 1fr); gap:0.625rem; }
+		.gradient-grid { grid-template-columns:1fr; }
 
-	.swatch { height:120px; }
+		.color-card { border-radius:10px; }
+		.swatch { height:112px; padding:9px; }
+		.color-body { padding:11px 12px 10px; }
+		.color-header-row { margin-bottom:7px; }
+		.color-name { font-size:0.9375rem; }
+		.vrow {
+			grid-template-columns:50px minmax(0, 1fr);
+			min-height:30px;
+			padding:4px 0;
+		}
+		.vlabel { min-width:0; width:auto; }
+		.vval {
+			overflow:visible;
+			text-overflow:clip;
+			white-space:normal;
+			word-break:break-word;
+		}
+		.contrast-section { padding-top:9px; margin-top:6px; }
+		.contrast-row {
+			grid-template-columns:minmax(78px, 1fr) auto;
+			row-gap:3px;
+			align-items:center;
+		}
+		.contrast-badge {
+			grid-column:2;
+			justify-self:end;
+			max-width:100%;
+		}
+		.shades-trigger { padding:8px 0 2px; }
+		.shades-mini-dot { min-width:0; }
+
+	/* Value rows — label left (fixed), value fills rest, copy icon at end */
+	.vrow { display:grid; grid-template-columns:64px 1fr auto; align-items:center; gap:0 4px; }
+	.vlabel { min-width:0; width:auto; }
+	.vval { text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+	/* Contrast rows — [dot+label flex:1] [ratio] [badge] all on one line */
+	.contrast-rows { gap:5px; }
+	.contrast-row { flex-wrap:nowrap; gap:6px; }
+	.contrast-preview { flex:1; min-width:0; }
+	.contrast-bg-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+	.contrast-ratio { white-space:nowrap; }
+	.contrast-badge { white-space:nowrap; flex-shrink:0; }
 
 	/* Palette group headers */
 	.palette-group-section { margin-bottom:1.5rem; }
