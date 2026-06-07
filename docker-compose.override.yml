@@ -1,0 +1,31 @@
+# Development overrides — used automatically when running `docker-compose up`
+services:
+  app:
+    build:
+      target: builder
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./app/src:/app/src
+      - uploads:/uploads
+
+  worker:
+    command: npm run dev
+    volumes:
+      - ./worker/src:/worker/src
+      - uploads:/uploads
+
+  db:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  proxy:
+    profiles:
+      - production

@@ -1,0 +1,25 @@
+Brandywine — Open-source brand platform
+Copyright 2025 Brandywine Contributors
+
+This product includes software developed as part of the Brandywine project
+(https://github.com/brandywine/brandywine).
+
+ATTRIBUTION REQUIREMENT
+-----------------------
+When distributing this software or any Derivative Work — including deployment
+as a hosted service accessible to third parties — you must:
+
+  1. Retain this NOTICE file in its entirety.
+  2. Display the text "Powered by Brandywine" (or equivalent acknowledgement)
+     in a visible location of the user interface (e.g. footer, about page,
+     or login screen), with a link to https://github.com/brandywine/brandywine.
+
+This attribution requirement ensures that Brandywine remains findable and that
+the broader design community can benefit from the project.
+
+DATA PRIVACY NOTE
+-----------------
+Brandywine is a self-hosted application. All brand assets, color definitions,
+typography data, and user information are stored exclusively in your own
+infrastructure. No data is transmitted to Brandywine maintainers or any
+third party. You are solely responsible for the security of your deployment.

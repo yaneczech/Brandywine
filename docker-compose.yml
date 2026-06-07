@@ -1,0 +1,81 @@
+services:
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://brandywine:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/brandywine
+      REDIS_URL: redis://redis:6379
+      UPLOAD_DIR: /uploads
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      NODE_ENV: production
+    volumes:
+      - uploads:/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    labels:
+      caddy: ${APP_DOMAIN:-localhost}
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://brandywine:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/brandywine
+      REDIS_URL: redis://redis:6379
+      UPLOAD_DIR: /uploads
+    volumes:
+      - uploads:/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: brandywine
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: brandywine
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brandywine"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  uploads:
+  db_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
