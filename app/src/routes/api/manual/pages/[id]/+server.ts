@@ -36,6 +36,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 		parentId: string | null;
 		featureImage: string | null;
 		bgColor: string | null;
+		textColor: string | null;
 	}>;
 
 	// Slug uniqueness check if slug or parentId changed
@@ -67,6 +68,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	if ('parentId' in body)             updates.parentId    = body.parentId ?? null;
 	if ('featureImage' in body)         updates.featureImage = body.featureImage ?? null;
 	if ('bgColor' in body)              updates.bgColor      = body.bgColor ?? null;
+	if ('textColor' in body)            updates.textColor    = body.textColor ?? null;
 
 	const [updated] = await db
 		.update(manualPages)

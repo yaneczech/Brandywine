@@ -76,11 +76,13 @@
 <svelte:head><title>Dashboard · Brandywine</title></svelte:head>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -->
-<div class="page">
+<div class="page ap">
 	<!-- Topbar -->
-	<div class="topbar">
-		<h1 class="page-title">{greeting}{data.user?.name ? `, ${data.user.name.split(' ')[0]}` : ''}.</h1>
-		<p class="page-sub">Here's what's in your brand system.</p>
+	<div class="ap-topbar">
+		<div>
+			<h1 class="ap-title">{greeting}{data.user?.name ? `, ${data.user.name.split(' ')[0]}` : ''}.</h1>
+			<p class="ap-sub">Here's what's in your brand system.</p>
+		</div>
 	</div>
 
 	<!-- Section cards -->
@@ -140,29 +142,11 @@
 		flex-direction: column;
 	}
 
-	/* ── Topbar ──────────────────────────────────────────────────────────── */
-	.topbar {
-		padding: 2.5rem 2.5rem 2rem;
-	}
-	.page-title {
-		font-size: 1.625rem;
-		font-weight: 650;
-		letter-spacing: -0.03em;
-		color: var(--color-text);
-		line-height: 1.2;
-	}
-	.page-sub {
-		margin-top: 5px;
-		font-size: 0.875rem;
-		color: var(--color-muted);
-	}
-
 	/* ── Section cards ───────────────────────────────────────────────────── */
 	.sections-grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 0.875rem;
-		padding: 0 2.5rem;
 	}
 
 	.section-card {
@@ -264,7 +248,7 @@
 
 	/* ── Stats strip ─────────────────────────────────────────────────────── */
 	.stats-strip {
-		margin: 1.25rem 2.5rem 2.5rem;
+		margin: 1.25rem 0 0;
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: 12px;
@@ -317,9 +301,8 @@
 
 	/* ── Responsive ──────────────────────────────────────────────────────── */
 	@media (max-width: 700px) {
-		.topbar { padding: 1.5rem 1rem 1.5rem; }
-		.sections-grid { grid-template-columns: 1fr; padding: 0 1rem; }
-		.stats-strip { margin: 1rem 1rem 2rem; padding: 0 1rem; flex-wrap: wrap; }
+		.sections-grid { grid-template-columns: 1fr; }
+		.stats-strip { margin: 1rem 0 0; padding: 0 1rem; flex-wrap: wrap; }
 		.strip-divider { display: none; }
 		.strip-stat { flex: 1 1 40%; padding: 0.875rem 0; }
 	}

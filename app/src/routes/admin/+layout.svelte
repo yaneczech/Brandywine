@@ -11,12 +11,13 @@
 		IconSettings,
 		IconLogout,
 		IconMenu2,
-		IconBook2
+		IconBook2,
+		IconExternalLink
 	} from '@tabler/icons-svelte';
 	const { children, data } = $props();
 
 	const brand = $derived(data.brand);
-	const systemName = $derived(brand?.systemName ?? 'Brandywine');
+	const systemName = $derived(brand?.name || brand?.systemName || 'Brandywine');
 	const logoSrc = $derived(brand?.logoPath ?? '/logo.svg');
 	const primaryColor = $derived(brand?.primaryColor ?? '#4A1204');
 
@@ -115,6 +116,15 @@
 				</div>
 			{/each}
 		</nav>
+
+		<!-- View manual -->
+		<div class="sidebar-manual-link">
+			<a href="/" target="_blank" rel="noreferrer" class="manual-link">
+				<IconBook2 size={14} stroke={1.75} />
+				<span>Zobrazit manuál</span>
+				<IconExternalLink size={12} stroke={2} class="ext-icon" />
+			</a>
+		</div>
 
 		<!-- User -->
 		<div class="sidebar-user">
@@ -307,6 +317,32 @@
 		margin-top: 1px;
 	}
 
+	/* View manual link */
+	.sidebar-manual-link {
+		padding: 0.5rem 0.75rem;
+		border-top: 1px solid var(--color-border);
+		flex-shrink: 0;
+	}
+	.manual-link {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		padding: 0.4rem 0.5rem;
+		border-radius: 6px;
+		font-size: 0.8125rem;
+		font-weight: 450;
+		color: var(--color-muted);
+		transition: background 0.1s, color 0.1s;
+	}
+	.manual-link:hover {
+		background: var(--color-surface-raised);
+		color: var(--color-text);
+	}
+	.manual-link :global(.ext-icon) {
+		margin-left: auto;
+		opacity: 0.5;
+	}
+
 	.logout-form { margin-left: auto; }
 	.logout-btn {
 		display: flex;
@@ -385,5 +421,62 @@
 			max-width: 100%;
 			padding-top: 52px;
 		}
+	}
+
+	/* ── Shared admin page utilities ─────────────────────────────────────── */
+	/* Use these classes on all admin pages to keep layout consistent.       */
+	/* ap = admin page                                                        */
+
+	:global(.ap) {
+		padding: 2rem;
+	}
+	/* topbar: title/sub on left, actions on right */
+	:global(.ap-topbar) {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
+		flex-wrap: wrap;
+	}
+	:global(.ap-title) {
+		margin: 0 0 .15rem;
+		font-size: 1.5rem;
+		font-weight: 650;
+		letter-spacing: -0.025em;
+		line-height: 1.2;
+		color: var(--color-text);
+	}
+	:global(.ap-sub) {
+		margin: 0;
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		line-height: 1.4;
+	}
+	:global(.ap-actions) {
+		display: flex;
+		align-items: center;
+		gap: .5rem;
+		flex-shrink: 0;
+		flex-wrap: wrap;
+	}
+	/* pages that use split-padding (topbar + scrollable sub-sections) */
+	:global(.ap-split) {
+		padding: 0;
+	}
+	:global(.ap-split .ap-topbar) {
+		padding: 2rem 2rem 0;
+		margin-bottom: 0;
+	}
+	:global(.ap-content) {
+		padding: 0 2rem 3rem;
+	}
+
+	@media (max-width: 900px) {
+		:global(.ap) { padding: 1rem; }
+		:global(.ap-split .ap-topbar) { padding: 1rem 1rem 0; }
+		:global(.ap-content) { padding: 0 1rem 2rem; }
+		:global(.ap-topbar) { margin-bottom: 1rem; }
+		:global(.ap-title) { font-size: 1.25rem; }
 	}
 </style>

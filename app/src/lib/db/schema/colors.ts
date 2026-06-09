@@ -1,6 +1,12 @@
 import { pgTable, text, integer, jsonb, boolean } from 'drizzle-orm/pg-core';
 import { createId } from '../id';
 
+export type ColorProductionRef = {
+	type: 'pantone' | 'ral' | 'ncs' | 'foil' | 'other';
+	label: string;
+	value: string;
+};
+
 export const colorPalettes = pgTable('color_palettes', {
 	id: text('id').primaryKey().$defaultFn(createId),
 	name: text('name').notNull(),
@@ -18,6 +24,7 @@ export const colors = pgTable('colors', {
 	lab: jsonb('lab').$type<{ l: number; a: number; b: number }>(),
 	pantoneRef: text('pantone_ref'),
 	ralRef: text('ral_ref'),
+	productionRefs: jsonb('production_refs').$type<ColorProductionRef[]>().notNull().default([]),
 	order: integer('order').notNull().default(0)
 });
 

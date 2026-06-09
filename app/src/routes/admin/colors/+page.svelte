@@ -34,7 +34,14 @@
 	let error             = $state('');
 
 	// Color form
-	let colorForm = $state({ name: '', hex: '#4A1204', paletteId: '', pantoneRef: '', ralRef: '' });
+	type ProductionRefType = 'pantone' | 'ral' | 'ncs' | 'foil' | 'other';
+	type ProductionRef = { type: ProductionRefType; label: string; value: string };
+	let colorForm = $state({
+		name: '',
+		hex: '#4A1204',
+		paletteId: '',
+		productionRefs: [] as ProductionRef[]
+	});
 
 	// Color input mode (HEX / RGB / CMYK)
 	type ColorInputMode = 'hex' | 'rgb' | 'cmyk';
@@ -207,9 +214,64 @@
 	}
 
 	// ── Colors ─────────────────────────────────────────────────────────────────
+	function defaultProductionLabel(type: ProductionRefType) {
+		if (type === 'pantone') return 'Pantone';
+		if (type === 'ral') return 'RAL';
+		if (type === 'ncs') return 'NCS';
+		if (type === 'foil') return 'Signmaking fólie';
+		return 'Reference';
+	}
+
+	function normalizeRefsFromColor(color: (typeof colorRows)[0]['color']): ProductionRef[] {
+		const refs = Array.isArray(color.productionRefs) ? color.productionRefs as ProductionRef[] : [];
+		if (refs.length) return refs.map((ref) => ({
+			type: ref.type ?? 'other',
+			label: ref.label || defaultProductionLabel(ref.type ?? 'other'),
+			value: ref.value ?? ''
+		}));
+		const legacy: ProductionRef[] = [];
+		if (color.pantoneRef) legacy.push({ type: 'pantone', label: 'Pantone', value: color.pantoneRef });
+		if (color.ralRef) legacy.push({ type: 'ral', label: 'RAL', value: color.ralRef });
+		return legacy;
+	}
+
+	function productionRefsForColor(color: (typeof colorRows)[0]['color']) {
+		return normalizeRefsFromColor(color).filter((ref) => ref.value.trim());
+	}
+
+	function addProductionRef(type: ProductionRefType = 'foil') {
+		colorForm.productionRefs = [
+			...colorForm.productionRefs,
+			{ type, label: defaultProductionLabel(type), value: '' }
+		];
+	}
+
+	function updateProductionRefType(index: number, type: ProductionRefType) {
+		colorForm.productionRefs[index] = {
+			...colorForm.productionRefs[index],
+			type,
+			label: defaultProductionLabel(type)
+		};
+		colorForm.productionRefs = [...colorForm.productionRefs];
+	}
+
+	function removeProductionRef(index: number) {
+		colorForm.productionRefs = colorForm.productionRefs.filter((_, i) => i !== index);
+	}
+
+	function cleanProductionRefs() {
+		return colorForm.productionRefs
+			.map((ref) => ({
+				type: ref.type,
+				label: ref.label.trim() || defaultProductionLabel(ref.type),
+				value: ref.value.trim()
+			}))
+			.filter((ref) => ref.value);
+	}
+
 	function openAddColor() {
 		editingColor = null;
-		colorForm = { name: '', hex: '#4A1204', paletteId: activePaletteId ?? '', pantoneRef: '', ralRef: '' };
+		colorForm = { name: '', hex: '#4A1204', paletteId: activePaletteId ?? '', productionRefs: [] };
 		colorInputMode = 'hex';
 		syncEditFromHex(colorForm.hex);
 		error = '';
@@ -221,8 +283,7 @@
 			name: row.color.name,
 			hex: row.color.hex,
 			paletteId: row.color.paletteId ?? '',
-			pantoneRef: row.color.pantoneRef ?? '',
-			ralRef: row.color.ralRef ?? ''
+			productionRefs: normalizeRefsFromColor(row.color)
 		};
 		colorInputMode = 'hex';
 		syncEditFromHex(colorForm.hex);
@@ -232,7 +293,13 @@
 	async function saveColor() {
 		saving = true; error = '';
 		try {
-			const body = { name: colorForm.name, hex: colorForm.hex, paletteId: colorForm.paletteId || null, pantoneRef: colorForm.pantoneRef || null, ralRef: colorForm.ralRef || null };
+			const productionRefs = cleanProductionRefs();
+			const body = {
+				name: colorForm.name,
+				hex: colorForm.hex,
+				paletteId: colorForm.paletteId || null,
+				productionRefs
+			};
 			editingColor
 				? await api('PATCH', `/api/colors/${editingColor.id}`, body)
 				: await api('POST', '/api/colors', body);
@@ -335,13 +402,6 @@
 			api('PATCH', `/api/colors/palettes/${next[swapIdx].id}`, { order: swapIdx })
 		]);
 	}
-
-	// ── PMS / Pantone label preference ────────────────────────────────────────
-	let pantoneLabel = $state<'PMS' | 'Pantone'>(
-		typeof localStorage !== 'undefined'
-			? (localStorage.getItem('bw_pantoneLabel') as 'PMS' | 'Pantone' ?? 'PMS')
-			: 'PMS'
-	);
 
 	// ── Clipboard ──────────────────────────────────────────────────────────────
 	async function copy(text: string, key: string) {
@@ -598,8 +658,9 @@
 												<span class="vlabel">CMYK</span><span class="vval">{fmt.cmyk.c} {fmt.cmyk.m} {fmt.cmyk.y} {fmt.cmyk.k}</span>
 												{#if copied === `${c.id}-cmyk`}<IconCheck class="vrow-check" size={11} stroke={2} />{/if}
 											</button>
-											{#if c.pantoneRef}<div class="vrow static"><span class="vlabel">{pantoneLabel}</span><span class="vval">{c.pantoneRef}</span></div>{/if}
-											{#if c.ralRef}<div class="vrow static"><span class="vlabel">RAL</span><span class="vval">{c.ralRef}</span></div>{/if}
+											{#each productionRefsForColor(c) as ref}
+												<div class="vrow static"><span class="vlabel">{ref.label}</span><span class="vval">{ref.value}</span></div>
+											{/each}
 										</div>
 										<div class="contrast-section">
 											<div class="contrast-label">Contrast</div>
@@ -702,18 +763,12 @@
 											<span class="vval">{fmt.cmyk.c} {fmt.cmyk.m} {fmt.cmyk.y} {fmt.cmyk.k}</span>
 											{#if copied === `${c.id}-cmyk`}<IconCheck class="vrow-check" size={11} stroke={2} />{/if}
 										</button>
-										{#if c.pantoneRef}
+										{#each productionRefsForColor(c) as ref}
 											<div class="vrow static">
-												<span class="vlabel">{pantoneLabel}</span>
-												<span class="vval">{c.pantoneRef}</span>
+												<span class="vlabel">{ref.label}</span>
+												<span class="vval">{ref.value}</span>
 											</div>
-										{/if}
-										{#if c.ralRef}
-											<div class="vrow static">
-												<span class="vlabel">RAL</span>
-												<span class="vval">{c.ralRef}</span>
-											</div>
-										{/if}
+										{/each}
 									</div>
 
 									<!-- Contrast checker -->
@@ -887,15 +942,45 @@
 					</select>
 				</div>
 
-				<div class="field-row">
-					<div class="field">
-						<label for="color-pantone">Pantone ref</label>
-						<input id="color-pantone" type="text" bind:value={colorForm.pantoneRef} placeholder="PMS 486 C" />
+				<div class="field production-field">
+					<div class="production-head">
+						<div>
+							<div class="field-label">Production references</div>
+							<p>Pantone, RAL, NCS nebo signmaking fólie pro výrobu.</p>
+						</div>
+						<button class="text-btn" type="button" onclick={() => addProductionRef('foil')}>+ Add</button>
 					</div>
-					<div class="field">
-						<label for="color-ral">RAL ref</label>
-						<input id="color-ral" type="text" bind:value={colorForm.ralRef} placeholder="RAL 3011" />
-					</div>
+					{#if colorForm.productionRefs.length}
+						<div class="production-refs">
+							{#each colorForm.productionRefs as ref, i (i)}
+								<div class="production-ref-row">
+									<select
+										aria-label="Reference type"
+										value={ref.type}
+										onchange={(e) => updateProductionRefType(i, (e.currentTarget as HTMLSelectElement).value as ProductionRefType)}
+									>
+										<option value="pantone">Pantone</option>
+										<option value="ral">RAL</option>
+										<option value="ncs">NCS</option>
+										<option value="foil">Fólie</option>
+										<option value="other">Jiné</option>
+									</select>
+									<input type="text" bind:value={ref.label} placeholder="Oracal 951" aria-label="Reference label" />
+									<input type="text" bind:value={ref.value} placeholder="032 Red" aria-label="Reference value" />
+									<button class="ref-remove" type="button" title="Remove reference" onclick={() => removeProductionRef(i)}>
+										<IconX size={13} stroke={2} />
+									</button>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="production-empty">
+							<button type="button" onclick={() => addProductionRef('pantone')}>Pantone</button>
+							<button type="button" onclick={() => addProductionRef('ral')}>RAL</button>
+							<button type="button" onclick={() => addProductionRef('ncs')}>NCS</button>
+							<button type="button" onclick={() => addProductionRef('foil')}>Fólie</button>
+						</div>
+					{/if}
 				</div>
 
 				{#if error}<div class="error">{error}</div>{/if}
@@ -1122,15 +1207,16 @@
 /* ── Topbar ─────────────────────────────────────────────────────────────── */
 .topbar {
 	display:flex;
-	align-items:flex-end;
+	align-items:flex-start;
 	justify-content:space-between;
 	padding:2rem 2rem 0;
 	margin-bottom:1.25rem;
 	gap:1rem;
+	flex-wrap:wrap;
 }
-.page-title { font-size:1.5rem; font-weight:650; letter-spacing:-0.025em; line-height:1.2; }
-.page-sub { margin-top:3px; font-size:0.875rem; color:var(--color-muted); }
-.topbar-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.page-title { font-size:1.5rem; font-weight:650; letter-spacing:-0.025em; line-height:1.2; margin:0 0 .15rem; }
+.page-sub { margin:0; font-size:0.875rem; color:var(--color-muted); }
+.topbar-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; flex-wrap:wrap; }
 
 /* Action buttons */
 .action-btn {
@@ -1376,7 +1462,8 @@
 /* Form elements */
 .field { display:flex; flex-direction:column; gap:6px; }
 .field-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.field label { font-size:0.8125rem; font-weight:500; color:var(--color-text); }
+.field label,
+.field-label { font-size:0.8125rem; font-weight:500; color:var(--color-text); }
 input[type="text"], input[type="number"], select {
 	height:38px; padding:0 12px;
 	border:1.5px solid var(--color-border); border-radius:8px;
@@ -1387,6 +1474,16 @@ input[type="text"], input[type="number"], select {
 input:focus, select:focus { border-color:var(--brand); box-shadow:0 0 0 3px rgba(74,18,4,.10); }
 input[type="range"] { height:auto; padding:0; border:none; background:none; accent-color:var(--brand); }
 input[type="range"]:focus { box-shadow:none; }
+.text-btn {
+	border:none;
+	background:none;
+	color:var(--brand);
+	font-size:0.75rem;
+	font-weight:700;
+	cursor:pointer;
+	padding:4px 0;
+}
+.text-btn:hover { text-decoration:underline; }
 
 .color-input-row { display:flex; gap:8px; align-items:center; }
 input[type="color"] { width:44px; height:38px; border:1.5px solid var(--color-border); border-radius:8px; padding:3px; cursor:pointer; flex-shrink:0; }
@@ -1412,6 +1509,75 @@ input[type="color"] { width:44px; height:38px; border:1.5px solid var(--color-bo
 	transition:background 0.1s, color 0.1s;
 }
 .mode-tab.active { background:var(--color-surface); color:var(--brand); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+
+/* Production references */
+.production-field { gap:8px; }
+.production-head {
+	display:flex;
+	align-items:flex-start;
+	justify-content:space-between;
+	gap:12px;
+}
+.production-head p {
+	margin:3px 0 0;
+	color:var(--color-muted);
+	font-size:0.72rem;
+	line-height:1.4;
+}
+.production-refs {
+	display:flex;
+	flex-direction:column;
+	gap:6px;
+}
+.production-ref-row {
+	display:grid;
+	grid-template-columns:96px minmax(0, 1fr) minmax(0, 1.2fr) 28px;
+	gap:6px;
+	align-items:center;
+}
+.production-ref-row select,
+.production-ref-row input {
+	height:34px;
+	font-size:0.78rem;
+}
+.ref-remove {
+	display:flex;
+	align-items:center;
+	justify-content:center;
+	width:28px;
+	height:28px;
+	border:1px solid var(--color-border);
+	border-radius:7px;
+	background:var(--color-surface);
+	color:var(--color-muted);
+	cursor:pointer;
+}
+.ref-remove:hover {
+	border-color:#fecaca;
+	background:#fef2f2;
+	color:#dc2626;
+}
+.production-empty {
+	display:flex;
+	flex-wrap:wrap;
+	gap:6px;
+	padding:9px;
+	border:1px dashed var(--color-border);
+	border-radius:8px;
+	background:var(--color-surface-raised);
+}
+.production-empty button {
+	height:28px;
+	padding:0 10px;
+	border:1px solid var(--color-border);
+	border-radius:999px;
+	background:var(--color-surface);
+	color:var(--color-text);
+	font-size:0.72rem;
+	font-weight:650;
+	cursor:pointer;
+}
+.production-empty button:hover { border-color:var(--brand); color:var(--brand); }
 
 /* Channel inputs (RGB / CMYK) */
 .channel-row { display:flex; gap:8px; align-items:center; }
@@ -1558,6 +1724,12 @@ input[type="color"] { width:44px; height:38px; border:1.5px solid var(--color-bo
 	.color-grid { grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:0.75rem; }
 	.gradient-grid { grid-template-columns:1fr 1fr; gap:0.75rem; }
 	.field-row { grid-template-columns:1fr; }
+	.production-ref-row {
+		grid-template-columns:minmax(0, 1fr) minmax(0, 1fr) 28px;
+	}
+	.production-ref-row select {
+		grid-column:1 / -1;
+	}
 }
 
 	/* Phone — 600px and below: single column */

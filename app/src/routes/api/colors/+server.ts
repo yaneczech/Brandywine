@@ -6,6 +6,41 @@ import { asc, eq } from 'drizzle-orm';
 import { createId } from '$lib/db/id';
 import { hexToAllFormats } from '$lib/utils/colors';
 
+type ProductionRef = {
+	type: 'pantone' | 'ral' | 'ncs' | 'foil' | 'other';
+	label: string;
+	value: string;
+};
+
+function normalizeProductionRefs(value: unknown): ProductionRef[] {
+	if (!Array.isArray(value)) return [];
+	return value
+		.map((item) => {
+			const record = item as Record<string, unknown>;
+			const rawType = String(record.type ?? 'other');
+			const type: ProductionRef['type'] =
+				rawType === 'pantone' || rawType === 'ral' || rawType === 'ncs' || rawType === 'foil'
+					? rawType
+					: 'other';
+			const label = String(record.label ?? '').trim();
+			const refValue = String(record.value ?? '').trim();
+			return {
+				type,
+				label: label || defaultProductionLabel(type),
+				value: refValue
+			};
+		})
+		.filter((item) => item.value);
+}
+
+function defaultProductionLabel(type: ProductionRef['type']) {
+	if (type === 'pantone') return 'Pantone';
+	if (type === 'ral') return 'RAL';
+	if (type === 'ncs') return 'NCS';
+	if (type === 'foil') return 'Signmaking fólie';
+	return 'Reference';
+}
+
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) error(401, 'Unauthorized');
 	const paletteId = url.searchParams.get('paletteId');
@@ -32,6 +67,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!/^#[0-9a-fA-F]{6}$/.test(body.hex ?? '')) error(400, 'Invalid hex color');
 
 	const formats = hexToAllFormats(body.hex);
+	const productionRefs = normalizeProductionRefs(body.productionRefs);
+	const pantoneRef = productionRefs.find((ref) => ref.type === 'pantone')?.value ?? body.pantoneRef ?? null;
+	const ralRef = productionRefs.find((ref) => ref.type === 'ral')?.value ?? body.ralRef ?? null;
 	const [{ maxOrder }] = await db
 		.select({ maxOrder: db.$count(colors) })
 		.from(colors);
@@ -46,8 +84,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			hsl: formats.hsl,
 			cmyk: formats.cmyk,
 			paletteId: body.paletteId ?? null,
-			pantoneRef: body.pantoneRef ?? null,
-			ralRef: body.ralRef ?? null,
+			pantoneRef,
+			ralRef,
+			productionRefs,
 			order: maxOrder
 		})
 		.returning();

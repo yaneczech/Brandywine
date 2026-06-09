@@ -4,7 +4,7 @@
  */
 export const BLOCK_TYPES = [
 	'rich_text', 'image', 'image_gallery', 'carousel', 'before_after',
-	'colors', 'typography', 'text_styles', 'grid',
+	'colors', 'typography', 'text_styles', 'typo_rules', 'grid',
 	'logo_spec', 'do_dont', 'naming', 'icons', 'process',
 	'chart', 'table', 'asset_gallery', 'download',
 	'accordion', 'cards', 'html', 'code', 'divider',

@@ -8,6 +8,7 @@ import { db } from '$db';
 import { manualPages, manualBlocks } from '$db/schema';
 import { eq, asc, max } from 'drizzle-orm';
 import { BLOCK_TYPES } from '$lib/manual/blockTypes';
+import { createId } from '$lib/db/id';
 
 // ── GET ────────────────────────────────────────────────────────────────────────
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -72,6 +73,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const [block] = await db
 		.insert(manualBlocks)
 		.values({
+			id: createId(),
 			pageId: params.id,
 			type: body.type as (typeof BLOCK_TYPES)[number],
 			config: body.config ?? {},
@@ -94,7 +96,7 @@ async function appendSortOrder(pageId: string): Promise<number> {
 	return (result?.max ?? 0) + 10;
 }
 
-export async function renumberBlocks(pageId: string): Promise<void> {
+async function renumberBlocks(pageId: string): Promise<void> {
 	const blocks = await db.select({ id: manualBlocks.id })
 		.from(manualBlocks)
 		.where(eq(manualBlocks.pageId, pageId))

@@ -9,6 +9,13 @@ const DEFAULT_BRAND = {
 	faviconPath: null as string | null,
 	primaryColor: '#4A1204',
 	name: 'My Brand',
+	manualThemeMode: 'light',
+	manualBackgroundColor: '#FBFAF8',
+	manualSurfaceColor: '#FFFFFF',
+	manualTextColor: '#171717',
+	manualMutedColor: '#737373',
+	manualAccentColor: null as string | null,
+	manualBorderRadius: 8,
 	showAttribution: true,
 	customFooterText: null as string | null
 };

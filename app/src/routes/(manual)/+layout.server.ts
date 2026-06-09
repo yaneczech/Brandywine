@@ -4,7 +4,7 @@ import { brandSettings, manualPages } from '$lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { error, redirect } from '@sveltejs/kit';
 
-export const load: LayoutServerLoad = async ({ locals, cookies, url, params }) => {
+export const load: LayoutServerLoad = async ({ locals, cookies, url }) => {
 	const [settings] = await db.select().from(brandSettings).where(eq(brandSettings.id, 1));
 	const mode = settings?.accessMode ?? 'public';
 
@@ -15,7 +15,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies, url, params }) =
 		const granted = cookies.get('manual_access');
 		if (!granted) {
 			const returnTo = encodeURIComponent(url.pathname);
-			redirect(302, `/${params.lang}/access?return=${returnTo}`);
+			redirect(302, `/access?return=${returnTo}`);
 		}
 	} else if (mode === 'email_whitelist' || mode === 'token') {
 		if (!locals.user) error(403, 'Access restricted');

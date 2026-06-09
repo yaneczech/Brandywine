@@ -3,7 +3,7 @@
 	import { invalidateAll, goto } from '$app/navigation';
 	import {
 		IconPlus, IconPencil, IconTrash, IconChevronRight, IconChevronDown,
-		IconBook2, IconGripVertical, IconX, IconCheck, IconEye, IconEyeOff, IconExternalLink
+		IconBook2, IconGripVertical, IconX, IconCheck, IconEye, IconEyeOff
 	} from '@tabler/icons-svelte';
 
 	const { data }: { data: PageData } = $props();
@@ -159,17 +159,13 @@
 	}
 </script>
 
-<div class="page">
+<div class="page ap">
 	<!-- Header -->
-	<div class="page-header">
-		<div class="page-title">
-			<IconBook2 size={22} />
-			<h1>Brand Manual</h1>
+	<div class="page-header ap-topbar">
+		<div class="ap-left">
+			<h1 class="ap-title">Brand Manual</h1>
 		</div>
-		<div class="header-actions">
-			<a href="/cs/" target="_blank" class="btn-ghost external">
-				<IconExternalLink size={15} /> Zobrazit manuál
-			</a>
+		<div class="ap-actions header-actions">
 			<button class="btn-secondary" onclick={() => openCreate(null)}>
 				<IconPlus size={16} /> Přidat stránku
 			</button>
@@ -331,10 +327,7 @@
 {/if}
 
 <style>
-.page { padding: 2rem; max-width: 860px; }
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; gap: 1rem; }
-.page-title { display: flex; align-items: center; gap: .6rem; }
-.page-title h1 { font-size: 1.3rem; font-weight: 600; margin: 0; }
+.page { max-width: 860px; }
 .header-actions { display: flex; align-items: center; gap: .5rem; }
 .btn-ghost.external { display: flex; align-items: center; gap: .35rem; padding: .45rem .75rem; border: 1px solid var(--color-border); border-radius: 6px; color: var(--color-muted); text-decoration: none; font-size: .875rem; }
 .btn-ghost.external:hover { color: var(--color-text); border-color: var(--color-text); }

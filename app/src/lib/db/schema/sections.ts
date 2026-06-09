@@ -17,7 +17,8 @@ export const manualPages = pgTable('manual_pages', {
 	enabled:      boolean('enabled').notNull().default(true),
 	isLanding:    boolean('is_landing').notNull().default(false),
 	featureImage: text('feature_image'),   // asset path or URL
-	bgColor:      text('bg_color'),        // hex from brand palette
+	bgColor:      text('bg_color'),        // hex — full card + hero background
+	textColor:    text('text_color'),      // hex — text on bgColor (WCAG-checked)
 	createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

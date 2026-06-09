@@ -4,11 +4,12 @@ import {
 	assets,
 	brandSettings,
 	colors,
+	colorPalettes,
 	manualPages,
 	typographyFonts,
 	typographyStyles
 } from '$db/schema';
-import { count, eq } from 'drizzle-orm';
+import { count, eq, asc } from 'drizzle-orm';
 
 const DEFAULTS = {
 	systemName: 'Brandywine',
@@ -16,6 +17,13 @@ const DEFAULTS = {
 	faviconPath: '/favicon.svg',
 	primaryColor: '#4A1204',
 	name: 'My Brand',
+	manualThemeMode: 'light',
+	manualBackgroundColor: '#FBFAF8',
+	manualSurfaceColor: '#FFFFFF',
+	manualTextColor: '#171717',
+	manualMutedColor: '#737373',
+	manualAccentColor: null,
+	manualBorderRadius: 8,
 	accessMode: 'public',
 	accessPassword: null,
 	emailWhitelist: [],
@@ -33,7 +41,9 @@ export const load: PageServerLoad = async () => {
 		[{ value: styleCount }],
 		[{ value: assetCount }],
 		[{ value: manualPageCount }],
-		[{ value: publishedPageCount }]
+		[{ value: publishedPageCount }],
+		brandColors,
+		brandPalettes
 	] = await Promise.all([
 		db.select().from(brandSettings).where(eq(brandSettings.id, 1)),
 		db.select({ value: count() }).from(colors),
@@ -41,18 +51,16 @@ export const load: PageServerLoad = async () => {
 		db.select({ value: count() }).from(typographyStyles),
 		db.select({ value: count() }).from(assets),
 		db.select({ value: count() }).from(manualPages),
-		db.select({ value: count() }).from(manualPages).where(eq(manualPages.enabled, true))
+		db.select({ value: count() }).from(manualPages).where(eq(manualPages.enabled, true)),
+		db.select({ id: colors.id, name: colors.name, hex: colors.hex, paletteId: colors.paletteId })
+			.from(colors).orderBy(asc(colors.order)),
+		db.select({ id: colorPalettes.id, name: colorPalettes.name }).from(colorPalettes).orderBy(asc(colorPalettes.order))
 	]);
 
 	return {
 		settings: settings ?? DEFAULTS,
-		health: {
-			colorCount,
-			fontCount,
-			styleCount,
-			assetCount,
-			manualPageCount,
-			publishedPageCount
-		}
+		health: { colorCount, fontCount, styleCount, assetCount, manualPageCount, publishedPageCount },
+		brandColors,
+		brandPalettes
 	};
 };

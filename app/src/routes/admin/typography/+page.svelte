@@ -867,7 +867,7 @@
 												<div class="preview-row"
 													style="font-size:{Math.min(s.size ?? 16, 48)}px; font-weight:{s.weight ?? 400}; line-height:{s.lineHeight ?? 1.5}; letter-spacing:{s.tracking ?? 0}em;">
 													<span class="preview-label">{s.name}</span>
-													<span class="preview-text" style="color:{stylePreviewColor(s)}">The quick brown fox jumps over the lazy dog</span>
+													<span class="preview-text" style={previewTheme === 'dark' ? '' : `color:${stylePreviewColor(s)}`}>The quick brown fox jumps over the lazy dog</span>
 												</div>
 											{/each}
 										</div>

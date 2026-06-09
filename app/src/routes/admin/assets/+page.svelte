@@ -816,7 +816,7 @@
 							<!-- Thumbnail -->
 							<div class="card-thumb">
 								{#if thumb}
-									<img src={thumb} alt={a.filename} class="thumb-img" loading="lazy" />
+									<img src={thumb} alt={a.filename} class="thumb-img" class:thumb-contain={a.mime === 'image/svg+xml' || a.mime.startsWith('font/')} loading="lazy" />
 								{:else}
 									<div class="thumb-icon">
 										{#if a.mime.startsWith('font/')}
@@ -1598,6 +1598,7 @@
 	position:relative; display:flex; align-items:center; justify-content:center;
 }
 .thumb-img { width:100%; height:100%; object-fit:cover; display:block; }
+.thumb-img.thumb-contain { object-fit:contain; padding:.5rem; box-sizing:border-box; }
 .thumb-icon { display:flex; align-items:center; justify-content:center; color:var(--color-muted); }
 .font-preview { font-size:2rem; font-weight:700; color:var(--color-muted); letter-spacing:-0.04em; line-height:1; }
 

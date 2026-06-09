@@ -3,6 +3,6 @@ import * as runtime from '$lib/paraglide/runtime';
 
 export const i18n = createI18n(runtime, {
 	defaultLanguageTag: 'en',
-	// Admin routes don't use URL-based lang prefix — language comes from cookie
-	exclude: [/^\/admin(\/.*)?$/, /^\/api(\/.*)?$/]
+	// Admin language comes from cookie; public manual content language comes from Brand Settings.
+	exclude: [/^\/admin(\/.*)?$/, /^\/api(\/.*)?$/, /^\/uploads(\/.*)?$/, /^\/(?!(admin|api|uploads)(\/|$)).*/]
 });
