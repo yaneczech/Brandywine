@@ -19,12 +19,15 @@
 		IconSparkles,
 		IconSun,
 		IconMoon,
+		IconSunFilled,
+		IconMoonFilled,
 		IconDeviceDesktop,
 		IconArrowsExchange,
 		IconX,
 		IconTypography
 	} from '@tabler/icons-svelte';
 	import ManualThemeColorField from '$lib/components/admin/ManualThemeColorField.svelte';
+	import AssetThumb from '$lib/components/admin/AssetThumb.svelte';
 	import { generateShades, contrastRatio } from '$lib/utils/colors';
 
 	const { data }: { data: PageData } = $props();
@@ -356,17 +359,17 @@
 		const darkMuted = sample(readable(candidates(0.42, 0.82, '#A3A3A3'), [darkBg, darkSurface], 3, '#A3A3A3'), '#A3A3A3');
 
 		const accentSeeds = unique(brandColors.map((color) => color.hex));
-		const accentLightOptions = readable(
-			unique(accentSeeds.flatMap((hex) => [hex, ...generateShades(hex).map((shade) => shade.hex)])),
-			[lightBg, lightSurface],
-			3,
-			s.primaryColor ?? '#4A1204'
-		);
+		const allAccentShades = unique(accentSeeds.flatMap((hex) => [hex, ...generateShades(hex).map((shade) => shade.hex)]));
+
+		// Light accent: readable on light backgrounds (contrast ≥ 3)
+		const accentLightOptions = readable(allAccentShades, [lightBg, lightSurface], 3, s.primaryColor ?? '#4A1204');
 		const accentLight = sample(accentLightOptions, s.primaryColor ?? '#4A1204');
-		const accentDark = sample(
-			readable(awayFrom(accentLightOptions, darkBg, 0.16), [darkBg, darkSurface], 3, accentLight),
-			accentLight
-		);
+
+		// Dark accent: use ALL brand shades, filter for contrast ≥ 3 on dark backgrounds
+		// Prefer brighter shades (lum > 0.18) — more visible on dark backgrounds
+		const accentDarkReadable = readable(allAccentShades, [darkBg, darkSurface], 3, accentLight);
+		const accentDarkBright = accentDarkReadable.filter(h => lum(h) > 0.18);
+		const accentDark = sample(accentDarkBright.length ? accentDarkBright : accentDarkReadable, accentLight);
 
 		s = {
 			...s,
@@ -381,6 +384,22 @@
 			manualAccentColor: accentLight,
 			manualAccentColorDark: accentDark
 		}
+	}
+
+	function resetThemeColors() {
+		s = {
+			...s,
+			manualBackgroundColor:     null,
+			manualSurfaceColor:        null,
+			manualTextColor:           null,
+			manualMutedColor:          null,
+			manualBackgroundColorDark: null,
+			manualSurfaceColorDark:    null,
+			manualTextColorDark:       null,
+			manualMutedColorDark:      null,
+			manualAccentColor:         null,
+			manualAccentColorDark:     null,
+		};
 	}
 
 	function radiusValue(value: number | null | undefined) {
@@ -651,19 +670,13 @@
 							class:active={(s.manualThemeMode ?? 'light') === mode}
 							onclick={() => (s = { ...s, manualThemeMode: mode as ManualThemeMode })}
 						>
-							<span class="mode-icon" aria-hidden="true">
-								{#if mode === 'light'}
-									<IconSun size={17} stroke={1.9} />
-								{:else if mode === 'dark'}
-									<IconMoon size={17} stroke={1.9} />
-								{:else if mode === 'system'}
-									<IconDeviceDesktop size={17} stroke={1.9} />
-								{:else}
-									<IconArrowsExchange size={17} stroke={1.9} />
-								{/if}
-							</span>
-							<strong>{themeModeLabel(mode as ManualThemeMode)}</strong>
-							<span>{themeModeDescription(mode as ManualThemeMode)}</span>
+							{#if mode === 'light'}<IconSun size={18} stroke={1.75} />
+						{:else if mode === 'dark'}<IconMoon size={18} stroke={1.75} />
+						{:else if mode === 'system'}<IconDeviceDesktop size={18} stroke={1.75} />
+						{:else}<IconArrowsExchange size={18} stroke={1.75} />
+						{/if}
+						<strong>{themeModeLabel(mode as ManualThemeMode)}</strong>
+						<span>{themeModeDescription(mode as ManualThemeMode)}</span>
 						</button>
 					{/each}
 				</div>
@@ -676,11 +689,18 @@
 								? 'Nastavte zvlášť světlý a tmavý režim. Kontrast se kontroluje proti pozadí a kartám.'
 								: 'Tune light and dark mode separately. Contrast is checked against page and card backgrounds.'}</p>
 						</div>
-						<button type="button" class="btn-auto" onclick={autoGenerateTheme} disabled={!brandColors.length}
-							title={brandColors.length ? (uiLanguage === 'cs' ? 'Vygenerovat theme z barev značky' : 'Auto-generate theme from brand colors') : (uiLanguage === 'cs' ? 'Nejprve přidejte barvy v sekci Barvy' : 'Add colors in the Colors section first')}>
-							<IconSparkles size={13} stroke={2} />
-							Auto
-						</button>
+						<div class="theme-builder-actions">
+							<button type="button" class="btn-reset" onclick={resetThemeColors}
+								title={uiLanguage === 'cs' ? 'Resetovat barvy na výchozí hodnoty' : 'Reset colors to defaults'}>
+								<IconRefresh size={13} stroke={2} />
+								{uiLanguage === 'cs' ? 'Výchozí' : 'Default'}
+							</button>
+							<button type="button" class="btn-auto" onclick={autoGenerateTheme} disabled={!brandColors.length}
+								title={brandColors.length ? (uiLanguage === 'cs' ? 'Vygenerovat theme z barev značky' : 'Auto-generate theme from brand colors') : (uiLanguage === 'cs' ? 'Nejprve přidejte barvy v sekci Barvy' : 'Add colors in the Colors section first')}>
+								<IconSparkles size={13} stroke={2} />
+								Auto
+							</button>
+						</div>
 					</div>
 
 					<div class="theme-columns">
@@ -979,13 +999,12 @@
 					{#each filteredAssets as asset (asset.id)}
 						<button type="button" class="asset-picker-item" title={asset.filename} onclick={() => selectAsset(asset)}>
 							<div class="asset-picker-thumb">
-								{#if assetPreviewSrc(asset)}
-									<img
-										src={assetPreviewSrc(asset)}
-										alt={asset.filename}
-										onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
-									/>
-								{/if}
+								<AssetThumb
+									mime={asset.mime}
+									thumbnailPath={asset.thumbnailPath}
+									assetId={asset.id}
+									filename={asset.filename}
+								/>
 							</div>
 							<span>{asset.filename}</span>
 							<small>{asset.mime}</small>
@@ -1087,23 +1106,31 @@
 	}
 	.asset-path-preview-dark { background: #1a1a1a; border-color: #333; }
 	.asset-path-preview-dark .asset-path-thumb { background: #111; border-color: #333; }
+	/* Neutral mid-gray for both light/dark logo previews — both colors visible */
+	.asset-path-thumb { background: #8a8a8a; border-color: #6a6a6a; }
 	.asset-path-preview-dark small { color: #888; }
 	.field-hint { margin: .25rem 0 0; font-size: .78rem; color: var(--color-muted); }
 	.asset-path-thumb {
-		width: 64px; height: 36px; display: grid; place-items: center;
+		width: 64px; height: 56px;
+		display: flex; align-items: center; justify-content: center;
 		border: 1px solid var(--color-border); border-radius: 6px;
 		background: var(--color-surface); overflow: hidden; flex-shrink: 0;
 		padding: 4px;
 	}
-	.asset-path-thumb.favicon-thumb { width: 36px; height: 36px; }
-	.asset-path-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; box-sizing: border-box; }
+	.asset-path-thumb.favicon-thumb { width: 40px; height: 40px; }
+	.asset-path-thumb img {
+		width: 100%; height: 100%;
+		object-fit: contain; display: block;
+		box-sizing: border-box;
+	}
 	.mono { font-family: var(--font-mono); max-width: 140px; }
 	.color-input { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
 	.color-input input[type="color"] { width: 44px; padding: 3px; }
 	.swatch { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--color-border); }
 	.theme-mode-grid { display: grid; gap: .75rem; }
 	.theme-mode-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-	.btn-auto {
+	.theme-builder-actions { display: flex; gap: .45rem; align-items: center; flex-shrink: 0; }
+	.btn-auto, .btn-reset {
 		display: inline-flex; align-items: center; gap: 5px;
 		padding: .3rem .75rem; height: 30px;
 		border: 1px solid var(--color-border); border-radius: 999px;
@@ -1114,9 +1141,10 @@
 	}
 	.btn-auto:hover:not(:disabled) { background: var(--color-surface); border-color: var(--brand); color: var(--brand); }
 	.btn-auto:disabled { opacity: .45; cursor: default; }
+	.btn-reset:hover { background: var(--color-surface); border-color: var(--color-muted); }
 	.theme-mode-card {
 		position: relative;
-		min-height: 108px;
+		min-height: 104px;
 		padding: .8rem;
 		border: 1px solid var(--color-border);
 		border-radius: 8px;
@@ -1124,10 +1152,11 @@
 		color: var(--color-text);
 		text-align: left;
 		cursor: pointer;
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: .45rem .55rem;
-		align-content: start;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		justify-content: flex-start;
+		gap: .3rem;
 		min-width: 0;
 	}
 	.theme-mode-card.active {
@@ -1135,28 +1164,16 @@
 		background: color-mix(in srgb, var(--brand) 7%, var(--color-bg));
 		color: var(--brand);
 	}
-	.theme-mode-card .mode-icon,
 	.theme-mode-card strong,
 	.theme-mode-card > span:last-child {
 		pointer-events: none;
 	}
-	.mode-icon {
-		width: 28px;
-		height: 28px;
-		display: grid;
-		place-items: center;
-		border: 1px solid var(--color-border);
-		border-radius: 8px;
-		background: var(--color-surface);
-		color: inherit;
-	}
-	.theme-mode-grid strong, .theme-mode-grid span { display: block; min-width: 0; }
-	.theme-mode-grid strong { font-size: .9rem; align-self: center; }
+	.theme-mode-card strong { font-size: .9rem; display: block; }
 	.theme-mode-card > span:last-child {
-		grid-column: 1 / -1;
 		color: var(--color-muted);
 		font-size: .78rem;
 		line-height: 1.35;
+		display: block;
 	}
 	.theme-builder {
 		display: grid;
@@ -1373,18 +1390,11 @@
 	}
 	.asset-picker-thumb {
 		aspect-ratio: 4 / 3;
-		display: grid; place-items: center;
-		background:
-			linear-gradient(45deg, color-mix(in srgb, var(--color-border) 45%, transparent) 25%, transparent 25%),
-			linear-gradient(-45deg, color-mix(in srgb, var(--color-border) 45%, transparent) 25%, transparent 25%),
-			linear-gradient(45deg, transparent 75%, color-mix(in srgb, var(--color-border) 45%, transparent) 75%),
-			linear-gradient(-45deg, transparent 75%, color-mix(in srgb, var(--color-border) 45%, transparent) 75%),
-			var(--color-surface);
-		background-size: 16px 16px;
-		background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+		position: relative;
 		overflow: hidden;
+		background: color-mix(in srgb, var(--color-border) 40%, transparent);
+		border-radius: 5px;
 	}
-	.asset-picker-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; padding: .5rem; box-sizing: border-box; }
 	.asset-picker-item span {
 		padding: .05rem .65rem 0;
 		font-size: .8rem; font-weight: 700;

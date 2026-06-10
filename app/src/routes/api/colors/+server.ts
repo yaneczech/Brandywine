@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
@@ -60,7 +61,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!locals.user || !canEdit(locals.user.role)) error(403, 'Forbidden');
 	const body = await request.json();
 
 	if (!body.name?.trim()) error(400, 'Name is required');

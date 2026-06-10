@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 /**
  * PATCH /api/folders/[id]/move
  *
@@ -72,7 +73,7 @@ async function renumberSiblings(parentId: string | null) {
 
 export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const body = await request.json().catch(() => null) as {
 		parentId?: string | null;

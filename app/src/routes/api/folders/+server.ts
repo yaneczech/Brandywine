@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
@@ -31,7 +32,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 // POST /api/folders — create folder
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const body = await request.json().catch(() => null) as Record<string, unknown> | null;
 	if (!body?.name || typeof body.name !== 'string') error(400, 'name is required');

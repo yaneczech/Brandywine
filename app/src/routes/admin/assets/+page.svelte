@@ -3,8 +3,10 @@
 	import type { FolderWithCount } from './+page.server';
 	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
 	import Breadcrumbs, { type BreadcrumbItem } from '$lib/components/admin/Breadcrumbs.svelte';
 	import FolderPicker from '$lib/components/admin/FolderPicker.svelte';
+	import AssetThumb from '$lib/components/admin/AssetThumb.svelte';
 	import {
 		IconUpload, IconSearch, IconTrash, IconDownload, IconFolder, IconFolderOpen,
 		IconFolderPlus, IconFile, IconFileText, IconVideo, IconX, IconPlus, IconCheck,
@@ -132,14 +134,14 @@
 
 	let uploadProgress = $state<{ name: string; done: boolean; err?: string }[]>([]);
 
-	const TYPE_TABS = [
-		{ key: 'all',      label: 'All' },
-		{ key: 'image',    label: 'Images' },
-		{ key: 'video',    label: 'Video' },
-		{ key: 'document', label: 'Documents' },
-		{ key: 'font',     label: 'Fonts' },
-		{ key: 'other',    label: 'Other' },
-	];
+	const TYPE_TABS = $derived([
+		{ key: 'all',      label: m.users_filter_all() },
+		{ key: 'image',    label: m.assets_type_images() },
+		{ key: 'video',    label: m.assets_type_video() },
+		{ key: 'document', label: m.assets_type_docs() },
+		{ key: 'font',     label: m.assets_type_fonts() },
+		{ key: 'other',    label: m.assets_type_other() },
+	]);
 
 	const FOLDER_COLORS = ['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ef4444','#64748b'];
 	const SIDEBAR_MIN_WIDTH = 220;
@@ -264,7 +266,7 @@
 	}
 
 	function folderTrail(id: string | null): BreadcrumbItem[] {
-		const trail: BreadcrumbItem[] = [{ label: 'Assets', value: null }];
+		const trail: BreadcrumbItem[] = [{ label: m.admin_assets(), value: null }];
 		if (!id) return trail;
 
 		const byId = new Map(folderList.map(f => [f.id, f]));
@@ -530,7 +532,7 @@
 {#if dragOver}
 	<div class="drop-overlay">
 		<IconUpload size={44} stroke={1.25} />
-		<span>Drop files to upload{activeFolderId ? ` into "${getFolderById(activeFolderId)?.name}"` : ''}</span>
+		<span>{m.assets_drop_to_upload()}{activeFolderId ? ` — "${getFolderById(activeFolderId)?.name}"` : ''}</span>
 	</div>
 {/if}
 
@@ -540,8 +542,8 @@
 	<!-- Sidebar -->
 	<aside bind:this={sidebarEl} class="asset-sidebar" style="--assets-sidebar-width:{sidebarWidth}px">
 		<div class="sidebar-head">
-			<span class="sidebar-title">Folders</span>
-			<button class="icon-btn" title="New folder" onclick={() => { newFolderParent = null; showNewFolder = true; }}>
+			<span class="sidebar-title">{m.assets_folders()}</span>
+			<button class="icon-btn" title={m.assets_new_folder_title()} onclick={() => { newFolderParent = null; showNewFolder = true; }}>
 				<IconFolderPlus size={16} stroke={1.75} />
 			</button>
 		</div>
@@ -550,7 +552,7 @@
 		<button class="folder-row root-row" class:active={activeFolderId === null}
 			onclick={() => { activeFolderId = null; activeTag = null; }}>
 			<IconFolder size={15} stroke={1.75} />
-			<span>All assets</span>
+			<span>{m.assets_all_assets()}</span>
 			<span class="folder-count">{data.total}</span>
 		</button>
 
@@ -596,7 +598,7 @@
 								<IconGripVertical size={12} stroke={1.75} />
 							</span>
 							{#if f.children && f.children.length > 0}
-								<button type="button" class="chevron-btn" aria-label={expandedFolders.has(f.id) ? 'Collapse folder' : 'Expand folder'}
+								<button type="button" class="chevron-btn" aria-label={expandedFolders.has(f.id) ? m.typo_collapse() : m.typo_expand()}
 									onclick={(e) => { e.stopPropagation(); toggleFolder(f.id); }}>
 									<IconChevronRight size={12} stroke={2}
 										style="transform:rotate({expandedFolders.has(f.id) ? 90 : 0}deg);transition:transform 0.15s" />
@@ -620,10 +622,10 @@
 								{#if activeFolderMenu === f.id}
 									<div class="folder-menu" role="menu">
 										<button type="button" role="menuitem" onclick={(e) => { e.stopPropagation(); beginRenameFolder(f); }}>
-											<IconEdit size={12} stroke={2} /> Rename
+											<IconEdit size={12} stroke={2} /> {m.assets_rename()}
 										</button>
 										<button type="button" role="menuitem" class="danger" onclick={(e) => { e.stopPropagation(); beginDeleteFolder(f); }}>
-											<IconTrash size={12} stroke={2} /> Delete
+											<IconTrash size={12} stroke={2} /> {m.assets_detail_delete()}
 										</button>
 									</div>
 								{/if}
@@ -655,7 +657,7 @@
 
 		<!-- Tags section -->
 		{#if allTags.length > 0}
-			<div class="sidebar-section-title">Tags</div>
+			<div class="sidebar-section-title">{m.assets_tags_title()}</div>
 			<div class="tag-list">
 				{#each allTags as t}
 					<button class="tag-chip" class:active={activeTag === t.tag}
@@ -674,13 +676,17 @@
 		<!-- Topbar -->
 		<div class="topbar">
 			<div class="topbar-left">
-				<button class="icon-btn mobile-nav-btn" title="Browse folders & tags"
+				<button class="icon-btn mobile-nav-btn" title={m.assets_browse()}
 					onclick={() => (showMobileSidebar = true)}>
 					<IconFolder size={16} stroke={1.75} />
 				</button>
 				<div class="page-context">
-					<h1 class="sr-only">Assets</h1>
-					<Breadcrumbs items={activeBreadcrumbs()} onSelect={selectBreadcrumb} />
+					{#if activeFolderId || activeTag}
+						<h1 class="sr-only">{m.admin_assets()}</h1>
+						<Breadcrumbs items={activeBreadcrumbs()} onSelect={selectBreadcrumb} />
+					{:else}
+						<h1 class="page-title">{m.admin_assets()}</h1>
+					{/if}
 					{#if activeFolderId}
 						{@const folder = getFolderById(activeFolderId)}
 						<span class="context-meta">
@@ -688,11 +694,11 @@
 							{folder?.path ?? folder?.name ?? 'Folder'}
 						</span>
 					{:else if activeTag}
-						<span class="context-meta"><IconTag size={13} stroke={1.75} /> Filtered by tag</span>
+						<span class="context-meta"><IconTag size={13} stroke={1.75} /> {m.assets_filter_tag()}</span>
 					{/if}
 				</div>
 				<span class="page-count">
-					{visibleAssets().length} file{visibleAssets().length !== 1 ? 's' : ''}
+					{visibleAssets().length} {visibleAssets().length === 1 ? m.assets_stat_one() : m.assets_stat_many()}
 					{#if data.total > assets.length}
 						<span class="page-count-warn" title="Showing {assets.length} of {data.total} total">· showing first {assets.length}</span>
 					{/if}
@@ -701,23 +707,23 @@
 			<div class="topbar-right">
 				{#if selected.size > 0}
 					<button class="btn-sm ghost" onclick={() => { moveFolderAsset = 'bulk'; }}>
-						<IconArrowRight size={13} stroke={2} /> Move
+						<IconArrowRight size={13} stroke={2} /> {m.assets_move_selected()}
 					</button>
 					<button class="btn-sm danger" onclick={() => (confirmDel = 'bulk')}>
-						<IconTrash size={13} stroke={2} /> Delete {selected.size}
+						<IconTrash size={13} stroke={2} /> {m.assets_detail_delete()} {selected.size}
 					</button>
 					<button class="btn-sm ghost" onclick={() => (selected = new Set())}>
-						<IconX size={13} stroke={2} /> Clear
+						<IconX size={13} stroke={2} /> {m.assets_clear_selection()}
 					</button>
 				{/if}
-				<button class="icon-btn" class:active={viewMode === 'grid'} title="Grid view" onclick={() => (viewMode = 'grid')}>
+				<button class="icon-btn" class:active={viewMode === 'grid'} title={m.assets_grid_view()} onclick={() => (viewMode = 'grid')}>
 					<IconLayoutGrid size={16} stroke={1.75} />
 				</button>
-				<button class="icon-btn" class:active={viewMode === 'list'} title="List view" onclick={() => (viewMode = 'list')}>
+				<button class="icon-btn" class:active={viewMode === 'list'} title={m.assets_list_view()} onclick={() => (viewMode = 'list')}>
 					<IconLayoutList size={16} stroke={1.75} />
 				</button>
 				<label class="btn-primary">
-					<IconUpload size={14} stroke={2} /> Upload
+					<IconUpload size={14} stroke={2} /> {m.assets_upload()}
 					<input type="file" multiple
 						onchange={(e) => { const t = e.target as HTMLInputElement; if (t.files) uploadFiles(t.files); }}
 						style="display:none" />
@@ -739,13 +745,13 @@
 			</div>
 			<div class="filter-right">
 				<select class="sort-select" bind:value={sortKey}>
-					<option value="date">Newest first</option>
-					<option value="name">Name A–Z</option>
-					<option value="size">Largest first</option>
+					<option value="date">{m.assets_sort_newest()}</option>
+					<option value="name">{m.assets_sort_name()}</option>
+					<option value="size">{m.assets_sort_largest()}</option>
 				</select>
 				<div class="search-wrap">
 					<IconSearch size={13} stroke={2} />
-					<input class="search-input" placeholder="Search…" bind:value={search} />
+					<input class="search-input" placeholder={m.assets_search()} bind:value={search} />
 					{#if search}<button class="search-clear" onclick={() => (search = '')}><IconX size={11} stroke={2} /></button>{/if}
 				</div>
 			</div>
@@ -754,7 +760,7 @@
 		<!-- Active tag indicator -->
 		{#if activeTag}
 			<div class="active-filter-bar">
-				<span>Filtered by tag: <strong>#{activeTag}</strong></span>
+				<span>{m.assets_filter_tag()} <strong>#{activeTag}</strong></span>
 				<button onclick={() => (activeTag = null)}><IconX size={12} stroke={2} /></button>
 			</div>
 		{/if}
@@ -779,15 +785,15 @@
 			{#if visibleAssets().length === 0}
 				<div class="empty-state">
 					<div class="empty-icon"><IconFolder size={48} stroke={1.1} /></div>
-					<p class="empty-title">{search || typeFilter !== 'all' || activeTag ? 'No matching assets' : 'No assets yet'}</p>
+					<p class="empty-title">{search || typeFilter !== 'all' || activeTag ? m.assets_no_match_title() : m.assets_no_assets_title()}</p>
 					<p class="empty-sub">
 						{search || typeFilter !== 'all' || activeTag
-							? 'Try adjusting filters or search.'
-							: 'Drag & drop files here or click Upload.'}
+							? m.assets_no_match_sub()
+							: m.assets_no_assets_sub()}
 					</p>
 					{#if !search && typeFilter === 'all' && !activeTag}
 						<label class="btn-primary mt">
-							<IconPlus size={14} stroke={2} /> Add first asset
+							<IconPlus size={14} stroke={2} /> {m.assets_add_first()}
 							<input type="file" multiple
 								onchange={(e) => { const t = e.target as HTMLInputElement; if (t.files) uploadFiles(t.files); }}
 								style="display:none" />
@@ -800,8 +806,6 @@
 					{@html fontFaceStyles(visibleAssets())}
 					<div class="asset-grid">
 					{#each visibleAssets() as a (a.id)}
-						{@const thumb = thumbUrl(a)}
-						{@const MimeIcon = mimeIcon(a.mime)}
 						<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 						<div class="asset-card"
 							class:sel={selected.has(a.id)}
@@ -815,17 +819,12 @@
 
 							<!-- Thumbnail -->
 							<div class="card-thumb">
-								{#if thumb}
-									<img src={thumb} alt={a.filename} class="thumb-img" class:thumb-contain={a.mime === 'image/svg+xml' || a.mime.startsWith('font/')} loading="lazy" />
-								{:else}
-									<div class="thumb-icon">
-										{#if a.mime.startsWith('font/')}
-											<span class="font-preview" style="font-family:'card-font-{a.id}',serif">Aa</span>
-										{:else}
-											<MimeIcon size={30} stroke={1.1} />
-										{/if}
-									</div>
-								{/if}
+								<AssetThumb
+									mime={a.mime}
+									thumbnailPath={a.thumbnailPath}
+									assetId={a.id}
+									filename={a.filename}
+								/>
 								<!-- Format badge + page count -->
 								<span class="format-badge">{mimeLabel(a.mime)}</span>
 								{#if (a.mime === 'application/pdf' || a.mime === 'application/postscript')}
@@ -836,13 +835,13 @@
 								{/if}
 								<!-- Hover actions -->
 								<div class="card-actions">
-									<button class="card-action" title="Preview" onclick={(e) => { e.stopPropagation(); detailAsset = a; }}>
+									<button class="card-action" title={m.typo_preview()} onclick={(e) => { e.stopPropagation(); detailAsset = a; }}>
 										<IconEye size={13} stroke={2} />
 									</button>
-									<button class="card-action" title="Download" onclick={(e) => { e.stopPropagation(); download(a); }}>
+									<button class="card-action" title={m.assets_detail_download()} onclick={(e) => { e.stopPropagation(); download(a); }}>
 										<IconDownload size={13} stroke={2} />
 									</button>
-									<button class="card-action del" title="Delete" onclick={(e) => { e.stopPropagation(); confirmDel = a; }}>
+									<button class="card-action del" title={m.assets_detail_delete()} onclick={(e) => { e.stopPropagation(); confirmDel = a; }}>
 										<IconTrash size={13} stroke={2} />
 									</button>
 								</div>
@@ -872,12 +871,12 @@
 				<div class="asset-list">
 					<div class="list-head">
 						<span class="lh-check"></span>
-						<span class="lh-name">Name</span>
-						<span class="lh-type">Type</span>
-						<span class="lh-size">Size</span>
-						<span class="lh-folder">Folder</span>
-						<span class="lh-date">Date</span>
-						<span class="lh-tags">Tags</span>
+						<span class="lh-name">{m.typo_col_name()}</span>
+						<span class="lh-type">{m.assets_detail_type()}</span>
+						<span class="lh-size">{m.assets_detail_size()}</span>
+						<span class="lh-folder">{m.assets_detail_folder()}</span>
+						<span class="lh-date">{m.assets_detail_uploaded()}</span>
+						<span class="lh-tags">{m.assets_tags_title()}</span>
 						<span class="lh-actions"></span>
 					</div>
 					{#each visibleAssets() as a (a.id)}
@@ -911,8 +910,8 @@
 								{/each}
 							</span>
 							<span class="lr-actions" onclick={(e) => e.stopPropagation()}>
-								<button class="icon-btn xs" title="Download" onclick={() => download(a)}><IconDownload size={13} stroke={1.75} /></button>
-								<button class="icon-btn xs" title="Delete" onclick={() => { confirmDel = a; }}><IconTrash size={13} stroke={1.75} /></button>
+								<button class="icon-btn xs" title={m.assets_detail_download()} onclick={() => download(a)}><IconDownload size={13} stroke={1.75} /></button>
+								<button class="icon-btn xs" title={m.assets_detail_delete()} onclick={() => { confirmDel = a; }}><IconTrash size={13} stroke={1.75} /></button>
 							</span>
 						</div>
 					{/each}
@@ -938,7 +937,7 @@
 		<div class="drawer-backdrop" onclick={closeDetailDrawer}></div>
 		<aside class="drawer">
 			<div class="drawer-head">
-				<span class="drawer-title">Details</span>
+				<span class="drawer-title">{m.assets_details()}</span>
 				<button type="button" class="icon-btn" aria-label="Close details" onclick={closeDetailDrawer}>
 					<IconX size={16} stroke={1.75} />
 				</button>
@@ -987,16 +986,16 @@
 			<div class="drawer-body">
 				<p class="drawer-filename">{a.filename}</p>
 				<div class="drawer-meta-grid">
-					<span class="dmg-label">Type</span>   <span>{mimeLabel(a.mime)}</span>
-					<span class="dmg-label">Size</span>   <span>{fmtSize(Number(a.size))}</span>
+					<span class="dmg-label">{m.assets_detail_type()}</span>   <span>{mimeLabel(a.mime)}</span>
+					<span class="dmg-label">{m.assets_detail_size()}</span>   <span>{fmtSize(Number(a.size))}</span>
 					{#if pageCount > 1}
-					<span class="dmg-label">Pages</span>  <span>{pageCount}</span>
+					<span class="dmg-label">{m.assets_detail_pages()}</span>  <span>{pageCount}</span>
 					{/if}
-					<span class="dmg-label">Uploaded</span><span>{fmtDate(a.createdAt)}</span>
-					<span class="dmg-label">Folder</span>
-					<span>{getFolderById(a.folderId ?? null)?.name ?? 'No folder'}</span>
+					<span class="dmg-label">{m.assets_detail_uploaded()}</span><span>{fmtDate(a.createdAt)}</span>
+					<span class="dmg-label">{m.assets_detail_folder()}</span>
+					<span>{getFolderById(a.folderId ?? null)?.name ?? m.assets_detail_no_folder()}</span>
 					{#if meta.source === 'typography'}
-					<span class="dmg-label">Source</span>
+					<span class="dmg-label">{m.assets_detail_source()}</span>
 					<a class="link-btn" href="/admin/typography">Typography</a>
 					{/if}
 				</div>
@@ -1004,9 +1003,9 @@
 				<!-- Tags -->
 				<div class="drawer-section">
 					<div class="drawer-section-head">
-						<span>Tags</span>
+						<span>{m.assets_tags_title()}</span>
 						<button class="link-btn" onclick={() => { editTagsAsset = a; tagInput = ''; }}>
-							<IconEdit size={12} stroke={2} /> Edit
+							<IconEdit size={12} stroke={2} /> {m.assets_detail_edit()}
 						</button>
 					</div>
 					{#if (a.tags ?? []).length > 0}
@@ -1016,16 +1015,16 @@
 							{/each}
 						</div>
 					{:else}
-						<p class="drawer-empty-note">No tags yet</p>
+						<p class="drawer-empty-note">{m.assets_no_tags()}</p>
 					{/if}
 				</div>
 
 				<!-- Folder -->
 				<div class="drawer-section">
 					<div class="drawer-section-head">
-						<span>Location</span>
+						<span>{m.assets_detail_location()}</span>
 						<button class="link-btn" onclick={() => (moveFolderAsset = a)}>
-							<IconArrowRight size={12} stroke={2} /> Move
+							<IconArrowRight size={12} stroke={2} /> {m.assets_detail_move()}
 						</button>
 					</div>
 					<div class="drawer-location">
@@ -1037,7 +1036,7 @@
 				<!-- Convert -->
 				{#if a.mime.startsWith('image/') && !['image/webp','image/avif','image/svg+xml'].includes(a.mime)}
 					<div class="drawer-section">
-						<div class="drawer-section-head"><span>Convert</span></div>
+						<div class="drawer-section-head"><span>{m.assets_detail_convert()}</span></div>
 						<div class="convert-row">
 							{#each ['webp', 'avif'] as fmt}
 								{@const key = `${a.id}-${fmt}`}
@@ -1064,10 +1063,10 @@
 				<!-- Actions -->
 				<div class="drawer-actions">
 					<button class="btn-full secondary" onclick={() => download(a)}>
-						<IconDownload size={14} stroke={1.75} /> Download
+						<IconDownload size={14} stroke={1.75} /> {m.assets_detail_download()}
 					</button>
 					<button class="btn-full danger" onclick={() => { confirmDel = a; closeDetailDrawer(); }}>
-						<IconTrash size={14} stroke={1.75} /> Delete
+						<IconTrash size={14} stroke={1.75} /> {m.assets_detail_delete()}
 					</button>
 				</div>
 			</div>
@@ -1080,7 +1079,7 @@
 		<div class="mobile-sidebar-backdrop" onclick={() => (showMobileSidebar = false)}></div>
 		<aside class="mobile-sidebar-sheet">
 			<div class="mobile-sheet-head">
-				<span>Browse</span>
+				<span>{m.assets_browse()}</span>
 				<button class="icon-btn" aria-label="Close" onclick={() => (showMobileSidebar = false)}>
 					<IconX size={16} stroke={1.75} />
 				</button>
@@ -1089,7 +1088,7 @@
 				<button class="folder-row root-row" class:active={activeFolderId === null}
 					onclick={() => { activeFolderId = null; activeTag = null; showMobileSidebar = false; }}>
 					<IconFolder size={15} stroke={1.75} />
-					<span>All assets</span>
+					<span>{m.assets_all_assets()}</span>
 					<span class="folder-count">{data.total}</span>
 				</button>
 				{#each folderList as f}
@@ -1102,7 +1101,7 @@
 					</button>
 				{/each}
 				{#if allTags.length > 0}
-					<div class="sidebar-section-title" style="margin-top:8px">Tags</div>
+					<div class="sidebar-section-title" style="margin-top:8px">{m.assets_tags_title()}</div>
 					<div class="tag-list">
 						{#each allTags as t}
 							<button class="tag-chip" class:active={activeTag === t.tag}
@@ -1129,20 +1128,20 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
 			<div class="modal-head">
-				<h2>Delete {confirmDel === 'bulk' ? `${selected.size} assets` : 'asset'}?</h2>
+				<h2>{m.assets_delete_confirm_title()} {confirmDel === 'bulk' ? `${selected.size} ${m.assets_stat_many()}` : m.assets_stat_one()}?</h2>
 				<button class="icon-btn" aria-label="Close" onclick={() => (confirmDel = null)}><IconX size={16} stroke={1.75} /></button>
 			</div>
 			<div class="modal-body">
 				{#if confirmDel === 'bulk'}
-					<p>Permanently delete <strong>{selected.size} file{selected.size !== 1 ? 's' : ''}</strong>? This cannot be undone.</p>
+					<p>Permanently delete <strong>{selected.size} {selected.size === 1 ? m.assets_stat_one() : m.assets_stat_many()}</strong>? This cannot be undone.</p>
 				{:else}
 					<p><strong>{confirmDel.filename}</strong> will be permanently deleted.</p>
 				{/if}
 			</div>
 			<div class="modal-foot">
-				<button class="btn-cancel" onclick={() => (confirmDel = null)}>Cancel</button>
+				<button class="btn-cancel" onclick={() => (confirmDel = null)}>{m.users_btn_cancel()}</button>
 				<button class="btn-delete" onclick={() => { if (confirmDel === 'bulk') deleteSelected(); else if (confirmDel) deleteAsset(confirmDel.id); }}>
-					<IconTrash size={13} stroke={2} /> Delete
+					<IconTrash size={13} stroke={2} /> {m.assets_detail_delete()}
 				</button>
 			</div>
 		</div>
@@ -1156,14 +1155,14 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
 			<div class="modal-head">
-				<h2>Move to folder</h2>
+				<h2>{m.assets_move_title()}</h2>
 				<button class="icon-btn" aria-label="Close" onclick={() => (moveFolderAsset = null)}><IconX size={16} stroke={1.75} /></button>
 			</div>
 			<div class="modal-body folder-picker">
 				<FolderPicker
 					folders={folderList}
 					selectedId={moveDialogSelectedFolder()}
-					rootLabel="Root (no folder)"
+					rootLabel={m.assets_root_no_folder()}
 					showCounts={true}
 					onPick={moveToFolder}
 				/>
@@ -1180,7 +1179,7 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
 			<div class="modal-head">
-				<h2>Edit tags — {a.filename}</h2>
+				<h2>{m.assets_edit_tags_title()} — {a.filename}</h2>
 				<button class="icon-btn" aria-label="Close" onclick={() => (editTagsAsset = null)}><IconX size={16} stroke={1.75} /></button>
 			</div>
 			<div class="modal-body">
@@ -1198,7 +1197,7 @@
 						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(a, tagInput); } }} />
 					<button class="btn-sm primary" onclick={() => addTag(a, tagInput)}>Add</button>
 				</div>
-				<p class="tag-hint">Press Enter or comma to add · Click × to remove</p>
+				<p class="tag-hint">{m.assets_tags_hint()}</p>
 			</div>
 		</div>
 	</div>
@@ -1213,7 +1212,7 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<div class="modal sm" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
 			<div class="modal-head">
-				<h2>Delete folder?</h2>
+				<h2>{m.assets_delete_folder_title()}</h2>
 				<button class="icon-btn" aria-label="Close" onclick={() => (confirmDelFolder = null)}><IconX size={16} stroke={1.75} /></button>
 			</div>
 			<div class="modal-body">
@@ -1234,9 +1233,9 @@
 				{/if}
 			</div>
 			<div class="modal-foot">
-				<button class="btn-cancel" onclick={() => (confirmDelFolder = null)}>Cancel</button>
+				<button class="btn-cancel" onclick={() => (confirmDelFolder = null)}>{m.users_btn_cancel()}</button>
 				<button class="btn-delete" onclick={() => confirmDelFolder && deleteFolder(confirmDelFolder)}>
-					<IconTrash size={13} stroke={2} /> Delete
+					<IconTrash size={13} stroke={2} /> {m.assets_detail_delete()}
 				</button>
 			</div>
 		</div>
@@ -1250,21 +1249,21 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<div class="modal sm" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
 			<div class="modal-head">
-				<h2>New folder</h2>
+				<h2>{m.assets_new_folder_title()}</h2>
 				<button class="icon-btn" aria-label="Close" onclick={() => (showNewFolder = false)}><IconX size={16} stroke={1.75} /></button>
 			</div>
 			<div class="modal-body">
-				<label class="field-label" for="nf-name">Name</label>
-				<input id="nf-name" class="field-input" placeholder="e.g. Logos" bind:value={newFolderName}
+				<label class="field-label" for="nf-name">{m.assets_folder_name_label()}</label>
+				<input id="nf-name" class="field-input" placeholder={m.assets_folder_name_ph()} bind:value={newFolderName}
 					onkeydown={(e) => e.key === 'Enter' && createFolder()} />
-				<label class="field-label mt" for="nf-parent">Parent folder</label>
+				<label class="field-label mt" for="nf-parent">{m.assets_folder_parent_label()}</label>
 				<select id="nf-parent" class="field-input" bind:value={newFolderParent}>
-					<option value={null}>Root</option>
+					<option value={null}>{m.assets_folder_root_opt()}</option>
 					{#each folderList as f}
 						<option value={f.id}>{f.path}</option>
 					{/each}
 				</select>
-				<label class="field-label mt" for="nf-color">Color</label>
+				<label class="field-label mt" for="nf-color">{m.assets_folder_color_label()}</label>
 				<div id="nf-color" class="color-swatches">
 					{#each FOLDER_COLORS as c}
 						<button class="swatch" class:active={newFolderColor === c}
@@ -1273,9 +1272,9 @@
 				</div>
 			</div>
 			<div class="modal-foot">
-				<button class="btn-cancel" onclick={() => (showNewFolder = false)}>Cancel</button>
+				<button class="btn-cancel" onclick={() => (showNewFolder = false)}>{m.users_btn_cancel()}</button>
 				<button class="btn-primary" onclick={createFolder} disabled={!newFolderName.trim()}>
-					<IconFolderPlus size={14} stroke={2} /> Create
+					<IconFolderPlus size={14} stroke={2} /> {m.assets_create_btn()}
 				</button>
 			</div>
 		</div>
@@ -1463,7 +1462,7 @@
 .topbar-right { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .page-context { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .page-title {
-	font-size:1.25rem; font-weight:650; letter-spacing:-0.025em;
+	font-size:1.5rem; font-weight:650; letter-spacing:-0.025em;
 	display:flex; align-items:center; gap:7px;
 }
 .context-meta {

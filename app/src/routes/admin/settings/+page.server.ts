@@ -1,4 +1,5 @@
 import type { PageServerLoad } from './$types';
+import { redirect } from '@sveltejs/kit';
 import { db } from '$db';
 import { brandSettings } from '$db/schema';
 import { eq } from 'drizzle-orm';
@@ -22,7 +23,8 @@ const DEFAULTS = {
 	defaultLanguage: 'en'
 };
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
+	if (locals.user?.role !== 'admin') redirect(302, '/admin');
 	const [row] = await db.select().from(brandSettings).where(eq(brandSettings.id, 1));
 	return { settings: row ?? DEFAULTS };
 };

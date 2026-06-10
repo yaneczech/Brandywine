@@ -27,8 +27,8 @@
 	let saving = $state(false);
 	let error  = $state('');
 
-	// Expanded cards — all expanded by default
-	let expandedFonts = $state<Set<string>>(new Set((data.fonts as Font[]).map(f => f.id)));
+	// Expanded cards — collapsed by default
+	let expandedFonts = $state<Set<string>>(new Set<string>());
 	function toggleFont(id: string) {
 		const next = new Set(expandedFonts);
 		next.has(id) ? next.delete(id) : next.add(id);
@@ -151,8 +151,8 @@
 	}
 	function styleCountForTab(styles: Style[], tab: StyleTab): number { return stylesForTab(styles, tab).length; }
 	function styleThemeLabel(theme: StyleTheme): string {
-		if (theme === 'universal') return 'Both';
-		return theme === 'light' ? 'Light' : 'Dark';
+		if (theme === 'universal') return m.typo_theme_both();
+		return theme === 'light' ? m.typo_theme_light() : m.typo_theme_dark();
 	}
 	function colorOptions(): ColorOption[] {
 		return [
@@ -262,8 +262,8 @@
 	}
 	async function deleteFont(f: Font) {
 		showConfirm(
-			'Delete font',
-			`Delete "${f.name}" and all its styles and uploaded files? This cannot be undone.`,
+			m.typo_delete_font_title(),
+			m.typo_delete_font_msg({ name: f.name }),
 			async () => { await api('DELETE', `/api/typography/fonts/${f.id}`); await refresh(); }
 		);
 	}
@@ -319,8 +319,8 @@
 	}
 	async function deleteStyle(fontId: string, s: Style) {
 		showConfirm(
-			'Delete style',
-			`Delete style "${s.name}"?`,
+			m.typo_delete_style_title(),
+			m.users_confirm_delete_msg({ name: s.name }),
 			async () => { await api('DELETE', `/api/typography/fonts/${fontId}/styles/${s.id}`); await refresh(); }
 		);
 	}
@@ -363,12 +363,17 @@
 		await refresh();
 	}
 
-	// ── Role filter ─────────────────────────────────────────────────────────────
-	let roleFilter = $state('all');
-	function visibleFonts() {
-		return roleFilter === 'all' ? fonts : fonts.filter(f => f.role === roleFilter);
-	}
+	// ── Role grouping ────────────────────────────────────────────────────────────
 	const ROLES = ['display', 'body', 'mono', 'accent'] as const;
+	let activeRole = $state<string | null>(null);
+	const groupedFonts = $derived(
+		ROLES
+			.map(role => ({ role, label: ROLE_LABELS[role] ?? role, fonts: fonts.filter(f => f.role === role) }))
+			.filter(g => g.fonts.length > 0)
+	);
+	const visibleGroups = $derived(
+		activeRole ? groupedFonts.filter(g => g.role === activeRole) : groupedFonts
+	);
 
 	// ── Font file upload / delete ──────────────────────────────────────────────
 	async function uploadFontFile(fontId: string, fileInput: HTMLInputElement) {
@@ -499,35 +504,16 @@
 	<!-- ── Topbar ──────────────────────────────────────────────────────────── -->
 	<div class="topbar">
 		<div class="topbar-left">
-			<h1 class="page-title">Typography</h1>
-			<p class="page-sub">{fonts.length} font{fonts.length !== 1 ? 's' : ''} defined</p>
+			<h1 class="page-title">{m.admin_typography()}</h1>
+			<p class="page-sub">{fonts.length} {fonts.length === 1 ? m.typo_stat_one() : m.typo_stat_many()}</p>
 		</div>
 		<div class="topbar-actions">
 			<button class="action-btn action-btn-primary" onclick={openAddFont}>
 				<IconPlus size={13} stroke={2} />
-				Add font
+				{m.typo_add_font()}
 			</button>
 		</div>
 	</div>
-
-	<!-- ── Role filter tabs ──────────────────────────────────────────────────── -->
-	{#if fonts.length > 0}
-	<div class="role-filter-bar">
-		<button class="role-filter-tab" class:active={roleFilter === 'all'} onclick={() => roleFilter = 'all'}>
-			All <span class="role-filter-count">{fonts.length}</span>
-		</button>
-		{#each ROLES as role}
-			{@const cnt = fonts.filter(f => f.role === role).length}
-			{#if cnt > 0}
-				<button class="role-filter-tab" class:active={roleFilter === role}
-					onclick={() => roleFilter = role}
-					style="--role-color:{ROLE_COLORS[role] ?? '#888'}">
-					{ROLE_LABELS[role]} <span class="role-filter-count">{cnt}</span>
-				</button>
-			{/if}
-		{/each}
-	</div>
-	{/if}
 
 	{#if fonts.length === 0}
 		<!-- ── Empty state ─────────────────────────────────────────────────── -->
@@ -535,121 +521,154 @@
 			<div class="empty-icon">
 				<IconTypography size={48} stroke={1} color="var(--color-border)" />
 			</div>
-			<p class="empty-title">No fonts yet</p>
-			<p class="empty-sub">Add your brand fonts and define the typographic scale.</p>
-			<button class="action-btn action-btn-primary" onclick={openAddFont}>Add first font</button>
+			<p class="empty-title">{m.typo_no_fonts()}</p>
+			<p class="empty-sub">{m.typo_no_fonts_sub()}</p>
+			<button class="action-btn action-btn-primary" onclick={openAddFont}>{m.typo_add_first_font()}</button>
 		</div>
 	{:else}
-		<!-- ── Font cards ───────────────────────────────────────────────────── -->
+		<!-- ── Role filter tabs ────────────────────────────────────────────── -->
+		<div class="role-tab-bar">
+			<button class="ptab" class:active={activeRole === null} onclick={() => activeRole = null}>
+				{m.users_filter_all()} <span class="ptab-count">{fonts.length}</span>
+			</button>
+			{#each groupedFonts as g}
+				<button class="ptab" class:active={activeRole === g.role} onclick={() => activeRole = g.role}>
+					{g.label} <span class="ptab-count">{g.fonts.length}</span>
+				</button>
+			{/each}
+		</div>
+
+		<!-- ── Font cards (grouped by role) ────────────────────────────────── -->
 		<div class="fonts-list">
-			{#each visibleFonts() as f (f.id)}
+			{#each visibleGroups as group (group.role)}
+			<div class="font-role-section">
+				<div class="palette-group-header">
+					<span class="palette-group-name">{group.label}</span>
+					<span class="palette-group-count">{group.fonts.length}</span>
+				</div>
+			{#each group.fonts as f (f.id)}
 				{@const expanded = expandedFonts.has(f.id)}
 				<div class="font-card" class:collapsed={!expanded}>
 
 					<!-- ── Card header (always visible) ─────────────────────── -->
-					<div class="font-card-header" role="button" tabindex="0"
-						onclick={() => toggleFont(f.id)}
-						onkeydown={(e) => e.key === 'Enter' && toggleFont(f.id)}
-					>
-						<div class="font-header-left">
-							<span class="fold-chevron" class:open={expanded}>
-								<IconChevronRight size={14} stroke={2} />
-							</span>
-							<span class="role-badge" style="--role-color:{ROLE_COLORS[f.role] ?? '#888'}">{ROLE_LABELS[f.role] ?? f.role}</span>
-							<div class="font-header-names">
-								<h2 class="font-name" style="font-family:'{f.name}',sans-serif">{f.name}</h2>
-								{#if f.foundry || f.license}
-									<span class="font-meta">{[f.foundry, f.license].filter(Boolean).join(' · ')}</span>
+					<div class="font-card-header" class:header-expanded={expanded}>
+						<!-- Top row: static (name + actions only) -->
+						<div class="font-card-toprow">
+							<div class="font-header-left">
+								<div class="font-header-names">
+									<h2 class="font-name" style="font-family:'{f.name}',sans-serif">{f.name}</h2>
+									{#if f.foundry || f.license}
+										<span class="font-meta">{[f.foundry, f.license].filter(Boolean).join(' · ')}</span>
+									{/if}
+								</div>
+							</div>
+							<div class="font-header-actions">
+								{#if f.isVariable}
+									<span class="variable-badge">{m.typo_variable()}</span>
+								{/if}
+								{#if f.styles.length}
+									<span class="styles-count">{f.styles.length} {m.typo_sec_styles().toLowerCase()}</span>
+								{/if}
+								{#if f.files?.length}
+									<span class="files-count">{f.files.length} {m.typo_sec_files().toLowerCase()}</span>
+								{/if}
+								<button class="icon-btn" onclick={() => openEditFont(f)} title={m.typo_edit_tooltip()}>
+									<IconPencil size={14} stroke={1.75} />
+								</button>
+								<button class="icon-btn icon-btn-danger" onclick={() => deleteFont(f)} title={m.typo_delete_tooltip()}>
+									<IconTrash size={14} stroke={1.75} />
+								</button>
+							</div>
+						</div>
+
+						<!-- Specimen: always visible -->
+						<div class="font-specimen" style="font-family:'{f.name}', sans-serif">
+							<div class="specimen-left">
+								<div class="specimen-aa" style="font-weight:{f.isVariable ? 700 : (f.weights.includes(700) ? 700 : f.weights[f.weights.length - 1])}">Aa</div>
+								{#if f.isVariable}
+									<button class="specimen-variable-badge" onclick={(e) => { e.stopPropagation(); openAxesModal(f); }} title="Edit variable axes">
+										Variable
+									</button>
 								{/if}
 							</div>
-							<!-- Compact specimen in collapsed state -->
-							{#if !expanded}
-								<span class="collapsed-preview" style="font-family:'{f.name}',sans-serif">
-									Aa Bb Cc 123
-								</span>
-							{/if}
+							<div class="specimen-right">
+								<div class="specimen-abc" style="font-weight:{f.isVariable ? 400 : (f.weights.includes(400) ? 400 : f.weights[0])}">
+									AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
+								</div>
+								<div class="weight-strips">
+									{#if f.isVariable}
+										{@const wAxis = f.variableAxes?.find(a => a.tag === 'wght')}
+										{@const pts = wAxis ? [wAxis.min, Math.round((wAxis.min + wAxis.max) / 2), wAxis.max].filter((v, i, a) => a.indexOf(v) === i) : [400]}
+										{#each pts as w (w)}
+											<div class="weight-strip">
+												<span class="weight-strip-num">{w}</span>
+												<span class="weight-strip-text" style="font-weight:{w}">The quick brown fox jumps over the lazy dog</span>
+											</div>
+										{/each}
+									{:else}
+										{#each f.weights as w (w)}
+											<div class="weight-strip">
+												<span class="weight-strip-num">{w}</span>
+												<span class="weight-strip-text" style="font-weight:{w}">The quick brown fox jumps over the lazy dog</span>
+											</div>
+										{/each}
+									{/if}
+								</div>
+							</div>
 						</div>
-						<!-- svelte-ignore a11y_click_events_have_key_events -->
-						<div class="font-header-actions" onclick={(e) => e.stopPropagation()}>
-							{#if f.isVariable}
-								<span class="variable-badge">Variable</span>
-							{/if}
-							{#if f.styles.length}
-								<span class="styles-count">{f.styles.length} styles</span>
-							{/if}
-							{#if f.files?.length}
-								<span class="files-count">{f.files.length} file{f.files.length !== 1 ? 's' : ''}</span>
-							{/if}
-							<button class="icon-btn" onclick={() => openEditFont(f)} title="Edit font">
-								<IconPencil size={14} stroke={1.75} />
-							</button>
-							<button class="icon-btn icon-btn-danger" onclick={() => deleteFont(f)} title="Delete font">
-								<IconTrash size={14} stroke={1.75} />
-							</button>
+
+						<!-- Expand bar — "roleta" -->
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div class="font-expand-bar" role="button" tabindex="0"
+							onclick={() => toggleFont(f.id)}
+							onkeydown={(e) => e.key === 'Enter' && toggleFont(f.id)}
+							title={expanded ? m.typo_collapse() : m.typo_expand()}
+						>
+							<span class="expand-chevron" class:open={expanded}>
+								<IconChevronDown size={13} stroke={2} />
+							</span>
 						</div>
 					</div>
 
 					{#if expanded}
-						<!-- ── Specimen ──────────────────────────────────────── -->
-						<div class="font-specimen" style="font-family:'{f.name}', sans-serif">
-							<div class="specimen-aa">Aa</div>
-							<div class="specimen-right">
-								<div class="specimen-weights">
-									{#if f.isVariable}
-										{#each (f.variableAxes ?? []) as ax}
-											<span class="specimen-weight">{ax.label} {ax.min}–{ax.max}</span>
-										{/each}
-										<button class="text-btn" onclick={() => openAxesModal(f)}>Edit axes</button>
-									{:else}
-										{#each f.weights as w (w)}
-											<span class="specimen-weight" style="font-weight:{w}">{w}</span>
-										{/each}
-									{/if}
-								</div>
-								<div class="specimen-abc" style="font-weight:{f.isVariable ? 400 : (f.weights.includes(400) ? 400 : f.weights[0])}">
-									AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
-								</div>
-							</div>
-						</div>
-
 						<!-- ── Font info ─────────────────────────────────────── -->
 						<details class="card-section">
 							<summary class="section-summary">
-								<span class="section-title">Font info</span>
+								<span class="section-title">{m.typo_sec_info()}</span>
 								<span class="section-chevron"><IconChevronDown size={11} stroke={2} /></span>
 							</summary>
 							<div class="section-body">
 								<div class="font-info-grid">
 									<div class="fi-row">
-										<span class="fi-label">Family</span>
+										<span class="fi-label">{m.typo_fi_family()}</span>
 										<span class="fi-value">{f.name}</span>
 									</div>
 									{#if f.foundry}
 										<div class="fi-row">
-											<span class="fi-label">Producer</span>
+											<span class="fi-label">{m.typo_fi_producer()}</span>
 											<span class="fi-value">{f.foundry}</span>
 										</div>
 									{/if}
 									{#if f.license}
 										<div class="fi-row">
-											<span class="fi-label">License</span>
+											<span class="fi-label">{m.typo_fi_license()}</span>
 											<span class="fi-value">{f.license}</span>
 										</div>
 									{/if}
 									{#if f.role}
 										<div class="fi-row">
-											<span class="fi-label">Role</span>
+											<span class="fi-label">{m.typo_fi_role()}</span>
 											<span class="fi-value" style="color:{ROLE_COLORS[f.role] ?? '#888'}">{ROLE_LABELS[f.role] ?? f.role}</span>
 										</div>
 									{/if}
 									{#if f.isVariable}
 										<div class="fi-row">
-											<span class="fi-label">Type</span>
-											<span class="fi-value">Variable font</span>
+											<span class="fi-label">{m.typo_fi_variable_type()}</span>
+											<span class="fi-value">{m.typo_variable()}</span>
 										</div>
 										{#if f.variableAxes?.length}
 											<div class="fi-row fi-row-tags">
-												<span class="fi-label">Axes</span>
+												<span class="fi-label">{m.typo_fi_axes()}</span>
 												<div class="fi-tags">
 													{#each f.variableAxes as ax}
 														<span class="fi-tag" title="{ax.label} {ax.min}–{ax.max}">{ax.tag}</span>
@@ -659,7 +678,7 @@
 										{/if}
 									{:else if f.weights?.length}
 										<div class="fi-row fi-row-tags">
-											<span class="fi-label">Weights</span>
+											<span class="fi-label">{m.typo_fi_weights()}</span>
 											<div class="fi-tags">
 												{#each f.weights as w}
 													<span class="fi-tag" style="font-weight:{w}">{w}</span>
@@ -669,12 +688,12 @@
 									{/if}
 									{#if f.sourceUrl}
 										<div class="fi-row">
-											<span class="fi-label">Source</span>
+											<span class="fi-label">{m.typo_fi_source()}</span>
 											<a class="fi-link" href={f.sourceUrl} target="_blank" rel="noopener">{f.sourceUrl}</a>
 										</div>
 									{/if}
 									<div class="fi-row fi-row-tags">
-										<span class="fi-label">OT controls</span>
+										<span class="fi-label">{m.typo_fi_ot()}</span>
 										<div class="fi-tags">
 											{#each OT_FEATURES as feat}
 												<span class="fi-tag" title={feat.label}>{feat.tag}</span>
@@ -682,11 +701,11 @@
 										</div>
 									</div>
 									<div class="fi-row">
-										<span class="fi-label">Glyphs</span>
+										<span class="fi-label">{m.typo_fi_glyphs()}</span>
 										<span class="fi-value">{previewGlyphCount()} preview characters across {COVERAGE_GROUPS.length} coverage groups</span>
 									</div>
 									<div class="fi-row fi-row-tags">
-										<span class="fi-label">Coverage</span>
+										<span class="fi-label">{m.typo_fi_coverage()}</span>
 										<div class="fi-tags">
 											{#each COVERAGE_GROUPS as group}
 												<span class="fi-tag" title={coverageTooltip(group)}>{group.label}</span>
@@ -695,7 +714,7 @@
 									</div>
 									{#if f.files?.length}
 										<div class="fi-row">
-											<span class="fi-label">Files</span>
+											<span class="fi-label">{m.typo_fi_files_label()}</span>
 											<span class="fi-value">{f.files.length} uploaded ({f.files.map(ff => ff.format.toUpperCase()).join(', ')})</span>
 										</div>
 									{/if}
@@ -704,19 +723,19 @@
 						</details>
 
 						<!-- ── Font files ─────────────────────────────────────── -->
-						<details class="card-section" open={!!f.files?.length}>
+						<details class="card-section">
 							<summary class="section-summary">
-								<span class="section-title">Font files</span>
+								<span class="section-title">{m.typo_sec_files()}</span>
 								<span class="section-count">{f.files?.length ?? 0}</span>
 								<span class="section-chevron"><IconChevronDown size={11} stroke={2} /></span>
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<label class="action-btn files-upload-btn" class:uploading={uploadingFontId === f.id}
 									onclick={(e) => e.stopPropagation()}>
 									{#if uploadingFontId === f.id}
-										Uploading…
+										{m.typo_uploading()}
 									{:else}
 										<IconUpload size={12} stroke={2} />
-										Upload
+										{m.typo_upload()}
 									{/if}
 									<input type="file" accept=".woff2,.woff,.ttf,.otf,.eot" style="display:none"
 										onchange={(e) => uploadFontFile(f.id, e.currentTarget as HTMLInputElement)}
@@ -744,27 +763,27 @@
 										{/each}
 									</div>
 								{:else}
-									<p class="files-empty">No font files. Upload <code>.woff2</code>, <code>.ttf</code> or <code>.otf</code> for self-hosting.</p>
+									<p class="files-empty">{m.typo_no_files()}</p>
 								{/if}
 							</div>
 						</details>
 
 						<!-- ── Type styles ────────────────────────────────────── -->
-						<details class="card-section" open>
+						<details class="card-section">
 							<summary class="section-summary">
-								<span class="section-title">Type styles</span>
+								<span class="section-title">{m.typo_sec_styles()}</span>
 								<span class="section-count">{f.styles.length}</span>
 								<span class="section-chevron"><IconChevronDown size={11} stroke={2} /></span>
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<div class="section-actions" onclick={(e) => e.stopPropagation()}>
 									{#if f.styles.length === 0}
-										<button type="button" class="text-btn" onclick={(e) => { e.stopPropagation(); addDefaultStyles(f.id); }} disabled={saving}>+ Defaults</button>
+										<button type="button" class="text-btn" onclick={(e) => { e.stopPropagation(); addDefaultStyles(f.id); }} disabled={saving}>{m.typo_add_defaults_btn()}</button>
 									{/if}
 									<button type="button" class="text-btn" onclick={(e) => {
 										e.stopPropagation();
 										const tab = getStyleTab(f.id);
 										openAddStyle(f.id, tab === 'all' ? 'universal' : tab);
-									}}>+ Add</button>
+									}}>{m.typo_add_btn()}</button>
 								</div>
 							</summary>
 							<div class="section-body section-body-no-pt">
@@ -772,20 +791,20 @@
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 									<div class="theme-tabs" onclick={(e) => e.stopPropagation()}>
 										<button class="theme-tab" class:active={getStyleTab(f.id) === 'all'} onclick={() => setStyleTab(f.id, 'all')}>
-											All <span class="theme-tab-count">{f.styles.length}</span>
+											{m.users_filter_all()} <span class="theme-tab-count">{f.styles.length}</span>
 										</button>
 										<button class="theme-tab theme-tab-light" class:active={getStyleTab(f.id) === 'light'} onclick={() => setStyleTab(f.id, 'light')}>
-											<IconSunFilled size={14} />&nbsp;Light <span class="theme-tab-count">{styleCountForTab(f.styles, 'light')}</span>
+											<IconSunFilled size={14} />&nbsp;{m.typo_theme_light()} <span class="theme-tab-count">{styleCountForTab(f.styles, 'light')}</span>
 										</button>
 										<button class="theme-tab theme-tab-dark" class:active={getStyleTab(f.id) === 'dark'} onclick={() => setStyleTab(f.id, 'dark')}>
-											<IconMoonFilled size={14} />&nbsp;Dark <span class="theme-tab-count">{styleCountForTab(f.styles, 'dark')}</span>
+											<IconMoonFilled size={14} />&nbsp;{m.typo_theme_dark()} <span class="theme-tab-count">{styleCountForTab(f.styles, 'dark')}</span>
 										</button>
 									</div>
 
 								{#if visibleStylesList(f.id, f.styles).length > 0}
 									<div class="scale-table">
 										<div class="scale-row scale-row-header">
-											<span></span><span>Name</span><span>Size</span><span>Weight</span><span>Line height</span><span>Tracking</span><span>Colors</span><span></span>
+											<span></span><span>{m.typo_col_name()}</span><span>{m.typo_col_size()}</span><span>{m.typo_col_weight()}</span><span>{m.typo_col_lh()}</span><span>{m.typo_col_tracking()}</span><span>{m.typo_col_colors()}</span><span></span>
 										</div>
 										{#each visibleStylesList(f.id, f.styles) as s (s.id)}
 											<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -800,7 +819,7 @@
 												ondrop={(e) => onStyleDrop(e, f.id, visibleStylesList(f.id, f.styles), s.id)}
 												ondragend={() => { dragStyleId = null; dragOverStyleId = null; }}
 											>
-												<span class="drag-handle" title="Drag to reorder">
+												<span class="drag-handle" title={m.typo_drag_reorder()}>
 													<IconGripVertical size={13} stroke={1.5} />
 												</span>
 													<span class="scale-preview" style="font-family:'{f.name}',sans-serif; font-size:{Math.min(s.size ?? 16, 28)}px; font-weight:{s.weight ?? 400}; line-height:{s.lineHeight ?? 1.5}; letter-spacing:{s.tracking ?? 0}em">
@@ -824,39 +843,39 @@
 															<span class="style-color-more">+{allowedColorsForStyle(s).length - 4}</span>
 														{/if}
 													{:else}
-														<span class="scale-muted">Any</span>
+														<span class="scale-muted">{m.typo_color_any()}</span>
 													{/if}
 												</span>
 												<span class="scale-btns">
-													<button class="icon-btn-xs" onclick={() => openEditStyle(f.id, s)} title="Edit"><IconPencil size={11} stroke={1.75} /></button>
-													<button class="icon-btn-xs icon-btn-xs-danger" onclick={() => deleteStyle(f.id, s)} title="Delete"><IconX size={11} stroke={2} /></button>
+													<button class="icon-btn-xs" onclick={() => openEditStyle(f.id, s)} title={m.typo_edit_tooltip()}><IconPencil size={11} stroke={1.75} /></button>
+													<button class="icon-btn-xs icon-btn-xs-danger" onclick={() => deleteStyle(f.id, s)} title={m.typo_delete_tooltip()}><IconX size={11} stroke={2} /></button>
 												</span>
 											</div>
 										{/each}
 									</div>
 										{@const previewTheme = getStylePreviewMode(f.id)}
 										<div class="style-preview-toolbar">
-											<span class="style-preview-title">Preview</span>
-											<div class="preview-theme-toggle" aria-label="Preview theme">
+											<span class="style-preview-title">{m.typo_preview()}</span>
+											<div class="preview-theme-toggle" aria-label={m.typo_preview()}>
 												<button
 													type="button"
 													class="preview-theme-btn"
 													class:active={previewTheme === 'light'}
 													onclick={() => setStylePreviewMode(f.id, 'light')}
-													title="Preview light mode"
+													title={m.typo_preview_light()}
 												>
 													<IconSunFilled size={13} />
-													<span>Light</span>
+													<span>{m.typo_theme_light()}</span>
 												</button>
 												<button
 													type="button"
 													class="preview-theme-btn preview-theme-btn-dark"
 													class:active={previewTheme === 'dark'}
 													onclick={() => setStylePreviewMode(f.id, 'dark')}
-													title="Preview dark mode"
+													title={m.typo_preview_dark()}
 												>
 													<IconMoonFilled size={13} />
-													<span>Dark</span>
+													<span>{m.typo_theme_dark()}</span>
 												</button>
 											</div>
 										</div>
@@ -872,10 +891,10 @@
 											{/each}
 										</div>
 								{:else if f.styles.length === 0}
-									<p class="scale-empty">No styles — <button class="inline-btn" onclick={() => addDefaultStyles(f.id)}>add defaults</button> or <button class="inline-btn" onclick={() => openAddStyle(f.id)}>add manually</button>.</p>
+									<p class="scale-empty">{m.typo_no_styles()} <button class="inline-btn" onclick={() => addDefaultStyles(f.id)}>{m.typo_no_styles_defaults()}</button> {m.typo_no_styles_or()} <button class="inline-btn" onclick={() => openAddStyle(f.id)}>{m.typo_no_styles_manual()}</button>.</p>
 									{:else}
 										{@const currentTab = getStyleTab(f.id)}
-										<p class="scale-empty">No {currentTab} styles yet. <button class="inline-btn" onclick={() => openAddStyle(f.id, currentTab === 'all' ? 'universal' : currentTab)}>Add {currentTab} style</button></p>
+										<p class="scale-empty">{m.typo_no_tab_styles()} <button class="inline-btn" onclick={() => openAddStyle(f.id, currentTab === 'all' ? 'universal' : currentTab)}>{m.typo_add_btn()}</button></p>
 									{/if}
 							</div>
 						</details>
@@ -883,7 +902,7 @@
 						<!-- ── Type tester ────────────────────────────────────── -->
 						<details class="card-section" class:tester-dark={testerDark[f.id]} style="{testerDark[f.id] ? 'background:#111;border-top-color:rgba(255,255,255,0.14)' : ''}">
 							<summary class="section-summary">
-								<span class="section-title" style="{testerDark[f.id] ? 'color:rgba(255,255,255,0.9)' : ''}">Type tester</span>
+								<span class="section-title" style="{testerDark[f.id] ? 'color:rgba(255,255,255,0.9)' : ''}">{m.typo_sec_tester()}</span>
 								<span class="section-count">{testerSize}px</span>
 								<span class="section-chevron"><IconChevronDown size={11} stroke={2} /></span>
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -897,7 +916,7 @@
 									{#if f.isVariable && (f.variableAxes ?? []).some(a => a.tag === 'wght')}
 										{@const wAxis = f.variableAxes.find(a => a.tag === 'wght')!}
 										<div class="tester-control">
-											<span class="tester-ctrl-label" style="{testerDark[f.id] ? 'color:rgba(255,255,255,0.68)' : ''}">Weight</span>
+											<span class="tester-ctrl-label" style="{testerDark[f.id] ? 'color:rgba(255,255,255,0.68)' : ''}">{m.typo_tester_weight()}</span>
 											<input type="range" min={wAxis.min} max={wAxis.max} step="1"
 												value={testerWeight(f)}
 												oninput={(e) => testerWeights[f.id] = Number((e.target as HTMLInputElement).value)}
@@ -906,7 +925,7 @@
 										</div>
 									{:else if f.weights.length > 1}
 										<div class="tester-control">
-											<span class="tester-ctrl-label" style="{testerDark[f.id] ? 'color:rgba(255,255,255,0.68)' : ''}">Weight</span>
+											<span class="tester-ctrl-label" style="{testerDark[f.id] ? 'color:rgba(255,255,255,0.68)' : ''}">{m.typo_tester_weight()}</span>
 											<div class="tester-weight-chips">
 												{#each f.weights as w (w)}
 													<button class="weight-chip-sm" class:selected={testerWeight(f) === w}
@@ -919,7 +938,7 @@
 									<!-- Italic -->
 									{#if f.isVariable && (f.variableAxes ?? []).some(a => a.tag === 'ital')}
 										<label class="tester-control tester-toggle-ctrl">
-											<span class="tester-ctrl-label" style="{testerDark[f.id] ? 'color:rgba(255,255,255,0.68)' : ''}">Italic</span>
+											<span class="tester-ctrl-label" style="{testerDark[f.id] ? 'color:rgba(255,255,255,0.68)' : ''}">{m.typo_tester_italic()}</span>
 											<input type="checkbox" class="toggle-check"
 												checked={testerItalic[f.id] ?? false}
 												onchange={(e) => testerItalic[f.id] = (e.target as HTMLInputElement).checked} />
@@ -963,7 +982,7 @@
 						<!-- ── Glyphs ──────────────────────────────────────────── -->
 						<details class="card-section">
 							<summary class="section-summary">
-								<span class="section-title">Glyphs</span>
+								<span class="section-title">{m.typo_sec_glyphs()}</span>
 								<span class="section-count">{getGlyphSet(f.id).chars.length}</span>
 								<span class="section-chevron"><IconChevronDown size={11} stroke={2} /></span>
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -982,7 +1001,7 @@
 									{#if f.isVariable && (f.variableAxes ?? []).some(a => a.tag === 'wght')}
 										{@const glyphWAxis = f.variableAxes.find(a => a.tag === 'wght')!}
 										<div class="tester-control">
-											<span class="tester-ctrl-label">Weight</span>
+											<span class="tester-ctrl-label">{m.typo_tester_weight()}</span>
 											<input
 												type="range"
 												min={glyphWAxis.min}
@@ -996,7 +1015,7 @@
 										</div>
 									{:else if f.weights.length > 1}
 										<div class="tester-control">
-											<span class="tester-ctrl-label">Weight</span>
+											<span class="tester-ctrl-label">{m.typo_tester_weight()}</span>
 											<div class="tester-weight-chips">
 												{#each f.weights as w (w)}
 													<button
@@ -1011,7 +1030,7 @@
 									{/if}
 									{#if f.isVariable && (f.variableAxes ?? []).some(a => a.tag === 'ital')}
 										<label class="tester-control tester-toggle-ctrl">
-											<span class="tester-ctrl-label">Italic</span>
+											<span class="tester-ctrl-label">{m.typo_tester_italic()}</span>
 											<input
 												type="checkbox"
 												class="toggle-check"
@@ -1034,6 +1053,8 @@
 					{/if}
 				</div>
 			{/each}
+			</div>
+			{/each}
 		</div>
 	{/if}
 </div>
@@ -1044,7 +1065,7 @@
 	<div class="modal-backdrop" onclick={() => (showFontModal = false)}>
 		<div class="modal" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
-				<h2>{editingFont ? 'Edit font' : 'Add font'}</h2>
+				<h2>{editingFont ? m.typo_font_modal_edit() : m.typo_font_modal_add()}</h2>
 				<button class="modal-close" aria-label="Close" onclick={() => (showFontModal = false)}>
 					<IconX size={16} stroke={1.75} />
 				</button>
@@ -1052,49 +1073,49 @@
 			<div class="modal-body">
 				<div class="modal-fields">
 					<div class="field">
-						<label for="f-name">Font name <span class="req">*</span></label>
+						<label for="f-name">{m.typo_font_name_label()} <span class="req">*</span></label>
 						<input id="f-name" type="text" bind:value={fontForm.name} placeholder="Inter, Geist, Lexend…" autofocus />
 					</div>
 					<div class="field-row">
 						<div class="field">
-							<label for="f-foundry">Foundry</label>
+							<label for="f-foundry">{m.typo_font_foundry_label()}</label>
 							<input id="f-foundry" type="text" bind:value={fontForm.foundry} placeholder="Google, Fontshare…" />
 						</div>
 						<div class="field">
-							<label for="f-license">License</label>
+							<label for="f-license">{m.typo_font_license_label()}</label>
 							<input id="f-license" type="text" bind:value={fontForm.license} placeholder="OFL, Commercial…" />
 						</div>
 					</div>
 					<div class="field">
-						<label for="f-role">Role</label>
+						<label for="f-role">{m.typo_font_role_label()}</label>
 						<select id="f-role" bind:value={fontForm.role}>
-							<option value="display">Display — headings, hero text</option>
-							<option value="body">Body — paragraphs, UI text</option>
-							<option value="mono">Mono — code, technical</option>
-							<option value="accent">Accent — decorative, brand</option>
+							<option value="display">{m.typo_font_role_display()}</option>
+							<option value="body">{m.typo_font_role_body()}</option>
+							<option value="mono">{m.typo_font_role_mono()}</option>
+							<option value="accent">{m.typo_font_role_accent()}</option>
 						</select>
 					</div>
 					<div class="field">
-						<label for="f-url">Source URL</label>
-						<p class="field-hint">Google Fonts CSS URL, Adobe Fonts embed, or direct @font-face src.</p>
+						<label for="f-url">{m.typo_font_url_label()}</label>
+						<p class="field-hint">{m.typo_font_url_hint()}</p>
 						<input id="f-url" type="text" bind:value={fontForm.sourceUrl} placeholder="https://fonts.googleapis.com/css2?family=Inter…" />
 						{#if fontForm.name && fontForm.weights.length}
 							<button class="text-btn mt-4" onclick={() => { fontForm.sourceUrl = googleFontsUrl(fontForm.name, fontForm.weights); }}>
-								↗ Auto-fill Google Fonts URL
+								{m.typo_font_autofill()}
 							</button>
 						{/if}
 					</div>
 					<div class="field">
 						<label class="toggle-label">
-							<span>Variable font</span>
+							<span>{m.typo_font_variable_label()}</span>
 							<input type="checkbox" class="toggle-check" bind:checked={fontForm.isVariable} />
 							<span class="toggle-track"><span class="toggle-thumb"></span></span>
 						</label>
-						<p class="field-hint">Enable if this font supports variable axes (wght, wdth, ital…). You can configure axes after saving.</p>
+						<p class="field-hint">{m.typo_font_variable_hint()}</p>
 					</div>
 					{#if !fontForm.isVariable}
 					<div class="field">
-						<label>Weights</label>
+						<label>{m.typo_font_weights_label()}</label>
 						<div class="weights-grid">
 							{#each ALL_WEIGHTS as w (w)}
 								<button
@@ -1111,9 +1132,9 @@
 				{#if error}<div class="modal-error">{error}</div>{/if}
 			</div>
 			<div class="modal-footer">
-				<button class="action-btn" onclick={() => (showFontModal = false)}>Cancel</button>
+				<button class="action-btn" onclick={() => (showFontModal = false)}>{m.users_btn_cancel()}</button>
 				<button class="action-btn action-btn-primary" onclick={saveFont} disabled={saving || !fontForm.name.trim()}>
-					{saving ? '…' : editingFont ? 'Save' : 'Add font'}
+					{saving ? '…' : editingFont ? m.users_btn_save() : m.typo_font_modal_add()}
 				</button>
 			</div>
 		</div>
@@ -1126,7 +1147,7 @@
 	<div class="modal-backdrop" onclick={() => (showStyleModal = false)}>
 		<div class="modal modal-sm" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
-				<h2>{editingStyle ? 'Edit style' : 'Add style'}</h2>
+				<h2>{editingStyle ? m.typo_style_modal_edit() : m.typo_style_modal_add()}</h2>
 				<button class="modal-close" aria-label="Close" onclick={() => (showStyleModal = false)}>
 					<IconX size={16} stroke={1.75} />
 				</button>
@@ -1135,48 +1156,50 @@
 				<div class="modal-fields">
 					<div class="field-row">
 						<div class="field">
-							<label for="s-name">Name <span class="req">*</span></label>
+							<label for="s-name">{m.typo_style_name_label()} <span class="req">*</span></label>
 							<input id="s-name" type="text" bind:value={styleForm.name} placeholder="H1, Body, Caption…" autofocus />
 						</div>
 						<div class="field field-sm">
-							<label for="s-tag">Tag</label>
+							<label for="s-tag">{m.typo_style_tag_label()}</label>
 							<input id="s-tag" type="text" bind:value={styleForm.tag} placeholder="h1, p…" />
 						</div>
 					</div>
 					<div class="field">
-						<label for="s-theme">Theme</label>
+						<label for="s-theme">{m.typo_style_theme_label()}</label>
 						<select id="s-theme" bind:value={styleForm.theme}>
-							<option value="universal">Universal — applies to both light & dark</option>
-							<option value="light">☀︎ Light theme only</option>
-							<option value="dark">☽ Dark theme only</option>
+							<option value="universal">{m.typo_style_theme_universal()}</option>
+							<option value="light">{m.typo_style_theme_light_opt()}</option>
+							<option value="dark">{m.typo_style_theme_dark_opt()}</option>
 						</select>
-						{#if styleForm.theme !== 'universal'}
-							<p class="field-hint">This style will only appear in the {styleForm.theme} theme tab. Universal styles appear everywhere.</p>
+						{#if styleForm.theme === 'light'}
+							<p class="field-hint">{m.typo_style_theme_hint_light()}</p>
+						{:else if styleForm.theme === 'dark'}
+							<p class="field-hint">{m.typo_style_theme_hint_dark()}</p>
 						{/if}
 					</div>
 					<div class="field-row">
 						<div class="field">
-							<label for="s-size">Size (px)</label>
+							<label for="s-size">{m.typo_style_size_label()}</label>
 							<input id="s-size" type="number" bind:value={styleForm.size} min="6" max="200" />
 						</div>
 						<div class="field">
-							<label for="s-weight">Weight</label>
+							<label for="s-weight">{m.typo_col_weight()}</label>
 							<input id="s-weight" type="number" bind:value={styleForm.weight} min="100" max="900" step="100" />
 						</div>
 					</div>
 					<div class="field-row">
 						<div class="field">
-							<label for="s-lh">Line height</label>
+							<label for="s-lh">{m.typo_style_lh_label()}</label>
 							<input id="s-lh" type="number" bind:value={styleForm.lineHeight} min="0.8" max="3" step="0.05" />
 						</div>
 						<div class="field">
-							<label for="s-tr">Tracking (em)</label>
+							<label for="s-tr">{m.typo_style_tracking_label()}</label>
 							<input id="s-tr" type="number" bind:value={styleForm.tracking} step="0.01" />
 						</div>
 					</div>
 					<div class="field">
-						<span class="field-label-text">Allowed colors</span>
-						<p class="field-hint">Colors this text style is allowed to use. Contrast is checked against white and black.</p>
+						<span class="field-label-text">{m.typo_style_colors_label()}</span>
+						<p class="field-hint">{m.typo_style_colors_hint()}</p>
 						<div class="allowed-color-grid">
 							{#each colorOptions() as color}
 								<button
@@ -1187,7 +1210,7 @@
 								>
 									<span class="allowed-color-swatch" style="background:{color.hex}"></span>
 									<span class="allowed-color-name">{color.name}</span>
-									<span class="allowed-color-source">{color.source === 'base' ? 'Base' : 'Brand'}</span>
+									<span class="allowed-color-source">{color.source === 'base' ? m.typo_source_base() : m.typo_source_brand()}</span>
 								</button>
 							{/each}
 						</div>
@@ -1199,23 +1222,23 @@
 										<div class="style-contrast-row">
 											<span class="style-color-dot" title={option.name} style="background:{option.hex}"></span>
 											<span class="style-contrast-name">{option.name}</span>
-											<span class="contrast-pill" class:fail={checkContrast(option.hex, '#FFFFFF').level === 'Fail'}>{checkContrast(option.hex, '#FFFFFF').ratioDisplay} on white</span>
-											<span class="contrast-pill" class:fail={checkContrast(option.hex, '#000000').level === 'Fail'}>{checkContrast(option.hex, '#000000').ratioDisplay} on black</span>
+											<span class="contrast-pill" class:fail={checkContrast(option.hex, '#FFFFFF').level === 'Fail'}>{checkContrast(option.hex, '#FFFFFF').ratioDisplay} {m.typo_on_white()}</span>
+											<span class="contrast-pill" class:fail={checkContrast(option.hex, '#000000').level === 'Fail'}>{checkContrast(option.hex, '#000000').ratioDisplay} {m.typo_on_black()}</span>
 										</div>
 									{/if}
 								{/each}
 							</div>
 						{:else}
-							<p class="field-hint">No restriction set yet. The manual will treat this style as allowing any brand color.</p>
+							<p class="field-hint">{m.typo_no_color_restriction()}</p>
 						{/if}
 					</div>
 				</div>
 				{#if error}<div class="modal-error">{error}</div>{/if}
 			</div>
 			<div class="modal-footer">
-				<button class="action-btn" onclick={() => (showStyleModal = false)}>Cancel</button>
+				<button class="action-btn" onclick={() => (showStyleModal = false)}>{m.users_btn_cancel()}</button>
 				<button class="action-btn action-btn-primary" onclick={saveStyle} disabled={saving || !styleForm.name.trim()}>
-					{saving ? '…' : editingStyle ? 'Save' : 'Add style'}
+					{saving ? '…' : editingStyle ? m.users_btn_save() : m.typo_style_modal_add()}
 				</button>
 			</div>
 		</div>
@@ -1228,13 +1251,13 @@
 	<div class="modal-backdrop" onclick={() => (showAxesModal = false)}>
 		<div class="modal" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
-				<h2>Variable font axes</h2>
+				<h2>{m.typo_axes_modal_title()}</h2>
 				<button class="modal-close" aria-label="Close" onclick={() => (showAxesModal = false)}>
 					<IconX size={16} stroke={1.75} />
 				</button>
 			</div>
 			<div class="modal-body">
-				<p class="axes-hint">Define each axis supported by this variable font. Common axes: <code>wght</code> (weight), <code>wdth</code> (width), <code>ital</code> (italic), <code>slnt</code> (slant), <code>opsz</code> (optical size).</p>
+				<p class="axes-hint">{m.typo_axes_hint()}</p>
 				<div class="axes-list">
 					{#each editingAxes as ax, i (i)}
 						<div class="axis-row">
@@ -1257,12 +1280,12 @@
 						</div>
 					{/each}
 				</div>
-				<button class="text-btn mt-4" onclick={addAxis}>+ Add axis</button>
+				<button class="text-btn mt-4" onclick={addAxis}>{m.typo_add_axis()}</button>
 			</div>
 			<div class="modal-footer">
-				<button class="action-btn" onclick={() => (showAxesModal = false)}>Cancel</button>
+				<button class="action-btn" onclick={() => (showAxesModal = false)}>{m.users_btn_cancel()}</button>
 				<button class="action-btn action-btn-primary" onclick={saveAxes} disabled={saving}>
-					{saving ? '…' : 'Save axes'}
+					{saving ? '…' : m.typo_save_axes()}
 				</button>
 			</div>
 		</div>
@@ -1282,8 +1305,8 @@
 				<p style="font-size:0.9rem; color:var(--color-muted); line-height:1.5">{confirmModal.message}</p>
 			</div>
 			<div class="modal-footer">
-				<button class="action-btn" onclick={() => (confirmModal = null)}>Cancel</button>
-				<button class="action-btn action-btn-danger" onclick={() => { confirmModal!.onConfirm(); confirmModal = null; }}>Delete</button>
+				<button class="action-btn" onclick={() => (confirmModal = null)}>{m.users_btn_cancel()}</button>
+				<button class="action-btn action-btn-danger" onclick={() => { confirmModal!.onConfirm(); confirmModal = null; }}>{m.users_btn_delete()}</button>
 			</div>
 		</div>
 	</div>
@@ -1303,12 +1326,12 @@
 			</div>
 			<div class="glyph-modal-actions">
 				<button class="action-btn" onclick={() => { navigator.clipboard.writeText(glyphModal!.char); }}>
-					Copy glyph
+					{m.typo_copy_glyph()}
 				</button>
 				<button class="action-btn" onclick={() => { navigator.clipboard.writeText(charCodeStr(glyphModal!.char)); }}>
-					Copy code
+					{m.typo_copy_code()}
 				</button>
-				<button class="action-btn" onclick={() => (glyphModal = null)}>Close</button>
+				<button class="action-btn" onclick={() => (glyphModal = null)}>{m.users_btn_close()}</button>
 			</div>
 		</div>
 	</div>
@@ -1341,8 +1364,50 @@
 .empty-title { font-size: 0.9375rem; font-weight: 600; color: var(--color-text); }
 .empty-sub { font-size: 0.875rem; color: var(--color-muted); max-width: 280px; line-height: 1.5; }
 
+/* ── Role filter tabs ─────────────────────────────────────────────────────── */
+.role-tab-bar {
+	display: flex; align-items: center; gap: 2px;
+	padding: 0 2rem;
+	border-bottom: 1px solid var(--color-border);
+	margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none;
+}
+.role-tab-bar::-webkit-scrollbar { display: none; }
+.ptab {
+	display: flex; align-items: center; gap: 6px;
+	padding: 8px 12px; border: none; background: none;
+	color: var(--color-muted); cursor: pointer; font-size: 0.8125rem; font-weight: 500;
+	border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+	transition: color 0.1s, border-color 0.1s;
+}
+.ptab:hover { color: var(--color-text); }
+.ptab.active { color: var(--brand); border-bottom-color: var(--brand); }
+.ptab-count {
+	font-size: 0.6875rem; background: var(--color-surface-raised);
+	border: 1px solid var(--color-border);
+	border-radius: 20px; padding: 0 5px; line-height: 17px;
+	color: var(--color-muted); font-weight: 500;
+}
+.ptab.active .ptab-count { background: rgba(74,18,4,.08); border-color: rgba(74,18,4,.15); color: var(--brand); }
+
 /* ── Font cards ───────────────────────────────────────────────────────────── */
-	.fonts-list { display: flex; flex-direction: column; gap: 2rem; padding: 0 2rem 3rem; min-width: 0; }
+	.fonts-list { display: flex; flex-direction: column; gap: 0; padding: 0 2rem 3rem; min-width: 0; }
+
+/* ── Role group sections ──────────────────────────────────────────────────── */
+.font-role-section { display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 2.5rem; }
+.font-role-section:last-child { margin-bottom: 0; }
+.palette-group-header {
+	display: flex; align-items: center; gap: 10px;
+	padding-bottom: 0.625rem; border-bottom: 2px solid var(--color-border);
+}
+.palette-group-name {
+	font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.06em;
+	text-transform: uppercase; color: var(--color-text);
+}
+.palette-group-count {
+	font-size: 0.6875rem; font-weight: 600; color: var(--brand);
+	background: rgba(74,18,4,.07); border: 1px solid rgba(74,18,4,.15);
+	border-radius: 20px; padding: 0 8px; line-height: 19px;
+}
 
 .font-card {
 	border: 1px solid var(--color-border);
@@ -1352,71 +1417,59 @@
 		min-width: 0;
 	}
 
-.font-card-header {
-	display: flex; align-items: center; justify-content: space-between;
-	padding: 1.25rem 1.5rem;
-	border-bottom: 1px solid var(--color-border);
-}
-	.font-header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.font-header-actions { display: flex; align-items: center; gap: 6px; }
+.font-header-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; min-width: 0; }
+.font-header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
-.role-badge {
-	font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em;
-	text-transform: uppercase; color: var(--role-color);
-	background: color-mix(in srgb, var(--role-color) 12%, transparent);
-	padding: 3px 8px; border-radius: 99px; white-space: nowrap;
-}
 .font-name { font-size: 0.9375rem; font-weight: 600; }
 .font-meta { font-size: 0.8125rem; color: var(--color-muted); }
 
 /* ── Specimen ─────────────────────────────────────────────────────────────── */
 .font-specimen {
-	display: flex; align-items: baseline; gap: 2rem;
-	padding: 2rem 1.5rem 1.5rem;
-	border-bottom: 1px solid var(--color-border);
+	display: flex; align-items: flex-start; gap: 1.5rem;
+	padding: .25rem 1.5rem 1.25rem;
+}
+.specimen-left {
+	display: flex; flex-direction: column; align-items: center; gap: 6px;
+	flex-shrink: 0;
 }
 .specimen-aa {
-	font-size: 4rem; font-weight: 700; line-height: 1;
-	color: var(--color-text); flex-shrink: 0;
+	font-size: 3rem; line-height: 1;
+	color: var(--color-text);
 }
-.specimen-weights {
-	display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0;
+.specimen-variable-badge {
+	font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+	color: #7c3aed; background: #ede9fe; border: 1px solid #c4b5fd;
+	padding: 2px 6px; border-radius: 6px; cursor: pointer;
+	white-space: nowrap;
 }
-.specimen-weight {
-	font-size: 0.8125rem; color: var(--color-muted);
-	background: var(--color-surface-raised);
-	padding: 2px 8px; border-radius: 6px; border: 1px solid var(--color-border);
+.specimen-variable-badge:hover { background: #ddd6fe; }
+.specimen-right {
+	flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;
 }
 .specimen-abc {
 	font-size: 0.9375rem; color: var(--color-text); line-height: 1.6;
+	letter-spacing: 0.04em;
 	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	min-width: 0;
 }
-
-/* ── Role filter bar — stejný styl jako .ptab u barev ─────────────────────── */
-.role-filter-bar {
-	display: flex; align-items: center; gap: 2px;
-	padding: 0 2rem;
-	border-bottom: 1px solid var(--color-border);
-	margin-bottom: 1.5rem; overflow-x: auto;
+/* Weight strips */
+.weight-strips {
+	display: flex; flex-direction: column; gap: 1px;
+	border-top: 1px solid var(--color-border); padding-top: 8px;
+	min-width: 0;
 }
-.role-filter-tab {
-	display: flex; align-items: center; gap: 6px;
-	padding: 8px 12px; border: none; background: none;
-	color: var(--color-muted); cursor: pointer; font-size: 0.8125rem; font-weight: 500;
-	border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
-	transition: color 0.1s, border-color 0.1s;
+.weight-strip {
+	display: flex; align-items: baseline; gap: 10px;
+	padding: 1px 0; min-width: 0;
 }
-.role-filter-tab:hover { color: var(--color-text); }
-.role-filter-tab.active { color: var(--brand); border-bottom-color: var(--brand); }
-.role-filter-count {
-	font-size: 0.6875rem; background: var(--color-surface-raised);
-	border: 1px solid var(--color-border);
-	border-radius: 20px; padding: 0 5px; line-height: 17px;
-	color: var(--color-muted); font-weight: 500;
+.weight-strip-num {
+	font-size: 0.6875rem; color: var(--color-muted);
+	width: 30px; flex-shrink: 0; font-variant-numeric: tabular-nums;
+	font-family: var(--font-mono);
 }
-.role-filter-tab.active .role-filter-count {
-	background: rgba(74,18,4,.08); border-color: rgba(74,18,4,.15); color: var(--brand);
+.weight-strip-text {
+	font-size: 0.9375rem; color: var(--color-text);
+	white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
 
 /* ── Theme tabs ───────────────────────────────────────────────────────────── */
@@ -1640,16 +1693,49 @@
 
 /* ── Card fold ────────────────────────────────────────────────────────────── */
 .font-card.collapsed { border-radius: 10px; }
-.font-card.collapsed .font-card-header { border-bottom: none; border-radius: 10px; }
-
+/* Header is a container — no hover/click on entire header */
 .font-card-header {
-	cursor: pointer;
-	user-select: none;
+	background: var(--color-surface);
 }
-.font-card-header:hover { background: color-mix(in srgb, var(--color-surface-raised) 60%, transparent); }
-/* No text cursor anywhere in the card header */
-.font-card-header,
-.font-card-header *  { cursor: pointer; user-select: none; }
+/* When expanded, header gets a border-bottom separating it from detail sections */
+.font-card-header.header-expanded {
+	border-bottom: 1px solid var(--color-border);
+}
+
+/* Top row: static name + action buttons */
+.font-card-toprow {
+	display: flex; align-items: center; justify-content: space-between;
+	padding: .9rem 1.5rem .75rem;
+}
+
+/* Expand bar — "roleta" at the bottom of the header */
+.font-expand-bar {
+	display: flex; align-items: center; justify-content: center;
+	height: 24px;
+	background: color-mix(in srgb, var(--color-border) 28%, transparent);
+	border-top: 1px solid var(--color-border);
+	cursor: pointer; user-select: none;
+	transition: background 0.12s, color 0.12s;
+	color: var(--color-muted);
+}
+.font-expand-bar:hover {
+	background: color-mix(in srgb, var(--color-border) 55%, transparent);
+	color: var(--color-text);
+}
+.expand-chevron {
+	display: flex; align-items: center; justify-content: center;
+	width: 20px; height: 20px; border-radius: 50%;
+	background: var(--color-surface);
+	border: 1.5px solid var(--color-border);
+	color: var(--color-muted);
+	transition: transform 0.2s, border-color 0.12s, background 0.12s;
+}
+.font-expand-bar:hover .expand-chevron {
+	border-color: color-mix(in srgb, var(--color-text) 35%, transparent);
+	color: var(--color-text);
+}
+.expand-chevron.open { transform: rotate(180deg); }
+
 /* Summary elements never show text cursor */
 summary, summary * { cursor: pointer; user-select: none; }
 /* Buttons and links always pointer */
@@ -1663,12 +1749,6 @@ a { cursor: pointer; }
 .fold-chevron.open { transform: rotate(90deg); }
 
 .font-header-names { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-
-.collapsed-preview {
-	font-size: 1rem; color: var(--color-muted);
-	margin-left: 12px; opacity: 0.6; white-space: nowrap;
-	overflow: hidden; text-overflow: ellipsis;
-}
 
 .styles-count, .files-count {
 	font-size: 0.6875rem; color: var(--color-muted);
@@ -2077,40 +2157,34 @@ details[open] .section-chevron { transform: rotate(180deg); }
 			flex-wrap: wrap;
 		}
 		.topbar-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
-		.role-filter-bar {
-			padding: 0 1rem;
-			margin-bottom: 1rem;
-			overflow-x: auto;
-			scrollbar-width: none;
-		}
-		.role-filter-bar::-webkit-scrollbar { display: none; }
+		.role-tab-bar { padding: 0 1rem; margin-bottom: 1rem; }
 		.fonts-list { padding: 0 1rem 2rem; gap: 1rem; }
 		.font-card { border-radius: 10px; }
-		.font-card-header {
+		.font-card-toprow {
 			align-items: flex-start;
 			gap: 10px;
-			padding: 1rem;
+			padding: .85rem 1rem .7rem;
 		}
 		.font-header-actions {
 			flex-wrap: wrap;
 			justify-content: flex-end;
 			max-width: 112px;
 		}
-		.collapsed-preview { display: none; }
 		.font-specimen {
 			flex-direction: column;
 			align-items: flex-start;
-			gap: 1rem;
-			padding: 1.25rem 1rem;
+			gap: .75rem;
+			padding: .75rem 1rem 1.25rem;
 		}
-		.specimen-aa { font-size: 3.25rem; }
-		.specimen-weights { flex-shrink: 1; }
+		.specimen-left { flex-direction: row; align-items: baseline; gap: 10px; }
+		.specimen-aa { font-size: 2.25rem; }
 		.specimen-abc {
 			white-space: normal;
 			overflow: visible;
 			text-overflow: clip;
 			overflow-wrap: anywhere;
 		}
+		.weight-strip-text { font-size: 0.875rem; }
 		.section-summary {
 			padding: 10px 1rem;
 			flex-wrap: wrap;

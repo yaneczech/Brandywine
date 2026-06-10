@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
@@ -115,7 +116,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const form = await request.formData().catch(() => null);
 	if (!form) error(400, 'Expected multipart/form-data');

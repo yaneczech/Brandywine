@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 /**
  * GET  /api/manual/pages/[id]/blocks  — list blocks for a page (ordered)
  * POST /api/manual/pages/[id]/blocks  — add a new block
@@ -13,7 +14,7 @@ import { createId } from '$lib/db/id';
 // ── GET ────────────────────────────────────────────────────────────────────────
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const blocks = await db
 		.select()
@@ -27,7 +28,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 // ── POST ───────────────────────────────────────────────────────────────────────
 export const POST: RequestHandler = async ({ params, locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	// Verify page exists
 	const [page] = await db.select({ id: manualPages.id }).from(manualPages).where(eq(manualPages.id, params.id));

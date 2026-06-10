@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
@@ -30,7 +31,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const body = await request.json().catch(() => null);
 	if (!body || typeof body !== 'object') error(400, 'Invalid JSON');
@@ -55,7 +56,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const [deleted] = await db
 		.delete(assets)

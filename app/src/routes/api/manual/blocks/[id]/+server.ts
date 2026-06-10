@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 /**
  * PATCH  /api/manual/blocks/[id]  — update config / anchor / enabled / move (sortOrder)
  * DELETE /api/manual/blocks/[id]  — remove block
@@ -11,7 +12,7 @@ import { eq, asc, and, ne } from 'drizzle-orm';
 // ── PATCH ──────────────────────────────────────────────────────────────────────
 export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const [existing] = await db.select().from(manualBlocks).where(eq(manualBlocks.id, params.id));
 	if (!existing) error(404, 'Block not found');
@@ -78,7 +79,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 // ── DELETE ─────────────────────────────────────────────────────────────────────
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const [existing] = await db.select({ id: manualBlocks.id, pageId: manualBlocks.pageId })
 		.from(manualBlocks).where(eq(manualBlocks.id, params.id));

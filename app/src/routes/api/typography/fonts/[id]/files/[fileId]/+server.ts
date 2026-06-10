@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
@@ -56,7 +57,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 };
 
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!locals.user || !canEdit(locals.user.role)) error(403, 'Forbidden');
 	const body = await request.json();
 	const updates: Record<string, unknown> = {};
 	if (body.isVariable !== undefined) updates.isVariable = Boolean(body.isVariable);
@@ -73,7 +74,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!locals.user || !canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const [file] = await db.select().from(typographyFontFiles)
 		.where(and(

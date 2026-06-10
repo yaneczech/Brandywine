@@ -37,8 +37,10 @@
 	};
 	const manualShellStyle = $derived.by(() => {
 		const mode = effectiveThemeMode; // explicit read — registers reactive dependency
+		// Resolve whether we're effectively in dark mode (including system preference)
+		const isDark = mode === 'dark' || (mode === 'system' && systemDark);
 		const pairs = [
-			`--manual-brand:${manualAccentLight}`,
+			`--manual-brand:${isDark ? manualAccentDark : manualAccentLight}`,
 			`--manual-brand-dark:${manualAccentDark}`,
 			`--manual-radius:${radiusValue(brand?.manualBorderRadius)}px`,
 		];
@@ -62,6 +64,7 @@
 
 	let mobileMenuOpen = $state(false);
 	let scrolled = $state(false);
+	let systemDark = $state(false); // tracks prefers-color-scheme for 'system' mode
 
 	// ── Search ──────────────────────────────────────────────────────────────────
 	let searchOpen = $state(false);
@@ -96,6 +99,11 @@
 		const saved = localStorage.getItem('manual-theme') as 'light' | 'dark' | null;
 		if (saved === 'light' || saved === 'dark') userTheme = saved;
 
+		const mq = window.matchMedia('(prefers-color-scheme: dark)');
+		systemDark = mq.matches;
+		const onMqChange = (e: MediaQueryListEvent) => { systemDark = e.matches; };
+		mq.addEventListener('change', onMqChange);
+
 		const onScroll = () => { scrolled = window.scrollY > 5; };
 		window.addEventListener('scroll', onScroll, { passive: true });
 
@@ -106,6 +114,7 @@
 		window.addEventListener('keydown', onKeydown);
 
 		return () => {
+			mq.removeEventListener('change', onMqChange);
 			window.removeEventListener('scroll', onScroll);
 			window.removeEventListener('keydown', onKeydown);
 		};

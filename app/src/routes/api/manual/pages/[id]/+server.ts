@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 /**
  * GET    /api/manual/pages/[id]  — single page
  * PATCH  /api/manual/pages/[id]  — update title / slug / description / enabled / sortOrder / parentId
@@ -12,7 +13,7 @@ import { eq, isNull, and, ne } from 'drizzle-orm';
 // ── GET ────────────────────────────────────────────────────────────────────────
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const [page] = await db.select().from(manualPages).where(eq(manualPages.id, params.id));
 	if (!page) error(404, 'Page not found');
@@ -22,7 +23,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 // ── PATCH ──────────────────────────────────────────────────────────────────────
 export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const [existing] = await db.select().from(manualPages).where(eq(manualPages.id, params.id));
 	if (!existing) error(404, 'Page not found');
@@ -82,7 +83,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 // ── DELETE ─────────────────────────────────────────────────────────────────────
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const [existing] = await db.select({ id: manualPages.id, isLanding: manualPages.isLanding })
 		.from(manualPages).where(eq(manualPages.id, params.id));

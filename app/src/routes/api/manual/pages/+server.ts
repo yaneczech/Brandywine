@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 /**
  * GET  /api/manual/pages  — full page tree (flat list, sorted by sort_order)
  * POST /api/manual/pages  — create a new page
@@ -12,7 +13,7 @@ import { createId } from '$lib/db/id';
 // ── GET — return all pages (admin builds the tree client-side) ─────────────────
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const pages = await db
 		.select()
@@ -25,7 +26,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 // ── POST — create page ─────────────────────────────────────────────────────────
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const body = await request.json();
 	const { parentId = null, title, slug, description } = body as {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { IconPencil, IconX } from '@tabler/icons-svelte';
 	import { generateShades } from '$lib/utils/colors';
 
@@ -22,7 +23,10 @@
 	} = $props();
 
 	let expandedColorId = $state<string | null>(null);
+	let shadesAnchor = $state<{ top: number; left: number } | null>(null);
+	let shadesEl = $state<HTMLElement | null>(null);
 	let customMode = $state(false);
+	let bcpEl = $state<HTMLElement | null>(null);
 
 	// Group colors by palette
 	const grouped = $derived.by(() => {
@@ -34,11 +38,56 @@
 		return [...byPalette, ...(unpinned.length ? [{ palette: null, colors: unpinned }] : [])];
 	});
 
+	async function openShades(event: MouseEvent, colorId: string) {
+		if (expandedColorId === colorId) {
+			expandedColorId = null;
+			shadesAnchor = null;
+			return;
+		}
+		const btn = event.currentTarget as HTMLElement;
+		const rect = btn.getBoundingClientRect();
+		expandedColorId = colorId;
+
+		// Approximate width: 11 shades × 27px + padding ≈ 310px
+		const approxWidth = 310;
+		let left = rect.left;
+		if (left + approxWidth > window.innerWidth - 12) {
+			left = Math.max(8, window.innerWidth - approxWidth - 12);
+		}
+		shadesAnchor = { top: rect.bottom + 4, left };
+
+		// After DOM update, recalculate with actual width
+		await tick();
+		if (shadesEl) {
+			const w = shadesEl.offsetWidth;
+			const clamped = Math.max(8, Math.min(rect.left, window.innerWidth - w - 12));
+			if (clamped !== shadesAnchor.left) {
+				shadesAnchor = { top: rect.bottom + 4, left: clamped };
+			}
+		}
+	}
+
+	// Close shades when clicking outside
+	$effect(() => {
+		if (!expandedColorId) return;
+		const close = (e: MouseEvent) => {
+			if (bcpEl && !bcpEl.contains(e.target as Node) &&
+				shadesEl && !shadesEl.contains(e.target as Node)) {
+				expandedColorId = null;
+				shadesAnchor = null;
+			}
+		};
+		document.addEventListener('click', close, { capture: true });
+		return () => document.removeEventListener('click', close, { capture: true });
+	});
+
 	function select(hex: string) {
 		value = hex;
 		expandedColorId = null;
+		shadesAnchor = null;
 	}
 
+	const activeColor = $derived(brandColors.find(c => c.id === expandedColorId) ?? null);
 	const displayColor = $derived(value || placeholder);
 	const pickerColor = $derived(/^#[0-9a-fA-F]{6}$/.test(String(displayColor ?? '')) ? String(displayColor) : '#000000');
 	const normalizedValue = $derived((value ?? '').toLowerCase());
@@ -48,7 +97,7 @@
 	);
 </script>
 
-<div class="bcp" class:compact>
+<div class="bcp" class:compact bind:this={bcpEl}>
 	<!-- Current value pill -->
 	<div class="bcp-value">
 		<span class="bcp-dot" style="background:{displayColor}"></span>
@@ -70,48 +119,15 @@
 					{/if}
 					<div class="bcp-row">
 						{#each group.colors as color}
-							<div class="bcp-color-wrap">
-								<button
-									class="bcp-swatch"
-									type="button"
-									class:selected={value?.toLowerCase() === color.hex.toLowerCase()}
-									style="background:{color.hex}"
-									title={color.name}
-									onclick={() => {
-										if (expandedColorId === color.id) {
-											expandedColorId = null;
-										} else {
-											expandedColorId = color.id;
-										}
-									}}
-								></button>
-								{#if expandedColorId === color.id}
-									<div class="bcp-shades">
-										{#each generateShades(color.hex) as shade}
-											<button
-												class="bcp-shade"
-												type="button"
-												class:selected={value?.toLowerCase() === shade.hex.toLowerCase()}
-												style="background:{shade.hex}"
-												title="{color.name} {shade.label}"
-												onclick={() => select(shade.hex)}
-											>
-												<span class="bcp-shade-label">{shade.label}</span>
-											</button>
-										{/each}
-										<button
-											class="bcp-shade bcp-shade-base"
-											type="button"
-											class:selected={value?.toLowerCase() === color.hex.toLowerCase()}
-											style="background:{color.hex}"
-											title="{color.name} (base)"
-											onclick={() => select(color.hex)}
-										>
-											<span class="bcp-shade-label">Base</span>
-										</button>
-									</div>
-								{/if}
-							</div>
+							<button
+								class="bcp-swatch"
+								type="button"
+								class:selected={normalizedValue === color.hex.toLowerCase()}
+								class:expanded={expandedColorId === color.id}
+								style="background:{color.hex}"
+								title={color.name}
+								onclick={(e) => openShades(e, color.id)}
+							></button>
 						{/each}
 					</div>
 				</div>
@@ -152,6 +168,44 @@
 	</div>
 </div>
 
+<!-- Shades popup — rendered in a portal-like fixed overlay -->
+{#if activeColor && shadesAnchor}
+	<div
+		class="bcp-shades"
+		bind:this={shadesEl}
+		style="top:{shadesAnchor.top}px; left:{shadesAnchor.left}px"
+		role="listbox"
+		aria-label="Odstíny {activeColor.name}"
+	>
+		{#each generateShades(activeColor.hex) as shade}
+			<button
+				class="bcp-shade"
+				type="button"
+				role="option"
+				aria-selected={normalizedValue === shade.hex.toLowerCase()}
+				class:selected={normalizedValue === shade.hex.toLowerCase()}
+				style="background:{shade.hex}"
+				title="{activeColor.name} {shade.label}"
+				onclick={() => select(shade.hex)}
+			>
+				<span class="bcp-shade-label">{shade.label}</span>
+			</button>
+		{/each}
+		<button
+			class="bcp-shade bcp-shade-base"
+			type="button"
+			role="option"
+			aria-selected={normalizedValue === activeColor.hex.toLowerCase()}
+			class:selected={normalizedValue === activeColor.hex.toLowerCase()}
+			style="background:{activeColor.hex}"
+			title="{activeColor.name} (base)"
+			onclick={() => select(activeColor.hex)}
+		>
+			<span class="bcp-shade-label">Base</span>
+		</button>
+	</div>
+{/if}
+
 <style>
 	.bcp { display: flex; flex-direction: column; gap: .45rem; min-width: 0; }
 	.bcp-value {
@@ -162,33 +216,25 @@
 	}
 	.bcp-dot { width: 16px; height: 16px; border-radius: 4px; border: 1px solid rgba(0,0,0,.12); flex-shrink: 0; }
 	.bcp-hex {
-		font-family: var(--font-mono);
-		font-size: .8rem;
-		flex: 1;
-		color: var(--color-text);
-		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		font-family: var(--font-mono); font-size: .8rem; flex: 1;
+		color: var(--color-text); min-width: 0;
+		overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
 	.bcp-clear {
-		display: grid;
-		place-items: center;
-		width: 24px;
-		height: 24px;
-		border: none;
-		background: none;
-		cursor: pointer;
-		color: var(--color-muted);
-		padding: 0;
-		border-radius: 6px;
+		display: grid; place-items: center;
+		width: 24px; height: 24px;
+		border: none; background: none; cursor: pointer;
+		color: var(--color-muted); padding: 0; border-radius: 6px;
 	}
 	.bcp-clear:hover { color: var(--brand); background: color-mix(in srgb, var(--brand) 7%, transparent); }
-	.bcp-palette-name { font-size: .7rem; font-weight: 680; color: var(--color-muted); text-transform: uppercase; letter-spacing: .05em; margin-top: .3rem; display: block; }
+	.bcp-palette-name {
+		font-size: .7rem; font-weight: 680; color: var(--color-muted);
+		text-transform: uppercase; letter-spacing: .05em;
+		margin-top: .3rem; display: block;
+	}
 	.bcp-swatches { display: flex; flex-direction: column; gap: .2rem; }
 	.bcp-group { min-width: 0; }
 	.bcp-row { display: flex; flex-wrap: wrap; gap: .3rem; }
-	.bcp-color-wrap { position: relative; }
 	.bcp-swatch {
 		width: 26px; height: 26px; border-radius: 6px;
 		border: 2px solid transparent; cursor: pointer;
@@ -197,65 +243,62 @@
 	}
 	.bcp-swatch:hover { transform: scale(1.15); }
 	.bcp-swatch.selected { border-color: var(--brand); outline: 2px solid var(--brand); }
+	.bcp-swatch.expanded { outline: 2px solid var(--brand); opacity: .8; }
+
+	/* Shades popup — fixed overlay, above everything */
 	.bcp-shades {
-		position: absolute; top: 30px; left: 0; z-index: 30;
-		display: flex; gap: 3px; flex-wrap: nowrap;
-		background: var(--color-surface-raised); border: 1px solid var(--color-border);
-		border-radius: 8px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.14);
-		min-width: 280px;
+		position: fixed;
+		z-index: 9000;
+		display: flex;
+		gap: 3px;
+		overflow-x: auto;
+		max-width: calc(100vw - 16px);
+		background: var(--color-surface-raised, #fff);
+		border: 1px solid var(--color-border);
+		border-radius: 10px;
+		padding: 8px 8px 22px; /* bottom room for shade labels */
+		box-shadow: 0 8px 32px rgba(0,0,0,.18);
+		/* Hide scrollbar visually but keep it functional */
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-border) transparent;
 	}
 	.bcp-shade {
-		width: 24px; height: 40px; border-radius: 5px;
-		border: 2px solid transparent; cursor: pointer; position: relative;
-		flex-shrink: 0; outline: 1px solid rgba(0,0,0,.08);
+		width: 24px; min-width: 24px; height: 40px;
+		border-radius: 5px; border: 2px solid transparent;
+		cursor: pointer; position: relative;
+		outline: 1px solid rgba(0,0,0,.08);
 		transition: transform .1s;
+		flex-shrink: 0;
 	}
-	.bcp-shade:hover { transform: scaleY(1.08); }
-	.bcp-shade.selected { border-color: var(--brand); }
+	.bcp-shade:hover { transform: scaleY(1.1); }
+	.bcp-shade.selected { border-color: var(--brand); outline: 2px solid var(--brand); }
 	.bcp-shade-label {
-		position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
-		font-size: .52rem; color: var(--color-muted); white-space: nowrap;
+		position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%);
+		font-size: .5rem; color: var(--color-muted); white-space: nowrap; pointer-events: none;
 	}
-	.bcp-shade-base { margin-left: 4px; outline: 2px solid rgba(0,0,0,.18); }
+	.bcp-shade-base { margin-left: 4px; outline: 2px solid rgba(0,0,0,.2); }
+
 	.bcp-custom-toggle {
 		display: inline-flex; align-items: center; gap: .3rem;
 		border: none; background: none; cursor: pointer;
 		color: var(--color-muted); font-size: .78rem; text-align: left; padding: 0;
-		text-decoration: underline; text-underline-offset: 2px;
-		max-width: 100%;
+		text-decoration: underline; text-underline-offset: 2px; max-width: 100%;
 	}
 	.bcp-custom-toggle span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.bcp-custom-toggle.active { color: var(--color-text); }
 	.bcp-custom-row { display: flex; align-items: center; gap: .45rem; margin-top: .25rem; min-width: 0; }
 	.bcp-custom-row input[type="color"] { width: 36px; height: 30px; padding: 2px; border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }
-	.bcp-custom-row .mono { font-family: var(--font-mono); font-size: .82rem; flex: 1; min-width: 0; border: 1px solid var(--color-border); border-radius: 6px; padding: .3rem .5rem; background: var(--color-surface); color: var(--color-text); }
+	.bcp-custom-row .mono {
+		font-family: var(--font-mono); font-size: .82rem; flex: 1; min-width: 0;
+		border: 1px solid var(--color-border); border-radius: 6px;
+		padding: .3rem .5rem; background: var(--color-surface); color: var(--color-text);
+	}
+
+	/* Compact variant */
 	.bcp.compact .bcp-swatches {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-		gap: .45rem;
+		display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: .45rem;
 	}
 	.bcp.compact .bcp-row { gap: .22rem; }
-	.bcp.compact .bcp-swatch {
-		width: 22px;
-		height: 22px;
-		border-radius: 6px;
-	}
-	.bcp.compact .bcp-palette-name {
-		margin: 0 0 .25rem;
-		font-size: .62rem;
-	}
-	.bcp.compact .bcp-shades {
-		top: 27px;
-		min-width: min(280px, calc(100vw - 48px));
-		overflow-x: auto;
-	}
-	@media (max-width: 560px) {
-		.bcp-shades {
-			position: static;
-			margin-top: .35rem;
-			min-width: 0;
-			max-width: 100%;
-			overflow-x: auto;
-		}
-	}
+	.bcp.compact .bcp-swatch { width: 22px; height: 22px; border-radius: 6px; }
+	.bcp.compact .bcp-palette-name { margin: 0 0 .25rem; font-size: .62rem; }
 </style>

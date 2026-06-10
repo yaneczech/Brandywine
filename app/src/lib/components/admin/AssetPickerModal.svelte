@@ -7,7 +7,8 @@
     onClose    — called when user closes without selecting
 -->
 <script lang="ts">
-	import { IconSearch, IconX, IconPhoto, IconFileText, IconVideo, IconFile, IconCheck } from '@tabler/icons-svelte';
+	import { IconSearch, IconX, IconPhoto, IconCheck } from '@tabler/icons-svelte';
+	import AssetThumb from '$lib/components/admin/AssetThumb.svelte';
 
 	type Asset = {
 		id: string;
@@ -159,8 +160,6 @@
 				{:else}
 					<div class="picker-grid">
 						{#each filtered as asset (asset.id)}
-							{@const thumb = thumbUrl(asset)}
-							{@const cat   = mimeCategory(asset.mime)}
 							<button
 								type="button"
 								class="asset-tile"
@@ -170,16 +169,13 @@
 								onmouseleave={() => (hoveredId = null)}
 								onclick={() => onPick(assetUrl(asset), asset)}
 							>
-								<div class="asset-thumb">
-									{#if thumb}
-										<img src={thumb} alt={asset.filename} loading="lazy" />
-									{:else if cat === 'video'}
-										<IconVideo size={28} stroke={1.3} />
-									{:else if cat === 'document'}
-										<IconFileText size={28} stroke={1.3} />
-									{:else}
-										<IconFile size={28} stroke={1.3} />
-									{/if}
+								<div class="tile-thumb">
+									<AssetThumb
+										mime={asset.mime}
+										thumbnailPath={asset.thumbnailPath}
+										assetId={asset.id}
+										filename={asset.filename}
+									/>
 								</div>
 								<div class="asset-name">{asset.filename}</div>
 								<div class="asset-check"><IconCheck size={14} /></div>
@@ -351,22 +347,14 @@
 	border-color: var(--brand);
 	box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent);
 }
-.asset-thumb {
+/* Square thumbnail container for the picker grid */
+.tile-thumb {
 	width: 100%;
 	aspect-ratio: 1;
-	border-radius: 5px;
 	overflow: hidden;
+	border-radius: 5px;
 	background: color-mix(in srgb, var(--color-border) 40%, transparent);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: var(--color-muted);
-}
-.asset-thumb img {
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
-	display: block;
+	position: relative;
 }
 .asset-name {
 	font-size: .7rem;

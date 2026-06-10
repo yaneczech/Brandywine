@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
@@ -33,7 +34,7 @@ function buildPath(parentPath: string | null, name: string) {
 
 export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const body = await request.json().catch(() => null) as Record<string, unknown> | null;
 	if (!body) error(400, 'Invalid JSON');
@@ -108,7 +109,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 
 export const DELETE: RequestHandler = async ({ params, locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
-	if (locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
 	const [current] = await db.select({ parentId: folders.parentId })
 		.from(folders).where(eq(folders.id, params.id)).limit(1);

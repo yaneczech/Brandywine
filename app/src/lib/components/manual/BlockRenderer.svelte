@@ -312,7 +312,7 @@
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
 		{#if block.config.url}
 			<figure class="img-figure" class:full-width={block.config.fullWidth}>
-				<img src={assetSrc(block.config.url)} alt={String(block.config.alt ?? '')} class="block-img" />
+				<img src={assetSrc(block.config.url)} alt={String(block.config.alt ?? '')} class="block-img" class:framed={block.config.frame} />
 				{#if block.config.caption}
 					<figcaption class="img-caption">{block.config.caption}</figcaption>
 				{/if}
@@ -633,22 +633,82 @@
 
 {:else if block.type === 'grid'}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		{@const gcols    = Math.max(1, Number(block.config.columns ?? 12))}
+		{@const grows    = Math.max(0, Number(block.config.rows ?? 0))}
+		{@const ggutter  = Number(block.config.gutter ?? 24)}
+		{@const ggutterR = Number(block.config.gutterRow ?? ggutter)}
+		{@const gunit    = String(block.config.unit ?? (String(block.config.medium ?? 'web') === 'print' ? 'mm' : 'px'))}
+		{@const gmedium  = String(block.config.medium ?? 'web')}
+		{@const gformat  = String(block.config.format ?? (gmedium === 'print' ? 'A4' : 'web'))}
+		{@const gorient  = String(block.config.orientation ?? 'portrait')}
+		<!-- 4-sided margins: individual overrides fall back to margin -->
+		{@const gmarginBase = Number(block.config.margin ?? 40)}
+		{@const gmT = Number(block.config.marginTop    ?? gmarginBase)}
+		{@const gmR = Number(block.config.marginRight  ?? gmarginBase)}
+		{@const gmB = Number(block.config.marginBottom ?? gmarginBase)}
+		{@const gmL = Number(block.config.marginLeft   ?? gmarginBase)}
+		<!-- Reference document dimensions in native units -->
+		{@const FDIMS = { web:[Number(block.config.maxWidth??1280),720], A4:[210,297], A3:[420,297], A5:[148,210], Letter:[216,279], square:[1000,1000], story:[1000,1778] }}
+		{@const fdim  = FDIMS[gformat] ?? FDIMS['web']}
+		{@const docW  = gorient === 'landscape' && fdim[0] < fdim[1] ? fdim[1] : gorient === 'portrait' && fdim[0] > fdim[1] ? fdim[1] : fdim[0]}
+		{@const docH  = gorient === 'landscape' && fdim[0] < fdim[1] ? fdim[0] : gorient === 'portrait' && fdim[0] > fdim[1] ? fdim[0] : fdim[1]}
+		<!-- SVG canvas: scale docW → 800 units using proportional fractions to avoid negative widths -->
+		{@const SW    = 800}
+		{@const SH    = Math.round(SW * docH / docW)}
+		{@const smgL  = gmL / docW * SW}
+		{@const smgR  = gmR / docW * SW}
+		{@const smgT  = gmT / docH * SH}
+		{@const smgB  = gmB / docH * SH}
+		{@const sgt   = ggutter  / docW * SW}
+		{@const sgtR  = ggutterR / docH * SH}
+		{@const iW    = Math.max(0, SW - smgL - smgR)}
+		{@const iH    = Math.max(0, SH - smgT - smgB)}
+		{@const colW  = Math.max(2, (iW - (gcols - 1) * sgt)  / gcols)}
+		{@const rowH  = grows > 0 ? Math.max(2, (iH - (grows - 1) * sgtR) / grows) : iH}
+		{@const maxH  = gmedium === 'print' ? '400px' : gformat === 'story' ? '340px' : gformat === 'square' ? '260px' : '180px'}
+		<!-- Margin label: show as single value if all 4 sides equal, otherwise T/R/B/L -->
+		{@const marginsEqual = gmT === gmR && gmR === gmB && gmB === gmL}
+		{@const marginLabel  = marginsEqual ? `${gmT} ${gunit}` : `${gmT} / ${gmR} / ${gmB} / ${gmL} ${gunit}`}
 		<div class="grid-spec">
-			<div class="grid-visual" style="
-				--cols: {block.config.columns ?? 12};
-				--gutter: {block.config.gutter ?? 24}px;
-				--margin: {block.config.margin ?? 40}px;
-			">
-				{#each Array(Number(block.config.columns ?? 12)) as _}
-					<div class="grid-col"></div>
+			<svg class="grid-svg" viewBox="0 0 {SW} {SH}" style="max-height:{maxH}" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+				<!-- Page background -->
+				<rect width={SW} height={SH} fill="var(--manual-surface)" />
+				<!-- Margin area highlight -->
+				<rect x={smgL} y={smgT} width={iW} height={iH}
+					fill="color-mix(in srgb,var(--manual-brand) 5%,transparent)" />
+				<!-- Margin boundary -->
+				<rect x={smgL} y={smgT} width={iW} height={iH}
+					fill="none"
+					stroke="color-mix(in srgb,var(--manual-brand) 30%,transparent)"
+					stroke-width="1" stroke-dasharray="6 3" />
+				<!-- Columns / cells -->
+				{#each Array(gcols) as _,ci}
+					{@const cx = smgL + ci * (colW + sgt)}
+					{#if grows > 0}
+						{#each Array(grows) as _,ri}
+							{@const ry = smgT + ri * (rowH + sgtR)}
+							<rect x={cx} y={ry} width={colW} height={rowH}
+								fill="color-mix(in srgb,var(--manual-brand) 18%,transparent)"
+								stroke="color-mix(in srgb,var(--manual-brand) 30%,transparent)"
+								stroke-width="0.5" />
+						{/each}
+					{:else}
+						<rect x={cx} y={smgT} width={colW} height={iH}
+							fill="color-mix(in srgb,var(--manual-brand) 18%,transparent)" />
+					{/if}
 				{/each}
-			</div>
+				<!-- Outer border -->
+				<rect width={SW} height={SH} fill="none" stroke="var(--manual-border)" stroke-width="1.5" />
+			</svg>
 			<dl class="grid-meta">
-				<div><dt>Sloupce</dt><dd>{block.config.columns ?? 12}</dd></div>
-				<div><dt>Gutter</dt><dd>{block.config.gutter ?? 24}px</dd></div>
-				<div><dt>Margin</dt><dd>{block.config.margin ?? 40}px</dd></div>
-				<div><dt>Max šířka</dt><dd>{block.config.maxWidth ?? 1280}px</dd></div>
-				{#if block.config.medium}<div><dt>Médium</dt><dd>{block.config.medium}</dd></div>{/if}
+				<div><dt>Sloupce</dt><dd>{gcols}</dd></div>
+				{#if grows > 0}<div><dt>Řádky</dt><dd>{grows}</dd></div>{/if}
+				<div><dt>Gutter</dt><dd>{ggutter} {gunit}</dd></div>
+				{#if grows > 0 && ggutterR !== ggutter}<div><dt>Gutter (řádky)</dt><dd>{ggutterR} {gunit}</dd></div>{/if}
+				<div><dt>Okraje</dt><dd>{marginLabel}</dd></div>
+				{#if gmedium !== 'print'}<div><dt>Max šířka</dt><dd>{block.config.maxWidth ?? 1280} {gunit}</dd></div>{/if}
+				{#if gmedium === 'print'}<div><dt>Formát</dt><dd>{gformat} {gorient === 'portrait' ? '↕' : '↔'}</dd></div>{/if}
+				<div><dt>Médium</dt><dd>{gmedium === 'print' ? 'Tisk' : gmedium === 'web' ? 'Web' : gmedium}</dd></div>
 			</dl>
 			{#if block.config.description}
 				<p class="block-text">{block.config.description}</p>
@@ -716,11 +776,11 @@
 			{@const lines = String(block.config.data).trim().split('\n').filter(Boolean)}
 			{@const entries = lines.map(l => { const [label, val] = l.split(':'); return { label: label?.trim() ?? '', value: Math.min(100, Math.max(0, Number(val?.trim() ?? 0))) }; })}
 			{@const count = entries.length}
-			{@const cx = 160}
-			{@const cy = 160}
-			{@const r  = 120}
+			{@const cx = 220}
+			{@const cy = 190}
+			{@const r  = 130}
 			<div class="chart-wrap">
-				<svg class="radar-chart" viewBox="0 0 320 320" aria-label={String(block.config.datasetLabel ?? 'Brand chart')}>
+				<svg class="radar-chart" viewBox="0 0 440 380" aria-label={String(block.config.datasetLabel ?? 'Brand chart')}>
 					<!-- grid rings -->
 					{#each [0.25,0.5,0.75,1] as ring}
 						<polygon class="radar-grid"
@@ -745,8 +805,8 @@
 					<!-- labels -->
 					{#each entries as {label,value},i}
 						{@const angle=(i/count)*Math.PI*2-Math.PI/2}
-						{@const lx=cx+Math.cos(angle)*(r+22)}
-						{@const ly=cy+Math.sin(angle)*(r+22)}
+						{@const lx=cx+Math.cos(angle)*(r+26)}
+						{@const ly=cy+Math.sin(angle)*(r+26)}
 						<text class="radar-label" x={lx} y={ly}
 							text-anchor={lx<cx-8?'end':lx>cx+8?'start':'middle'}
 							dominant-baseline={ly<cy-8?'auto':ly>cy+8?'hanging':'middle'}
@@ -940,8 +1000,12 @@
 	/* ── Image ───────────────────────────────────────────────────────────────── */
 	.img-figure { margin: 0; }
 	.img-figure.full-width { width: 100%; }
+	.img-figure.full-width .block-img { margin: 0 auto; }
+	.img-figure.full-width .img-caption { text-align: center; }
 	.block-img {
 		display: block; max-width: 100%;
+	}
+	.block-img.framed {
 		border: 1px solid var(--manual-border); border-radius: var(--manual-radius);
 		background: color-mix(in srgb, var(--manual-surface) 86%, var(--manual-ink));
 	}
@@ -1034,9 +1098,8 @@
 	}
 	.color-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 232px), 282px));
+		grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
 		gap: 14px;
-		justify-content: start;
 		align-items: stretch;
 	}
 	.color-card {
@@ -1419,8 +1482,8 @@
 	.card-desc { margin: 0; font-size: .84rem; color: var(--manual-muted); line-height: 1.55; }
 
 	/* ── Chart ───────────────────────────────────────────────────────────────── */
-	.chart-wrap { display: grid; grid-template-columns: 260px minmax(0,1fr); gap: 2rem; align-items: center; }
-	.radar-chart { width: 100%; max-width: 260px; display: block; }
+	.chart-wrap { display: grid; grid-template-columns: 380px minmax(0,1fr); gap: 2rem; align-items: center; }
+	.radar-chart { width: 100%; max-width: 380px; display: block; }
 	.radar-grid { fill: none; stroke: var(--manual-border); stroke-width: 1; }
 	.radar-axis { stroke: var(--manual-border); stroke-width: 1; }
 	.radar-data {
@@ -1437,14 +1500,7 @@
 
 	/* ── Grid ────────────────────────────────────────────────────────────────── */
 	.grid-spec { display: flex; flex-direction: column; gap: 1.25rem; }
-	.grid-visual {
-		height: 72px; display: grid;
-		grid-template-columns: repeat(var(--cols), 1fr);
-		gap: var(--gutter); padding: 0 var(--margin); overflow: hidden;
-		border: 1px solid var(--manual-border); border-radius: var(--manual-radius);
-		background: var(--manual-surface);
-	}
-	.grid-col { background: color-mix(in srgb, var(--manual-brand) 14%, transparent); border-radius: 2px; }
+	.grid-svg { width: 100%; height: auto; display: block; border-radius: var(--manual-radius); }
 	.grid-meta { display: flex; flex-wrap: wrap; gap: .65rem 1.35rem; }
 	.grid-meta div { display: flex; align-items: baseline; gap: .4rem; }
 	.grid-meta dt { color: var(--manual-muted); font-size: .75rem; font-weight: 650; }
@@ -1563,7 +1619,7 @@
 			grid-template-columns: 1fr;
 		}
 		.chart-wrap { grid-template-columns: 1fr; }
-		.radar-chart { max-width: 220px; margin: 0 auto; }
+		.radar-chart { max-width: 320px; margin: 0 auto; }
 		.logo-preview-wrap { grid-template-columns: 1fr; }
 		.legend-row { grid-template-columns: 90px 1fr 24px; }
 	}

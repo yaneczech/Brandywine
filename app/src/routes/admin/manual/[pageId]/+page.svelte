@@ -4,7 +4,7 @@
 	import {
 		IconArrowLeft, IconPlus, IconTrash, IconGripVertical, IconX,
 		IconEye, IconEyeOff, IconChevronUp, IconChevronDown, IconSettings,
-		IconCheck, IconPhoto, IconSearch
+		IconCheck, IconPhoto, IconSearch, IconExternalLink
 	} from '@tabler/icons-svelte';
 	import { BLOCK_TYPES } from '$lib/manual/blockTypes';
 	import BlockConfigPanel from './BlockConfigPanel.svelte';
@@ -331,6 +331,9 @@
 				<h1>{page.title}</h1>
 				<span class="page-slug muted">/manual/{page.slug}</span>
 			</div>
+			<a href="/manual/{page.slug}" target="_blank" rel="noopener" class="btn-ghost preview-btn" title="Zobrazit v manuálu">
+				<IconExternalLink size={15} /> Zobrazit
+			</a>
 			<button class="btn-ghost settings-btn" class:active={showPageSettings}
 				onclick={() => showPageSettings = !showPageSettings} title="Nastavení stránky">
 				<IconSettings size={16} /> Hero a stránka
@@ -523,7 +526,7 @@
 
 					<!-- Insert button between blocks -->
 					<button class="insert-btn" onclick={() => { insertAfterIdx = i; showPicker = true; }} title="Vložit blok">
-						<IconPlus size={12} />
+						<span class="insert-icon"><IconPlus size={10} /></span>
 					</button>
 				{/each}
 			{/if}
@@ -678,7 +681,9 @@
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
 .page-header { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 0; flex-wrap: wrap; }
-.settings-btn { border: 1px solid var(--color-border); font-size: .8rem; margin-left: auto; }
+.preview-btn { border: 1px solid var(--color-border); font-size: .8rem; margin-left: auto; text-decoration: none; }
+.preview-btn:hover { color: var(--brand); border-color: var(--brand); }
+.settings-btn { border: 1px solid var(--color-border); font-size: .8rem; }
 .settings-btn.active { background: var(--color-surface-raised); color: var(--color-text); border-color: var(--brand); }
 .page-settings-panel {
 	background: var(--color-surface-raised); border: 1px solid var(--color-border);
@@ -797,8 +802,9 @@
 	border-top: 1px solid var(--color-border);
 	background: var(--color-bg);
 }
-.insert-btn { display: flex; align-items: center; justify-content: center; width: 100%; height: 16px; background: none; border: none; cursor: pointer; color: var(--color-border); transition: color .15s; position: relative; }
+.insert-btn { display: flex; align-items: center; justify-content: center; width: 100%; height: 20px; background: none; border: none; cursor: pointer; color: var(--color-border); transition: color .15s; position: relative; }
 .insert-btn::before { content: ''; position: absolute; left: 2rem; right: 2rem; top: 50%; height: 1px; background: currentColor; }
+.insert-icon { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid currentColor; background: var(--color-bg); }
 .insert-btn:hover { color: var(--brand); }
 .empty-state { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 3rem; text-align: center; color: var(--color-muted); background: var(--color-surface); border: 2px dashed var(--color-border); border-radius: 10px; }
 .add-block-row { display: flex; justify-content: center; padding-top: .75rem; }

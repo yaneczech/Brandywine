@@ -10,9 +10,10 @@
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { IconCheck, IconPhoto, IconPlus } from '@tabler/icons-svelte';
+	import { IconCheck, IconPhoto, IconPlus, IconFolder } from '@tabler/icons-svelte';
 	import RichContentEditor from './RichContentEditor.svelte';
 	import AssetPickerModal from '$lib/components/admin/AssetPickerModal.svelte';
+	import FolderPicker, { type FolderPickerItem } from '$lib/components/admin/FolderPicker.svelte';
 
 	type Block = { id: string; type: string; config: Record<string, unknown>; anchor: string | null };
 
@@ -119,6 +120,36 @@
 		set(pickerTarget, url);
 		pickerOpen = false;
 	}
+
+	// ── Folder picker ─────────────────────────────────────────────────────────────
+	let folderList    = $state<FolderPickerItem[]>([]);
+	let foldersLoaded = $state(false);
+	let foldersLoading = $state(false);
+	let folderPickerKey = $state<string | null>(null);
+
+	async function openFolderPicker(key: string) {
+		folderPickerKey = folderPickerKey === key ? null : key;
+		if (!foldersLoaded && !foldersLoading) {
+			foldersLoading = true;
+			try {
+				const r = await fetch('/api/folders');
+				if (r.ok) folderList = await r.json();
+				foldersLoaded = true;
+			} finally {
+				foldersLoading = false;
+			}
+		}
+	}
+
+	function pickFolder(key: string, id: string | null) {
+		set(key, id ?? '');
+		folderPickerKey = null;
+	}
+
+	function folderLabel(id: string): string {
+		if (!id) return 'Žádný folder';
+		return folderList.find(f => f.id === id)?.name ?? id.slice(0, 8) + '…';
+	}
 </script>
 
 <div class="primary-editor">
@@ -161,23 +192,44 @@
 				<input type="text" value={str('caption')} placeholder="Volitelný popis…" oninput={e => setStr(e, 'caption')} />
 			</label>
 		</div>
-		<label class="field checkbox">
-			<input type="checkbox" checked={bool('fullWidth')} onchange={e => setBool(e, 'fullWidth')} />
-			<span>Celá šířka</span>
-		</label>
-		<label class="field">
-			<span>Ochranná zóna <span class="muted">(pins — JSON)</span></span>
-			<textarea rows={3} value={str('pins')} placeholder={pinsPlaceholder} oninput={e => setStr(e, 'pins')}></textarea>
-		</label>
+		<div class="fields-row">
+			<label class="field checkbox">
+				<input type="checkbox" checked={bool('fullWidth')} onchange={e => setBool(e, 'fullWidth')} />
+				<span>Celá šířka</span>
+			</label>
+			<label class="field checkbox">
+				<input type="checkbox" checked={bool('frame')} onchange={e => setBool(e, 'frame')} />
+				<span>Rámeček &amp; pozadí</span>
+			</label>
+		</div>
 	</div>
 
 <!-- ── image_gallery / carousel ──────────────────────────────────────────────── -->
 {:else if block.type === 'image_gallery' || block.type === 'carousel'}
 	<div class="fields">
-		<label class="field">
-			<span>Folder ID</span>
-			<input type="text" value={str('folderId')} oninput={e => setStr(e, 'folderId')} />
-		</label>
+		<div class="field">
+			<span>Folder s obrázky</span>
+			<div class="folder-field">
+				<div class="folder-selected">
+					<IconFolder size={14} />
+					<span class={str('folderId') ? '' : 'muted'}>{str('folderId') ? folderLabel(str('folderId')) : 'Žádný folder'}</span>
+					<button type="button" class="btn-pick" onclick={() => openFolderPicker('folderId')}>
+						{foldersLoading && folderPickerKey === 'folderId' ? '…' : folderPickerKey === 'folderId' ? 'Zavřít' : 'Vybrat'}
+					</button>
+				</div>
+				{#if folderPickerKey === 'folderId'}
+					<div class="folder-panel">
+						<FolderPicker
+							folders={folderList}
+							selectedId={str('folderId') || null}
+							includeRoot={false}
+							showCounts={true}
+							onPick={(id) => pickFolder('folderId', id)}
+						/>
+					</div>
+				{/if}
+			</div>
+		</div>
 		{#if block.type === 'carousel'}
 			<label class="field checkbox">
 				<input type="checkbox" checked={bool('autoplay')} onchange={e => setBool(e, 'autoplay')} />
@@ -279,29 +331,100 @@
 					<option value="web">Web</option>
 					<option value="print">Tisk</option>
 					<option value="social">Social media</option>
-					<option value="general">Obecné</option>
 				</select>
 			</label>
+			{#if (str('medium') || 'web') === 'print'}
+				<label class="field">
+					<span>Formát</span>
+					<select value={str('format') || 'A4'} onchange={e => setStr(e, 'format')}>
+						<option value="A4">A4</option>
+						<option value="A3">A3</option>
+						<option value="A5">A5</option>
+						<option value="Letter">Letter</option>
+					</select>
+				</label>
+				<label class="field">
+					<span>Orientace</span>
+					<select value={str('orientation') || 'portrait'} onchange={e => setStr(e, 'orientation')}>
+						<option value="portrait">Na výšku</option>
+						<option value="landscape">Na šířku</option>
+					</select>
+				</label>
+			{:else if (str('medium') || 'web') === 'social'}
+				<label class="field">
+					<span>Formát</span>
+					<select value={str('format') || 'square'} onchange={e => setStr(e, 'format')}>
+						<option value="square">Čtverec (1:1)</option>
+						<option value="story">Story (9:16)</option>
+					</select>
+				</label>
+			{:else}
+				<label class="field">
+					<span>Max šířka</span>
+					<input type="number" min={320} max={3840} value={num('maxWidth', 1280)} oninput={e => setNum(e, 'maxWidth')} />
+				</label>
+			{/if}
 			<label class="field">
-				<span>Počet sloupců</span>
+				<span>Jednotky</span>
+				<select value={str('unit') || ((str('medium')||'web')==='print' ? 'mm' : 'px')} onchange={e => setStr(e, 'unit')}>
+					<option value="px">px</option>
+					<option value="mm">mm</option>
+					<option value="pt">pt</option>
+				</select>
+			</label>
+		</div>
+		<div class="fields-row">
+			<label class="field">
+				<span>Sloupce</span>
 				<input type="number" min={1} max={24} value={num('columns', 12)} oninput={e => setNum(e, 'columns')} />
 			</label>
 			<label class="field">
-				<span>Gutter — px</span>
+				<span>Řádky <span class="muted">(0 = žádné)</span></span>
+				<input type="number" min={0} max={60} value={num('rows', 0)} oninput={e => setNum(e, 'rows')} />
+			</label>
+			<label class="field">
+				<span>Gutter (sloupce)</span>
 				<input type="number" min={0} max={120} value={num('gutter', 24)} oninput={e => setNum(e, 'gutter')} />
 			</label>
-			<label class="field">
-				<span>Margin — px</span>
-				<input type="number" min={0} max={240} value={num('margin', 40)} oninput={e => setNum(e, 'margin')} />
-			</label>
-			<label class="field">
-				<span>Max šířka — px</span>
-				<input type="number" min={320} max={3840} value={num('maxWidth', 1280)} oninput={e => setNum(e, 'maxWidth')} />
-			</label>
+			{#if num('rows', 0) > 0}
+				<label class="field">
+					<span>Gutter (řádky)</span>
+					<input type="number" min={0} max={120} value={num('gutterRow', num('gutter', 24))} oninput={e => setNum(e, 'gutterRow')} />
+				</label>
+			{/if}
 		</div>
+		<!-- Margins -->
+		{#if (str('medium') || 'web') === 'print'}
+			<div class="field-group-label">Okraje</div>
+			<div class="fields-row">
+				<label class="field">
+					<span>Nahoře</span>
+					<input type="number" min={0} max={240} value={num('marginTop', num('margin', 20))} oninput={e => setNum(e, 'marginTop')} />
+				</label>
+				<label class="field">
+					<span>Vpravo</span>
+					<input type="number" min={0} max={240} value={num('marginRight', num('margin', 20))} oninput={e => setNum(e, 'marginRight')} />
+				</label>
+				<label class="field">
+					<span>Dole</span>
+					<input type="number" min={0} max={240} value={num('marginBottom', num('margin', 20))} oninput={e => setNum(e, 'marginBottom')} />
+				</label>
+				<label class="field">
+					<span>Vlevo</span>
+					<input type="number" min={0} max={240} value={num('marginLeft', num('margin', 20))} oninput={e => setNum(e, 'marginLeft')} />
+				</label>
+			</div>
+		{:else}
+			<div class="fields-row">
+				<label class="field">
+					<span>Okraj (strany)</span>
+					<input type="number" min={0} max={240} value={num('margin', 40)} oninput={e => setNum(e, 'margin')} />
+				</label>
+			</div>
+		{/if}
 		<label class="field">
 			<span>Popis použití</span>
-			<textarea rows={3} value={str('description')} placeholder="Popis použití gridu…" oninput={e => setStr(e, 'description')}></textarea>
+			<textarea rows={2} value={str('description')} placeholder="Popis použití gridu…" oninput={e => setStr(e, 'description')}></textarea>
 		</label>
 	</div>
 
@@ -358,20 +481,40 @@
 
 <!-- ── naming ────────────────────────────────────────────────────────────────── -->
 {:else if block.type === 'naming'}
-	<div class="fields">
-		<label class="field">
-			<span>Obsah <span class="muted">(Markdown)</span></span>
-			<textarea rows={8} value={str('markdown')} placeholder="Pravidla psaní názvů…" oninput={e => setStr(e, 'markdown')}></textarea>
-		</label>
-	</div>
+	{#key block.id}
+		<RichContentEditor
+			value={cfg['content']}
+			legacyMarkdown={str('markdown')}
+			onChange={updateRichContent}
+		/>
+	{/key}
 
 <!-- ── icons ─────────────────────────────────────────────────────────────────── -->
 {:else if block.type === 'icons'}
 	<div class="fields">
-		<label class="field">
-			<span>Folder ID s ikonami</span>
-			<input type="text" value={str('folderId')} placeholder="folder ID" oninput={e => setStr(e, 'folderId')} />
-		</label>
+		<div class="field">
+			<span>Folder s ikonami</span>
+			<div class="folder-field">
+				<div class="folder-selected">
+					<IconFolder size={14} />
+					<span class={str('folderId') ? '' : 'muted'}>{str('folderId') ? folderLabel(str('folderId')) : 'Žádný folder'}</span>
+					<button type="button" class="btn-pick" onclick={() => openFolderPicker('folderId-icons')}>
+						{foldersLoading && folderPickerKey === 'folderId-icons' ? '…' : folderPickerKey === 'folderId-icons' ? 'Zavřít' : 'Vybrat'}
+					</button>
+				</div>
+				{#if folderPickerKey === 'folderId-icons'}
+					<div class="folder-panel">
+						<FolderPicker
+							folders={folderList}
+							selectedId={str('folderId') || null}
+							includeRoot={false}
+							showCounts={true}
+							onPick={(id) => pickFolder('folderId', id)}
+						/>
+					</div>
+				{/if}
+			</div>
+		</div>
 		<div class="fields-row">
 			<label class="field">
 				<span>Velikost náhledu — px</span>
@@ -437,9 +580,33 @@
 <!-- ── asset_gallery ─────────────────────────────────────────────────────────── -->
 {:else if block.type === 'asset_gallery'}
 	<div class="fields">
+		<div class="field">
+			<span>Folder</span>
+			<div class="folder-field">
+				<div class="folder-selected">
+					<IconFolder size={14} />
+					<span class={str('folderId') ? '' : 'muted'}>{str('folderId') ? folderLabel(str('folderId')) : 'Všechny složky'}</span>
+					<button type="button" class="btn-pick" onclick={() => openFolderPicker('folderId-ag')}>
+						{foldersLoading && folderPickerKey === 'folderId-ag' ? '…' : folderPickerKey === 'folderId-ag' ? 'Zavřít' : 'Vybrat'}
+					</button>
+				</div>
+				{#if folderPickerKey === 'folderId-ag'}
+					<div class="folder-panel">
+						<FolderPicker
+							folders={folderList}
+							selectedId={str('folderId') || null}
+							includeRoot={true}
+							rootLabel="Všechny složky"
+							showCounts={true}
+							onPick={(id) => pickFolder('folderId', id)}
+						/>
+					</div>
+				{/if}
+			</div>
+		</div>
 		<label class="field">
-			<span>Folder ID nebo tagy</span>
-			<input type="text" value={str('filter')} placeholder="folder:abc123" oninput={e => setStr(e, 'filter')} />
+			<span>Tagy <span class="muted">(volitelné, čárkou)</span></span>
+			<input type="text" value={str('tags')} placeholder="logo, vector, print" oninput={e => setStr(e, 'tags')} />
 		</label>
 		<label class="field">
 			<span>Rozložení</span>
@@ -458,9 +625,33 @@
 			<span>Popis</span>
 			<textarea rows={3} value={str('description')} oninput={e => setStr(e, 'description')}></textarea>
 		</label>
+		<div class="field">
+			<span>Folder</span>
+			<div class="folder-field">
+				<div class="folder-selected">
+					<IconFolder size={14} />
+					<span class={str('folderId') ? '' : 'muted'}>{str('folderId') ? folderLabel(str('folderId')) : 'Všechny složky'}</span>
+					<button type="button" class="btn-pick" onclick={() => openFolderPicker('folderId-dl')}>
+						{foldersLoading && folderPickerKey === 'folderId-dl' ? '…' : folderPickerKey === 'folderId-dl' ? 'Zavřít' : 'Vybrat'}
+					</button>
+				</div>
+				{#if folderPickerKey === 'folderId-dl'}
+					<div class="folder-panel">
+						<FolderPicker
+							folders={folderList}
+							selectedId={str('folderId') || null}
+							includeRoot={true}
+							rootLabel="Všechny složky"
+							showCounts={true}
+							onPick={(id) => pickFolder('folderId', id)}
+						/>
+					</div>
+				{/if}
+			</div>
+		</div>
 		<label class="field">
-			<span>Folder ID nebo tagy <span class="muted">(filter)</span></span>
-			<input type="text" value={str('filter')} placeholder="folder:abc123 nebo tag:logo,vector" oninput={e => setStr(e, 'filter')} />
+			<span>Tagy <span class="muted">(volitelné, čárkou)</span></span>
+			<input type="text" value={str('tags')} placeholder="logo, vector, print" oninput={e => setStr(e, 'tags')} />
 		</label>
 	</div>
 
@@ -674,6 +865,7 @@
 	flex-wrap: wrap;
 }
 .fields-row .field { flex: 1; min-width: 160px; }
+.field-group-label { font-size: .72rem; font-weight: 650; color: var(--color-muted); text-transform: uppercase; letter-spacing: .05em; margin-top: .25rem; }
 .col { display: flex; flex-direction: column; gap: .6rem; flex: 1; min-width: 200px; }
 
 .field { display: flex; flex-direction: column; gap: .35rem; font-size: .875rem; }
@@ -857,4 +1049,23 @@
 .rule-cat { font-weight: 600 !important; }
 .rule-examples { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; }
 .rule-examples input { font-family: monospace; font-size: .8rem !important; }
+
+/* ── folder picker ───────────────────────────────────────────────────────── */
+.folder-field { display: flex; flex-direction: column; gap: 4px; }
+.folder-selected {
+	display: flex; align-items: center; gap: .5rem;
+	padding: .4rem .65rem;
+	border: 1px solid var(--color-border); border-radius: 6px;
+	background: var(--color-surface); font-size: .875rem;
+	cursor: default;
+}
+.folder-selected :global(svg) { color: var(--color-muted); flex-shrink: 0; }
+.folder-selected > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-panel {
+	border: 1px solid var(--color-border); border-radius: 8px;
+	background: var(--color-surface);
+	box-shadow: 0 4px 16px rgba(0,0,0,.1);
+	overflow: hidden;
+	padding: .5rem 0;
+}
 </style>

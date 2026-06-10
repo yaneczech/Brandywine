@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
@@ -6,7 +7,7 @@ import { eq } from 'drizzle-orm';
 
 // Body: { ids: string[] } — ordered list of color IDs
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!locals.user || !canEdit(locals.user.role)) error(403, 'Forbidden');
 	const { ids } = await request.json();
 	if (!Array.isArray(ids)) error(400, 'ids must be an array');
 

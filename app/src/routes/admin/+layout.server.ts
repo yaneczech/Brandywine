@@ -35,7 +35,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
 		redirect(302, `/admin/login?redirect=${encodeURIComponent(url.pathname)}`);
 	}
-	if (locals.user.role !== 'admin') {
+	// Members have no access to admin; editors and admins are allowed
+	if (locals.user.role === 'member') {
 		redirect(302, '/');
 	}
 	return { user: locals.user, brand: brandData };

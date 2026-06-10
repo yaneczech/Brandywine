@@ -8,6 +8,26 @@ type User = InferSelectModel<typeof users>;
 export type Action = 'read' | 'download' | 'write' | 'upload' | 'share';
 export type ResourceType = 'section' | 'folder' | 'collection';
 
+// ── Global role helpers ───────────────────────────────────────────────────────
+// Role hierarchy: admin (3) > editor (2) > member (1)
+// admin  — full access incl. users & system settings
+// editor — brand content (colors, typography, assets, manual); no user/settings mgmt
+// member — read-only, asset downloads
+
+const ROLE_LEVEL: Record<string, number> = { admin: 3, editor: 2, member: 1 };
+
+/** User can edit brand content (editor or above). */
+export function canEdit(role: string): boolean {
+	return (ROLE_LEVEL[role] ?? 0) >= ROLE_LEVEL.editor;
+}
+
+/** User has full admin access. */
+export function isAdmin(role: string): boolean {
+	return role === 'admin';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * Admin má vždy přístup ke všemu.
  * Member musí mít explicitní oprávnění přes tým.

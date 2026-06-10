@@ -1,12 +1,48 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
 	import * as m from '$lib/paraglide/messages';
-	import { IconInfoCircle, IconArrowRight } from '@tabler/icons-svelte';
+	import { IconInfoCircle, IconArrowRight, IconCheck } from '@tabler/icons-svelte';
 	const { form, data }: { form: ActionData; data: PageData } = $props();
 
 	const systemName = data.brand?.systemName ?? 'Brandywine';
 	const logoSrc    = data.brand?.logoPath ?? '/logo.svg';
 	const primary    = data.brand?.primaryColor ?? '#4A1204';
+
+	// Forgot-password inline form
+	let showForgot   = $state(false);
+	let forgotEmail  = $state('');
+	let forgotSent   = $state(false);
+	let forgotLoading = $state(false);
+	let forgotError  = $state('');
+
+	async function sendReset() {
+		if (!forgotEmail.trim()) return;
+		forgotLoading = true;
+		forgotError = '';
+		try {
+			const r = await fetch('/api/auth/reset-password', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: forgotEmail.trim().toLowerCase() })
+			});
+			if (r.ok) {
+				forgotSent = true;
+			} else {
+				forgotError = 'Nepodařilo se odeslat email. Zkuste to znovu.';
+			}
+		} catch {
+			forgotError = 'Chyba sítě. Zkuste to znovu.';
+		} finally {
+			forgotLoading = false;
+		}
+	}
+
+	function backToLogin() {
+		showForgot = false;
+		forgotSent = false;
+		forgotEmail = '';
+		forgotError = '';
+	}
 </script>
 
 <svelte:head><title>{m.auth_login()} · {systemName}</title></svelte:head>
@@ -31,49 +67,106 @@
 	<!-- Right: form -->
 	<div class="form-panel">
 		<div class="form-inner">
-			<div class="form-header">
-				<h2>{m.auth_welcome_back()}</h2>
-				<p>{m.auth_sign_in_sub({ name: systemName })}</p>
-			</div>
 
-			{#if form?.error}
-				<div class="alert" role="alert">
-					<IconInfoCircle size={16} stroke={1.5} />
-					{form.error}
+			{#if !showForgot}
+				<!-- ── Login form ── -->
+				<div class="form-header">
+					<h2>{m.auth_welcome_back()}</h2>
+					<p>{m.auth_sign_in_sub({ name: systemName })}</p>
 				</div>
+
+				{#if form?.error}
+					<div class="alert" role="alert">
+						<IconInfoCircle size={16} stroke={1.5} />
+						{form.error}
+					</div>
+				{/if}
+
+				<form method="POST" class="form">
+					<input type="hidden" name="redirectTo" value={data.redirectTo} />
+
+					<div class="field">
+						<label for="email">{m.auth_email()}</label>
+						<input
+							id="email"
+							type="email"
+							name="email"
+							placeholder="jan@studio.cz"
+							required
+							autocomplete="email"
+						/>
+					</div>
+
+					<div class="field">
+						<div class="field-label-row">
+							<label for="password">{m.auth_password()}</label>
+							<button type="button" class="forgot-link" onclick={() => showForgot = true}>
+								Zapomněli jste heslo?
+							</button>
+						</div>
+						<input
+							id="password"
+							type="password"
+							name="password"
+							required
+							autocomplete="current-password"
+						/>
+					</div>
+
+					<button type="submit" class="submit-btn">
+						{m.auth_login()}
+						<IconArrowRight size={16} stroke={1.75} />
+					</button>
+				</form>
+
+			{:else}
+				<!-- ── Forgot password form ── -->
+				<div class="form-header">
+					<h2>Zapomenuté heslo</h2>
+					<p>Zadejte svůj email a my vám pošleme odkaz pro nastavení nového hesla.</p>
+				</div>
+
+				{#if forgotSent}
+					<!-- Success state -->
+					<div class="success-box">
+						<div class="success-icon"><IconCheck size={20} stroke={2} /></div>
+						<p>
+							Pokud je email <strong>{forgotEmail}</strong> registrován,
+							pošleme vám odkaz pro obnovení hesla. Zkontrolujte svou schránku (i spam).
+						</p>
+					</div>
+				{:else}
+					{#if forgotError}
+						<div class="alert" role="alert">
+							<IconInfoCircle size={16} stroke={1.5} />
+							{forgotError}
+						</div>
+					{/if}
+
+					<div class="form">
+						<div class="field">
+							<label for="forgot-email">{m.auth_email()}</label>
+							<input
+								id="forgot-email"
+								type="email"
+								bind:value={forgotEmail}
+								placeholder="jan@studio.cz"
+								autocomplete="email"
+								onkeydown={e => e.key === 'Enter' && sendReset()}
+							/>
+						</div>
+						<button class="submit-btn" onclick={sendReset} disabled={forgotLoading || !forgotEmail.trim()}>
+							{forgotLoading ? 'Odesílám…' : 'Odeslat odkaz'}
+							{#if !forgotLoading}<IconArrowRight size={16} stroke={1.75} />{/if}
+						</button>
+					</div>
+				{/if}
+
+				<button type="button" class="back-link" onclick={backToLogin}>
+					← Zpět na přihlášení
+				</button>
 			{/if}
 
-			<form method="POST" class="form">
-				<input type="hidden" name="redirectTo" value={data.redirectTo} />
-
-				<div class="field">
-					<label for="email">{m.auth_email()}</label>
-					<input
-						id="email"
-						type="email"
-						name="email"
-						placeholder="jan@studio.cz"
-						required
-						autocomplete="email"
-					/>
-				</div>
-
-				<div class="field">
-					<label for="password">{m.auth_password()}</label>
-					<input
-						id="password"
-						type="password"
-						name="password"
-						required
-						autocomplete="current-password"
-					/>
-				</div>
-
-				<button type="submit" class="submit-btn">
-					{m.auth_login()}
-					<IconArrowRight size={16} stroke={1.75} />
-				</button>
-			</form>
 		</div>
 	</div>
 </div>
@@ -182,6 +275,31 @@
 		font-size: 0.875rem;
 	}
 
+	.success-box {
+		display: flex;
+		gap: 14px;
+		align-items: flex-start;
+		padding: 14px 16px;
+		background: color-mix(in srgb, var(--brand) 6%, var(--color-surface));
+		border: 1px solid color-mix(in srgb, var(--brand) 20%, transparent);
+		border-radius: var(--radius);
+		font-size: 0.875rem;
+		color: var(--color-text);
+		line-height: 1.5;
+	}
+	.success-icon {
+		flex-shrink: 0;
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		background: var(--brand);
+		color: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-top: 2px;
+	}
+
 	.form {
 		display: flex;
 		flex-direction: column;
@@ -192,6 +310,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 6px;
+	}
+	.field-label-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 	}
 	.field label {
 		font-size: 0.8125rem;
@@ -208,12 +331,26 @@
 		font-size: 0.9375rem;
 		outline: none;
 		transition: border-color 0.15s, box-shadow 0.15s;
+		width: 100%;
+		box-sizing: border-box;
 	}
 	.field input::placeholder { color: var(--color-placeholder); }
 	.field input:focus {
 		border-color: var(--brand);
 		box-shadow: 0 0 0 3px rgba(74,18,4,.10);
 	}
+
+	.forgot-link {
+		font-size: 0.75rem;
+		color: var(--color-muted);
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0;
+		text-decoration: none;
+		transition: color 0.15s;
+	}
+	.forgot-link:hover { color: var(--brand); }
 
 	.submit-btn {
 		display: flex;
@@ -234,15 +371,28 @@
 		transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
 		box-shadow: 0 1px 3px rgba(74,18,4,.3), 0 4px 12px rgba(74,18,4,.15);
 	}
-	.submit-btn:hover {
+	.submit-btn:hover:not(:disabled) {
 		background: var(--brand-light);
 		box-shadow: 0 2px 6px rgba(74,18,4,.35), 0 6px 20px rgba(74,18,4,.2);
 		transform: translateY(-1px);
 	}
-	.submit-btn:active {
+	.submit-btn:active:not(:disabled) {
 		transform: translateY(0);
 		box-shadow: 0 1px 2px rgba(74,18,4,.3);
 	}
+	.submit-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+	.back-link {
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0;
+		text-align: center;
+		transition: color 0.15s;
+	}
+	.back-link:hover { color: var(--color-text); }
 
 	@media (max-width: 720px) {
 		.auth-root { flex-direction: column; }

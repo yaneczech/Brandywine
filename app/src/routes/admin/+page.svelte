@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import * as m from '$lib/paraglide/messages';
 	import {
 		IconPalette, IconTypography, IconFolder, IconUsers,
 		IconArrowUpRight, IconDroplet, IconLetterCase, IconFile, IconUserCircle
@@ -8,12 +9,12 @@
 
 	const { data }: { data: PageData } = $props();
 
-	const greeting = (() => {
+	const greeting = $derived((() => {
 		const h = new Date().getHours();
-		if (h < 12) return 'Good morning';
-		if (h < 17) return 'Good afternoon';
-		return 'Good evening';
-	})();
+		if (h < 12) return m.dash_greeting_morning();
+		if (h < 17) return m.dash_greeting_afternoon();
+		return m.dash_greeting_evening();
+	})());
 
 	type Card = {
 		href: string; title: string; description: string;
@@ -22,12 +23,12 @@
 		accent: string; iconBg: string; grad: string;
 	};
 
-	const sections: Card[] = [
+	const sections: Card[] = $derived([
 		{
 			href: '/admin/colors',
-			title: 'Colors',
-			description: 'Palettes, swatches, gradients & export formats',
-			count: data.stats.colors, unit: 'colors',
+			title: m.admin_colors(),
+			description: m.dash_colors_desc(),
+			count: data.stats.colors, unit: m.admin_colors().toLowerCase(),
 			icon: IconPalette,
 			accent: '#c0392b',
 			iconBg: 'rgba(192,57,43,.12)',
@@ -35,9 +36,9 @@
 		},
 		{
 			href: '/admin/typography',
-			title: 'Typography',
-			description: 'Fonts, type scales, variable axes & styles',
-			count: data.stats.fonts, unit: 'fonts',
+			title: m.admin_typography(),
+			description: m.dash_typography_desc(),
+			count: data.stats.fonts, unit: m.dash_stat_fonts().toLowerCase(),
 			icon: IconTypography,
 			accent: '#2563eb',
 			iconBg: 'rgba(37,99,235,.1)',
@@ -45,9 +46,9 @@
 		},
 		{
 			href: '/admin/assets',
-			title: 'Assets',
-			description: 'Logos, images & downloadable brand files',
-			count: data.stats.assets, unit: 'files',
+			title: m.admin_assets(),
+			description: m.dash_assets_desc(),
+			count: data.stats.assets, unit: m.dash_stat_files(),
 			icon: IconFolder,
 			accent: '#7c3aed',
 			iconBg: 'rgba(124,58,237,.1)',
@@ -55,22 +56,22 @@
 		},
 		{
 			href: '/admin/users',
-			title: 'Users & Teams',
-			description: 'Members, roles & access permissions',
-			count: data.stats.users, unit: 'members',
+			title: m.dash_users_title(),
+			description: m.dash_users_desc(),
+			count: data.stats.users, unit: m.dash_stat_members().toLowerCase(),
 			icon: IconUsers,
 			accent: '#059669',
 			iconBg: 'rgba(5,150,105,.1)',
 			grad: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
 		},
-	];
+	]);
 
-	const stats = [
-		{ label: 'Colors', value: data.stats.colors, icon: IconDroplet, unit: '' },
-		{ label: 'Fonts', value: data.stats.fonts, icon: IconLetterCase, unit: '' },
-		{ label: 'Assets', value: data.stats.assets, icon: IconFile, unit: '' },
-		{ label: 'Members', value: data.stats.users, icon: IconUserCircle, unit: '' },
-	];
+	const stats = $derived([
+		{ label: m.admin_colors(),     value: data.stats.colors, icon: IconDroplet,    unit: '' },
+		{ label: m.dash_stat_fonts(),  value: data.stats.fonts,  icon: IconLetterCase, unit: '' },
+		{ label: m.admin_assets(),     value: data.stats.assets, icon: IconFile,       unit: '' },
+		{ label: m.dash_stat_members(),value: data.stats.users,  icon: IconUserCircle, unit: '' },
+	]);
 </script>
 
 <svelte:head><title>Dashboard · Brandywine</title></svelte:head>
@@ -81,7 +82,7 @@
 	<div class="ap-topbar">
 		<div>
 			<h1 class="ap-title">{greeting}{data.user?.name ? `, ${data.user.name.split(' ')[0]}` : ''}.</h1>
-			<p class="ap-sub">Here's what's in your brand system.</p>
+			<p class="ap-sub">{m.dash_sub()}</p>
 		</div>
 	</div>
 
@@ -129,7 +130,7 @@
 		{/each}
 		<div class="strip-divider"></div>
 		<div class="strip-stat strip-version">
-			<span class="strip-label">Version</span>
+			<span class="strip-label">{m.dash_version()}</span>
 			<span class="strip-val strip-mono">0.1.0</span>
 		</div>
 	</div>

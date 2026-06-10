@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
@@ -17,7 +18,7 @@ function sanitizeAllowedColors(value: unknown): StyleColorToken[] {
 }
 
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!locals.user || !canEdit(locals.user.role)) error(403, 'Forbidden');
 	const body = await request.json();
 	const updates: Record<string, unknown> = {};
 	if (body.name !== undefined) updates.name = String(body.name).trim();
@@ -41,7 +42,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!locals.user || !canEdit(locals.user.role)) error(403, 'Forbidden');
 	const [deleted] = await db
 		.delete(typographyStyles)
 		.where(and(eq(typographyStyles.id, params.styleId), eq(typographyStyles.fontId, params.id)))

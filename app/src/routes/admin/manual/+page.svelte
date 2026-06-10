@@ -17,7 +17,7 @@
 
 	// ── State ──────────────────────────────────────────────────────────────────
 	let pages = $state<Page[]>(data.pages as Page[]);
-	let expanded = $state<Set<string>>(new Set(['landing']));
+	let expanded = $state<Set<string>>(new Set(['landing', ...(data.pages as Page[]).map(p => p.id)]));
 	let saving = $state(false);
 	let errMsg = $state('');
 
@@ -239,7 +239,7 @@
 						autofocus
 					/>
 				{:else}
-					<span class="page-title-text">{p.title}</span>
+					<a href="/admin/manual/{p.id}" class="page-title-link">{p.title}</a>
 					<span class="page-slug muted">{pageFullSlug(p)}</span>
 				{/if}
 
@@ -348,6 +348,8 @@
 .page-icon { display: flex; align-items: center; color: var(--brand); flex-shrink: 0; }
 .root-icon { color: var(--brand); }
 .page-title-text { font-size: .875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.page-title-link { font-size: .875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; color: var(--color-text); text-decoration: none; }
+.page-title-link:hover { color: var(--brand); text-decoration: underline; }
 .page-slug { font-size: .75rem; color: var(--color-muted); font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
 .indent { flex-shrink: 0; }
 .spacer { flex: 1; }

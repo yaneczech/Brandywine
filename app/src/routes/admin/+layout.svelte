@@ -32,13 +32,15 @@
 	import type { Component } from 'svelte';
 	type NavItem = { href: string; label: string; icon: Component<{ size?: number; stroke?: number }> };
 
+	const isAdminUser = $derived(data.user?.role === 'admin');
+
 	// $derived so nav labels re-evaluate when language changes
 	const navGroups: { label: string; items: NavItem[] }[] = $derived([
 		{
 			label: m.admin_group_brand(),
 			items: [
 				{ href: '/admin',            label: m.admin_dashboard(), icon: IconLayoutDashboard },
-				{ href: '/admin/brand',       label: m.admin_brand(),     icon: IconRosette },
+				...(isAdminUser ? [{ href: '/admin/brand', label: m.admin_brand(), icon: IconRosette }] : []),
 				{ href: '/admin/colors',      label: m.admin_colors(),    icon: IconPalette },
 				{ href: '/admin/typography',  label: m.admin_typography(),icon: IconTypography },
 			]
@@ -47,16 +49,16 @@
 			label: m.admin_group_assets(),
 			items: [
 				{ href: '/admin/assets', label: m.admin_assets(), icon: IconFolder },
-					{ href: '/admin/manual', label: 'Brand Manual', icon: IconBook2 },
+				{ href: '/admin/manual', label: m.admin_manual(),   icon: IconBook2 },
 			]
 		},
-		{
+		...(isAdminUser ? [{
 			label: m.admin_group_admin(),
 			items: [
 				{ href: '/admin/users',    label: m.admin_users(),    icon: IconUsers },
 				{ href: '/admin/settings', label: m.admin_settings(), icon: IconSettings },
 			]
-		}
+		}] : [])
 	]);
 
 	function isActive(href: string) {
@@ -121,7 +123,7 @@
 		<div class="sidebar-manual-link">
 			<a href="/" target="_blank" rel="noreferrer" class="manual-link">
 				<IconBook2 size={14} stroke={1.75} />
-				<span>Zobrazit manuál</span>
+				<span>{m.layout_view_manual()}</span>
 				<IconExternalLink size={12} stroke={2} class="ext-icon" />
 			</a>
 		</div>

@@ -1,3 +1,4 @@
+import { canEdit } from '$server/permissions';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
@@ -5,7 +6,7 @@ import { colorPalettes, colors } from '$db/schema';
 import { eq } from 'drizzle-orm';
 
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!locals.user || !canEdit(locals.user.role)) error(403, 'Forbidden');
 	const body = await request.json();
 	const updates: Partial<typeof colorPalettes.$inferInsert> = {};
 	if (body.name !== undefined) updates.name = String(body.name).trim();
@@ -22,7 +23,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
+	if (!locals.user || !canEdit(locals.user.role)) error(403, 'Forbidden');
 	// Unlink colors from palette before deleting
 	await db.update(colors).set({ paletteId: null }).where(eq(colors.paletteId, params.id));
 	await db.delete(colorPalettes).where(eq(colorPalettes.id, params.id));

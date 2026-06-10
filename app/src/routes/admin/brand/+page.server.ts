@@ -1,4 +1,5 @@
 import type { PageServerLoad } from './$types';
+import { redirect } from '@sveltejs/kit';
 import { db } from '$db';
 import {
 	assets,
@@ -33,7 +34,8 @@ const DEFAULTS = {
 	customFooterText: null
 };
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
+	if (locals.user?.role !== 'admin') redirect(302, '/admin');
 	const [
 		[settings],
 		[{ value: colorCount }],
