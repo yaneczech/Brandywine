@@ -77,7 +77,7 @@
 	}
 
 	function assetUrl(a: Asset): string {
-		return `/api/assets/${a.id}/download`;
+		return `/uploads/${a.storagePath.replace(/\\/g, '/')}`;
 	}
 
 	function mimeCategory(mime: string) {

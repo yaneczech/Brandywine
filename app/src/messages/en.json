@@ -413,5 +413,7 @@
 	"assets_grid_view": "Grid view",
 	"assets_list_view": "List view",
 	"assets_stat_one": "file",
-	"assets_stat_many": "files"
+	"assets_stat_many": "files",
+	"manual_prev": "Previous",
+	"manual_next": "Next"
 }

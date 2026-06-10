@@ -255,6 +255,9 @@
 		{/if}
 
 		<aside class="sidebar" class:open={mobileMenuOpen}>
+			<button class="sidebar-close" onclick={() => (mobileMenuOpen = false)} aria-label="Zavřít menu">
+				<IconX size={16} stroke={2} />
+			</button>
 			<nav class="sidebar-nav" aria-label="Brand Manual">
 				<a href="/" class="nav-item root-item" class:active={isActive('/')} onclick={() => mobileMenuOpen = false}>
 					<span>{landingTitle}</span>
@@ -615,6 +618,7 @@
 		overflow-y: auto;
 		border-right: 1px solid var(--manual-border);
 	}
+	.sidebar-close { display: none; }
 	.sidebar-nav { padding-right: 22px; display: flex; flex-direction: column; gap: 3px; }
 	.nav-group { padding-left: calc(var(--depth) * 14px); }
 	.nav-item {
@@ -691,6 +695,22 @@
 			transition: transform .2s ease;
 		}
 		.sidebar.open { transform: translateX(0); }
+		.sidebar-close {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			position: absolute;
+			top: 14px;
+			right: 14px;
+			width: 30px;
+			height: 30px;
+			border: 1px solid var(--manual-border);
+			border-radius: max(4px, var(--manual-radius));
+			background: var(--manual-surface);
+			color: var(--manual-muted);
+			cursor: pointer;
+		}
+		.sidebar-close:hover { color: var(--manual-ink); }
 		.sidebar-nav { padding-right: 0; }
 		.mobile-scrim {
 			display: block;

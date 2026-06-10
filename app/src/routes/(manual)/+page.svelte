@@ -80,6 +80,13 @@
 				{:else}
 					<p class="hero-desc">{m.manual_hero_desc_fallback({}, { languageTag: manualLanguage })}</p>
 				{/if}
+				{#if topLevelPages.length > 0}
+					<div class="hero-chips">
+						{#each topLevelPages.slice(0, 5) as p}
+							<a href="/{p.slug}" class="hero-chip">{p.title}</a>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		</section>
 
@@ -191,6 +198,43 @@
 		font-size: clamp(.9rem, 1vw, 1rem);
 		line-height: 1.58;
 		max-width: 520px;
+	}
+	.hero-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: 1.25rem;
+	}
+	.hero-chip {
+		display: inline-flex;
+		align-items: center;
+		height: 30px;
+		padding: 0 13px;
+		border-radius: 999px;
+		border: 1.5px solid color-mix(in srgb, var(--hero-text) 22%, transparent);
+		background: color-mix(in srgb, var(--hero-text) 7%, transparent);
+		color: color-mix(in srgb, var(--hero-text) 80%, transparent);
+		font-size: .8rem;
+		font-weight: 550;
+		text-decoration: none;
+		letter-spacing: 0.01em;
+		transition: background .15s, border-color .15s, color .15s;
+		backdrop-filter: blur(4px);
+	}
+	.hero-chip:hover {
+		background: color-mix(in srgb, var(--hero-text) 14%, transparent);
+		border-color: color-mix(in srgb, var(--hero-text) 38%, transparent);
+		color: var(--hero-text);
+	}
+	.hero:not(.has-bg):not(.has-img) .hero-chip {
+		border-color: color-mix(in srgb, var(--manual-ink) 18%, transparent);
+		background: color-mix(in srgb, var(--manual-ink) 5%, transparent);
+		color: var(--manual-muted);
+	}
+	.hero:not(.has-bg):not(.has-img) .hero-chip:hover {
+		background: color-mix(in srgb, var(--manual-brand) 10%, transparent);
+		border-color: color-mix(in srgb, var(--manual-brand) 35%, transparent);
+		color: var(--manual-brand);
 	}
 	.hero:not(.has-bg):not(.has-img) h1 { color: var(--manual-ink); }
 	.hero:not(.has-bg):not(.has-img) .hero-desc { color: var(--manual-muted); }

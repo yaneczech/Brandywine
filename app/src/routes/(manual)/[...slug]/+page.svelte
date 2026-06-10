@@ -8,6 +8,11 @@
 
 	type TocItem = { anchor: string; label: string };
 	type ManualLanguage = 'en' | 'cs';
+	type NavPage = {
+		id: string; parentId: string | null;
+		title: string; slug: string;
+		sortOrder: number; isLanding: boolean;
+	};
 
 	const manualLanguage = $derived((data.settings?.defaultLanguage === 'cs' ? 'cs' : 'en') as ManualLanguage);
 	const toc = $derived(
@@ -39,6 +44,57 @@
 		}
 		return parts.join(';');
 	})());
+
+	// \u2500\u2500 Prev / next among siblings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+	const allPages = $derived((data.pages ?? []) as NavPage[]);
+
+	function pageHref(p: NavPage): string {
+		const parts: string[] = [];
+		let cur: NavPage | undefined = p;
+		while (cur && !cur.isLanding) {
+			parts.unshift(cur.slug);
+			cur = allPages.find(x => x.id === cur!.parentId);
+		}
+		return `/${parts.join('/')}`;
+	}
+
+	const siblings = $derived(
+		allPages
+			.filter(p => p.parentId === data.page.parentId && !p.isLanding)
+			.sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title))
+	);
+	const currentIdx = $derived(siblings.findIndex(p => p.id === data.page.id));
+	const prevPage   = $derived(currentIdx > 0 ? siblings[currentIdx - 1] : null);
+	const nextPage   = $derived(currentIdx < siblings.length - 1 ? siblings[currentIdx + 1] : null);
+
+	// \u2500\u2500 Scroll-spy for ToC \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+	let activeAnchor = $state<string | null>(null);
+
+	$effect(() => {
+		const tocItems = toc;
+		if (!tocItems.length || typeof window === 'undefined') return;
+
+		let raf = 0;
+		const TOPBAR = 64 + 24;
+
+		function update() {
+			let found: string | null = null;
+			for (let i = tocItems.length - 1; i >= 0; i--) {
+				const el = document.getElementById(tocItems[i].anchor);
+				if (el) {
+					const top = el.getBoundingClientRect().top;
+					if (top <= TOPBAR + window.innerHeight * 0.3) { found = tocItems[i].anchor; break; }
+				}
+			}
+			activeAnchor = found;
+		}
+
+		const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+		window.addEventListener('scroll', onScroll, { passive: true });
+		update();
+
+		return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
+	});
 
 	function slugify(s: string): string {
 		return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -99,13 +155,32 @@
 					<div class="toc-label">{m.manual_toc_label({}, { languageTag: manualLanguage })}</div>
 					<nav>
 						{#each toc as item (item.anchor)}
-							<a href="#{item.anchor}" class="toc-link">{item.label}</a>
+							<a href="#{item.anchor}" class="toc-link" class:active={activeAnchor === item.anchor}>{item.label}</a>
 						{/each}
 					</nav>
 				</div>
 			</aside>
 		{/if}
 	</div>
+
+	{#if prevPage || nextPage}
+		<nav class="page-nav" aria-label="Stránkování">
+			{#if prevPage}
+				<a href={pageHref(prevPage)} class="page-nav-item prev">
+					<span class="page-nav-dir">← {m.manual_prev({}, { languageTag: manualLanguage })}</span>
+					<span class="page-nav-title">{prevPage.title}</span>
+				</a>
+			{:else}
+				<span></span>
+			{/if}
+			{#if nextPage}
+				<a href={pageHref(nextPage)} class="page-nav-item next">
+					<span class="page-nav-dir">{m.manual_next({}, { languageTag: manualLanguage })} →</span>
+					<span class="page-nav-title">{nextPage.title}</span>
+				</a>
+			{/if}
+		</nav>
+	{/if}
 </div>
 
 <style>
@@ -235,6 +310,10 @@
 	.toc-link:hover {
 		color: var(--manual-brand);
 	}
+	.toc-link.active {
+		color: var(--manual-brand);
+		font-weight: 650;
+	}
 	.empty {
 		padding: 42px 44px;
 		border: 1px dashed color-mix(in srgb, var(--manual-ink) 16%, transparent);
@@ -243,6 +322,46 @@
 		color: var(--manual-muted);
 	}
 	.empty p { margin: 0; }
+
+	/* ── Prev / next nav ─────────────────────────────────────────────────── */
+	.page-nav {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 12px;
+		margin-top: 4rem;
+		padding-top: 2rem;
+		border-top: 1px solid var(--manual-border);
+		width: min(100%, 1120px);
+	}
+	.page-nav-item {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		padding: 16px 20px;
+		border: 1px solid var(--manual-border);
+		border-radius: var(--manual-radius);
+		text-decoration: none;
+		color: inherit;
+		transition: border-color .15s, background .15s;
+	}
+	.page-nav-item:hover {
+		border-color: color-mix(in srgb, var(--manual-brand) 40%, var(--manual-border));
+		background: color-mix(in srgb, var(--manual-brand) 4%, var(--manual-surface));
+	}
+	.page-nav-item.next { text-align: right; }
+	.page-nav-dir {
+		font-size: .72rem;
+		font-weight: 700;
+		letter-spacing: .07em;
+		text-transform: uppercase;
+		color: var(--manual-brand);
+	}
+	.page-nav-title {
+		font-size: .95rem;
+		font-weight: 650;
+		color: var(--manual-ink);
+		line-height: 1.3;
+	}
 
 	@media (max-width: 980px) {
 		.page-layout,

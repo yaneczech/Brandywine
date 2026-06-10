@@ -413,5 +413,7 @@
 	"assets_grid_view": "Mřížka",
 	"assets_list_view": "Seznam",
 	"assets_stat_one": "soubor",
-	"assets_stat_many": "souborů"
+	"assets_stat_many": "souborů",
+	"manual_prev": "Předchozí",
+	"manual_next": "Další"
 }
