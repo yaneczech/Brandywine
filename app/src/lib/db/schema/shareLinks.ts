@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, index } from 'drizzle-orm/pg-core';
 import { createId } from '../id';
 import { assets } from './assets';
 
@@ -7,6 +7,8 @@ export const shareLinks = pgTable('share_links', {
 	token: text('token').notNull().unique(),
 	assetId: text('asset_id').references(() => assets.id, { onDelete: 'cascade' }),
 	passwordHash: text('password_hash'),
-	expiresAt: timestamp('expires_at'),
-	createdAt: timestamp('created_at').notNull().defaultNow()
-});
+	expiresAt: timestamp('expires_at', { withTimezone: true }),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+}, (t) => [
+	index('idx_share_links_expires_at').on(t.expiresAt),
+]);

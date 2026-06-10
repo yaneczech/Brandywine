@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, pgEnum, unique } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, pgEnum, unique, index } from 'drizzle-orm/pg-core';
 import { createId } from '../id';
 import { users } from './users';
 
@@ -25,7 +25,7 @@ export const teams = pgTable('teams', {
 	id: text('id').primaryKey().$defaultFn(createId),
 	name: text('name').notNull(),
 	description: text('description'),
-	createdAt: timestamp('created_at').notNull().defaultNow()
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 });
 
 export const teamMembers = pgTable(
@@ -39,10 +39,13 @@ export const teamMembers = pgTable(
 			.notNull()
 			.references(() => users.id, { onDelete: 'cascade' }),
 		role: teamRoleEnum('role').notNull().default('member'),
-		invitedAt: timestamp('invited_at').notNull().defaultNow(),
-		acceptedAt: timestamp('accepted_at')
+		invitedAt: timestamp('invited_at', { withTimezone: true }).notNull().defaultNow(),
+		acceptedAt: timestamp('accepted_at', { withTimezone: true })
 	},
-	(t) => [unique().on(t.teamId, t.userId)]
+	(t) => [
+		unique().on(t.teamId, t.userId),
+		index('idx_team_members_user_id').on(t.userId),
+	]
 );
 
 // Jedno oprávnění = tým + typ zdroje + konkrétní resource_id + seznam akcí
@@ -58,7 +61,10 @@ export const teamPermissions = pgTable(
 		resourceId: text('resource_id').notNull(),
 		actions: permissionActionEnum('actions').array().notNull().default(['read'])
 	},
-	(t) => [unique().on(t.teamId, t.resourceType, t.resourceId)]
+	(t) => [
+		unique().on(t.teamId, t.resourceType, t.resourceId),
+		index('idx_team_perms_resource').on(t.resourceType, t.resourceId),
+	]
 );
 
 // Pozvánky pro uživatele bez účtu — přijdou přes email
@@ -70,6 +76,6 @@ export const teamInvitations = pgTable('team_invitations', {
 	email: text('email').notNull(),
 	role: teamRoleEnum('role').notNull().default('member'),
 	token: text('token').notNull().unique(),
-	expiresAt: timestamp('expires_at').notNull(),
-	createdAt: timestamp('created_at').notNull().defaultNow()
+	expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 });

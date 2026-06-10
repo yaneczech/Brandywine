@@ -5,7 +5,7 @@
 		IconPalette, IconTypography, IconFolder, IconUsers,
 		IconArrowUpRight, IconDroplet, IconLetterCase, IconFile, IconUserCircle
 	} from '@tabler/icons-svelte';
-	import type { Component } from 'svelte';
+	import type { ComponentType } from 'svelte';
 
 	const { data }: { data: PageData } = $props();
 
@@ -19,7 +19,7 @@
 	type Card = {
 		href: string; title: string; description: string;
 		count: number | null; unit: string | null;
-		icon: Component<{ size?: number; stroke?: number }>;
+		icon: ComponentType;
 		accent: string; iconBg: string; grad: string;
 	};
 

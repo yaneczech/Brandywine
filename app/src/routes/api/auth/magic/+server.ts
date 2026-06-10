@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { json, error } from '@sveltejs/kit';
+import { json, error, redirect } from '@sveltejs/kit';
 import { db } from '$db';
 import { users } from '$db/schema';
 import { eq } from 'drizzle-orm';
@@ -7,7 +7,9 @@ import { createMagicToken, createSession } from '$server/auth';
 import { sendEmail, getAppUrl } from '$server/email';
 
 export const POST: RequestHandler = async ({ request }) => {
-	const { email } = await request.json();
+	const body = await request.json().catch(() => null);
+	if (!body || typeof body !== 'object') error(400, 'Invalid JSON');
+	const { email } = body as { email?: string };
 	if (!email) error(400, 'Email required');
 
 	const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -64,5 +66,5 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 		maxAge: 60 * 60 * 24 * 30
 	});
 
-	return new Response(null, { status: 302, headers: { Location: '/admin' } });
+	redirect(302, '/admin');
 };

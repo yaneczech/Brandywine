@@ -1,7 +1,6 @@
-import type { users } from '$lib/db/schema';
-import type { InferSelectModel } from 'drizzle-orm';
+import type { SessionUser } from '$lib/server/auth';
 
-type User = InferSelectModel<typeof users>;
+type User = SessionUser;
 
 declare global {
 	namespace App {

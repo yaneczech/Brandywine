@@ -47,13 +47,22 @@
 	const brandName = $derived(brand?.name ?? 'Brand Manual');
 	const manualLanguage = $derived((brand?.defaultLanguage === 'cs' ? 'cs' : 'en') as ManualLanguage);
 	const pages = $derived((data.pages ?? []) as ManualPage[]);
-	const landingHeroStyle = $derived([
-		data.landing?.bgColor ? `--hero-bg:${data.landing.bgColor}` : '',
-		readableTextColor(data.landing?.bgColor, data.landing?.textColor)
-			? `--hero-text:${readableTextColor(data.landing?.bgColor, data.landing?.textColor)}`
-			: '',
-		data.landing?.bgColor ? `--hero-accent:${data.landing.bgColor}` : '',
-	].filter(Boolean).join(';'));
+	const landingFeatureImg = $derived(assetSrc(data.landing?.featureImage));
+	const landingHeroStyle = $derived((() => {
+		const bgSize = data.landing?.heroBgSize ?? 'cover';
+		const parts: string[] = [];
+		if (data.landing?.bgColor) parts.push(`--hero-bg:${data.landing.bgColor}`);
+		const txt = readableTextColor(data.landing?.bgColor, data.landing?.textColor);
+		if (txt) parts.push(`--hero-text:${txt}`);
+		if (data.landing?.bgColor) parts.push(`--hero-accent:${data.landing.bgColor}`);
+		if (landingFeatureImg) {
+			parts.push(`background-image:url("${landingFeatureImg.replace(/"/g, '%22')}")`);
+			parts.push(`background-size:${bgSize === 'tile' ? 'auto' : bgSize}`);
+			parts.push(`background-repeat:${bgSize === 'tile' ? 'repeat' : 'no-repeat'}`);
+			parts.push('background-position:center');
+		}
+		return parts.join(';');
+	})());
 	const topLevelPages = $derived(
 		pages
 			.filter(p => p.enabled && !p.isLanding && !p.parentId)
@@ -63,7 +72,7 @@
 
 {#if data.landing}
 	<div class="landing">
-		<section class="hero" class:has-bg={!!data.landing.bgColor} style={landingHeroStyle}>
+		<section class="hero" class:has-bg={!!data.landing.bgColor} class:has-img={!!landingFeatureImg} style={landingHeroStyle}>
 			<div class="hero-copy">
 				<h1>{data.landing.title || brandName}</h1>
 				{#if data.landing.description}
@@ -94,7 +103,7 @@
 						<a href="/{p.slug}" class="page-card" class:has-color={!!p.bgColor} style={cardStyle(p)}>
 							{#if img}
 								<div class="card-img-wrap">
-									<img src={img} alt={p.title} />
+									<img src={img} alt={p.title} loading="lazy" decoding="async" />
 								</div>
 							{:else if p.bgColor}
 								<div class="card-color-band"></div>
@@ -131,6 +140,7 @@
 		--hero-accent: var(--manual-brand);
 		--hero-bg: transparent;
 		--hero-text: var(--manual-ink);
+		position: relative;
 		display: flex;
 		align-items: center;
 		width: calc(100% + var(--manual-gutter));
@@ -143,6 +153,25 @@
 	.hero.has-bg {
 		background: var(--hero-bg);
 		border-bottom-color: color-mix(in srgb, var(--hero-bg) 60%, rgba(0,0,0,.15));
+	}
+	.hero.has-img {
+		border-bottom-color: transparent;
+	}
+	/* semi-transparent overlay when image is set (ensures text legibility) */
+	.hero.has-img::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: rgba(0,0,0,.38);
+		z-index: 0;
+	}
+	/* when bgColor is also set, use the color as overlay instead */
+	.hero.has-img.has-bg::before {
+		background: color-mix(in srgb, var(--hero-bg) 72%, transparent);
+	}
+	.hero.has-img .hero-copy {
+		position: relative;
+		z-index: 1;
 	}
 	.hero-copy {
 		display: block;
@@ -163,8 +192,10 @@
 		line-height: 1.58;
 		max-width: 520px;
 	}
-	.hero:not(.has-bg) h1 { color: var(--manual-ink); }
-	.hero:not(.has-bg) .hero-desc { color: var(--manual-muted); }
+	.hero:not(.has-bg):not(.has-img) h1 { color: var(--manual-ink); }
+	.hero:not(.has-bg):not(.has-img) .hero-desc { color: var(--manual-muted); }
+	.hero.has-img h1 { color: #fff; }
+	.hero.has-img .hero-desc { color: rgba(255,255,255,.82); }
 	.blocks {
 		display: flex;
 		flex-direction: column;

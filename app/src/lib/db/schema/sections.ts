@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, integer, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, text, boolean, integer, jsonb, timestamp, index } from 'drizzle-orm/pg-core';
 import { createId } from '../id';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
@@ -17,11 +17,16 @@ export const manualPages = pgTable('manual_pages', {
 	enabled:      boolean('enabled').notNull().default(true),
 	isLanding:    boolean('is_landing').notNull().default(false),
 	featureImage: text('feature_image'),   // asset path or URL
+	heroBgSize:   text('hero_bg_size'),    // 'cover' | 'contain' | 'tile' — default cover when null
 	bgColor:      text('bg_color'),        // hex — full card + hero background
 	textColor:    text('text_color'),      // hex — text on bgColor (WCAG-checked)
 	createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+	index('idx_manual_pages_slug').on(t.slug),
+	index('idx_manual_pages_parent').on(t.parentId),
+	index('idx_manual_pages_landing').on(t.isLanding),
+]);
 
 // ── Blocks ─────────────────────────────────────────────────────────────────────
 export const manualBlocks = pgTable('manual_blocks', {
@@ -34,4 +39,6 @@ export const manualBlocks = pgTable('manual_blocks', {
 	anchor:    text('anchor'),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+	index('idx_manual_blocks_page_sort').on(t.pageId, t.sortOrder),
+]);

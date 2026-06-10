@@ -4,11 +4,12 @@
 	import {
 		IconArrowLeft, IconPlus, IconTrash, IconGripVertical, IconX,
 		IconEye, IconEyeOff, IconChevronUp, IconChevronDown, IconSettings,
-		IconCheck, IconPhoto, IconSearch, IconExternalLink
+		IconCheck, IconPhoto, IconExternalLink
 	} from '@tabler/icons-svelte';
 	import { BLOCK_TYPES } from '$lib/manual/blockTypes';
 	import BlockConfigPanel from './BlockConfigPanel.svelte';
 	import BlockPrimaryEditor from './BlockPrimaryEditor.svelte';
+	import AssetPickerModal from '$lib/components/admin/AssetPickerModal.svelte';
 
 	const { data }: { data: PageData } = $props();
 
@@ -39,6 +40,8 @@
 	// svelte-ignore state_referenced_locally
 	let pageFeatureImage = $state<string>(page.featureImage ?? '');
 	// svelte-ignore state_referenced_locally
+	let pageHeroBgSize = $state<string>(page.heroBgSize ?? 'cover');
+	// svelte-ignore state_referenced_locally
 	let pageBgColor = $state<string>(page.bgColor ?? '');
 	// svelte-ignore state_referenced_locally
 	let pageTextColor = $state<string>(page.textColor ?? '');
@@ -67,49 +70,7 @@
 	});
 
 	// Asset picker for feature image
-	type Asset = { id: string; filename: string; mime: string; storagePath: string; thumbnailPath: string | null };
 	let showAssetPicker = $state(false);
-	let assetPickerItems = $state<Asset[]>([]);
-	let assetPickerLoading = $state(false);
-	let assetPickerSearch = $state('');
-
-	async function openAssetPicker() {
-		showAssetPicker = true;
-		assetPickerLoading = true;
-		try {
-			const r = await fetch('/api/assets?type=image&limit=120');
-			const json = await r.json();
-			assetPickerItems = json.data ?? [];
-		} catch { assetPickerItems = []; }
-		finally { assetPickerLoading = false; }
-	}
-
-	const filteredAssets = $derived(
-		assetPickerSearch.trim()
-			? assetPickerItems.filter(a => a.filename.toLowerCase().includes(assetPickerSearch.toLowerCase()))
-			: assetPickerItems
-	);
-
-	function assetUrl(a: Asset): string {
-		const p = a.storagePath;
-		if (!p) return '';
-		if (/^(https?:)?\/\//.test(p) || p.startsWith('/')) return p;
-		return `/uploads/${p.replace(/^\/+/, '')}`;
-	}
-
-	function thumbUrl(a: Asset): string {
-		if (a.thumbnailPath) {
-			const p = a.thumbnailPath;
-			if (/^(https?:)?\/\//.test(p) || p.startsWith('/')) return p;
-			return `/uploads/${p.replace(/^\/+/, '')}`;
-		}
-		return assetUrl(a);
-	}
-
-	function selectAsset(a: Asset) {
-		pageFeatureImage = assetUrl(a);
-		showAssetPicker = false;
-	}
 
 	function blockConfigText(block: Block, key: string): string {
 		const value = block.config?.[key];
@@ -286,6 +247,7 @@
 					title: pageTitle.trim() || page.title,
 					description: pageDescription.trim() || null,
 					featureImage: pageFeatureImage.trim() || null,
+					heroBgSize: pageFeatureImage.trim() ? (pageHeroBgSize || 'cover') : null,
 					bgColor: pageBgColor || null,
 					textColor: pageTextColor || null,
 				}),
@@ -365,7 +327,7 @@
 						<span class="field-label">Hero obrázek</span>
 						<div class="fi-input-row">
 							<input type="text" bind:value={pageFeatureImage} placeholder="/uploads/…" class="fi-url-input" />
-							<button class="btn-ghost fi-pick-btn" onclick={openAssetPicker} title="Vybrat z assetů">
+							<button class="btn-ghost fi-pick-btn" onclick={() => showAssetPicker = true} title="Vybrat z assetů">
 								<IconPhoto size={15} /> Vybrat
 							</button>
 						</div>
@@ -378,6 +340,16 @@
 								<span class="fi-empty"><IconPhoto size={24} /> 3 : 2</span>
 							{/if}
 						</div>
+						{#if pageFeatureImage}
+							<div class="bg-size-row">
+								{#each [['cover','Cover'], ['contain','Contain'], ['tile','Tile']] as [val, label]}
+									<label class="bg-size-opt" class:active={pageHeroBgSize === val}>
+										<input type="radio" name="heroBgSize" value={val} bind:group={pageHeroBgSize} />
+										{label}
+									</label>
+								{/each}
+							</div>
+						{/if}
 					</div>
 
 					<!-- Colors column: bg + text stacked -->
@@ -591,39 +563,13 @@
 	</div>
 {/if}
 
-<!-- Asset picker modal -->
-{#if showAssetPicker}
-	<div class="modal-backdrop" role="presentation" onclick={() => showAssetPicker = false}>
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div class="modal asset-picker-modal" role="dialog" tabindex="-1" onclick={e => e.stopPropagation()}>
-			<div class="modal-header">
-				<h2>Vybrat obrázek</h2>
-				<button class="btn-ghost" onclick={() => showAssetPicker = false}><IconX size={18} /></button>
-			</div>
-			<div class="asset-picker-search">
-				<IconSearch size={15} />
-				<input type="text" bind:value={assetPickerSearch} placeholder="Hledat…" class="asset-search-input" />
-			</div>
-			<div class="asset-picker-grid">
-				{#if assetPickerLoading}
-					<div class="picker-loading">Načítám…</div>
-				{:else if filteredAssets.length === 0}
-					<div class="picker-loading">Žádné obrázky nenalezeny.</div>
-				{:else}
-					{#each filteredAssets as a (a.id)}
-						<button class="asset-thumb-btn" onclick={() => selectAsset(a)} title={a.filename}>
-							<div class="asset-thumb-wrap">
-								<img src={thumbUrl(a)} alt={a.filename}
-									onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display='none')} />
-							</div>
-							<span class="asset-thumb-name">{a.filename}</span>
-						</button>
-					{/each}
-				{/if}
-			</div>
-		</div>
-	</div>
-{/if}
+<!-- Asset picker modal (hero image) -->
+<AssetPickerModal
+	open={showAssetPicker}
+	mimeFilter="image"
+	onPick={(url) => { pageFeatureImage = url; showAssetPicker = false; }}
+	onClose={() => (showAssetPicker = false)}
+/>
 
 <!-- Delete confirm -->
 {#if confirmDeleteId}
@@ -741,6 +687,26 @@
 }
 .fi-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .fi-empty { display: flex; flex-direction: column; align-items: center; gap: .35rem; color: var(--color-muted); font-size: .72rem; font-weight: 600; letter-spacing: .04em; }
+.bg-size-row { display: flex; gap: .3rem; margin-top: .4rem; }
+.bg-size-opt {
+	display: flex; align-items: center; gap: .3rem;
+	padding: .28rem .65rem;
+	border: 1px solid var(--color-border);
+	border-radius: 6px;
+	font-size: .78rem;
+	color: var(--color-muted);
+	cursor: pointer;
+	user-select: none;
+	transition: background .1s, border-color .1s, color .1s;
+}
+.bg-size-opt input { display: none; }
+.bg-size-opt:hover { background: var(--color-surface-raised); color: var(--color-text); }
+.bg-size-opt.active {
+	background: color-mix(in srgb, var(--brand) 10%, transparent);
+	border-color: color-mix(in srgb, var(--brand) 35%, transparent);
+	color: var(--brand);
+	font-weight: 600;
+}
 /* color field */
 .color-picker-row { display: flex; align-items: center; gap: .5rem; }
 .color-swatch-input { width: 36px; height: 36px; border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; padding: 2px; background: none; flex-shrink: 0; }
@@ -756,17 +722,7 @@
 .contrast-badge.fail { background: #fee2e2; color: #991b1b; }
 .contrast-preview { margin-top: .4rem; padding: .55rem .75rem; border-radius: 6px; font-size: .875rem; font-weight: 500; }
 .settings-actions { display: flex; gap: .5rem; justify-content: flex-end; }
-/* asset picker modal */
-.asset-picker-modal { width: 720px; max-height: 80vh; }
-.asset-picker-search { display: flex; align-items: center; gap: .5rem; padding: .65rem 1.4rem; border-bottom: 1px solid var(--color-border); color: var(--color-muted); }
-.asset-search-input { flex: 1; border: none; outline: none; background: none; font-size: .875rem; color: var(--color-text); }
-.asset-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: .75rem; padding: 1rem 1.4rem; overflow-y: auto; max-height: calc(80vh - 120px); }
-.picker-loading { grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--color-muted); font-size: .875rem; }
-.asset-thumb-btn { display: flex; flex-direction: column; gap: .4rem; background: none; border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; overflow: hidden; padding: 0; transition: border-color .15s; text-align: left; }
-.asset-thumb-btn:hover { border-color: var(--brand); }
-.asset-thumb-wrap { aspect-ratio: 3 / 2; width: 100%; overflow: hidden; background: var(--color-surface-raised); }
-.asset-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.asset-thumb-name { padding: .3rem .5rem .4rem; font-size: .7rem; color: var(--color-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+
 .back-btn { display: flex; align-items: center; gap: .4rem; color: var(--color-muted); text-decoration: none; font-size: .875rem; padding: .4rem .1rem; }
 .back-btn:hover { color: var(--color-text); }
 .page-info { flex: 1; }

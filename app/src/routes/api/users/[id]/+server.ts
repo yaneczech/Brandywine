@@ -4,6 +4,7 @@ import { db } from '$db';
 import { users } from '$db/schema';
 import { eq } from 'drizzle-orm';
 import { hashPassword } from '$server/auth';
+import { SAFE_USER_FIELDS } from '$lib/server/userFields';
 
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
@@ -34,7 +35,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		.update(users)
 		.set(updates)
 		.where(eq(users.id, params.id))
-		.returning({ id: users.id, email: users.email, name: users.name, role: users.role, createdAt: users.createdAt, updatedAt: users.updatedAt });
+		.returning(SAFE_USER_FIELDS);
 
 	if (!updated) error(404, 'User not found');
 	return json(updated);

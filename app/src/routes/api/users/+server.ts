@@ -5,19 +5,11 @@ import { users } from '$db/schema';
 import { asc, eq } from 'drizzle-orm';
 import { createId } from '$lib/db/id';
 import { hashPassword } from '$server/auth';
-
-const SAFE_FIELDS = {
-	id: users.id,
-	email: users.email,
-	name: users.name,
-	role: users.role,
-	createdAt: users.createdAt,
-	updatedAt: users.updatedAt,
-};
+import { SAFE_USER_FIELDS } from '$lib/server/userFields';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
-	const all = await db.select(SAFE_FIELDS).from(users).orderBy(asc(users.createdAt));
+	const all = await db.select(SAFE_USER_FIELDS).from(users).orderBy(asc(users.createdAt));
 	return json(all);
 };
 
@@ -40,7 +32,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const [created] = await db
 		.insert(users)
 		.values({ id: createId(), email, name, role, passwordHash })
-		.returning(SAFE_FIELDS);
+		.returning(SAFE_USER_FIELDS);
 
 	return json(created, { status: 201 });
 };

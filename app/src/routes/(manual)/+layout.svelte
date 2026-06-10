@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { onMount, tick } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { IconSearch, IconSunFilled, IconMoonFilled, IconX } from '@tabler/icons-svelte';
+	import { IconSearch, IconSunFilled, IconMoonFilled, IconX, IconPencil } from '@tabler/icons-svelte';
 
 	const { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
@@ -155,6 +155,15 @@
 		return match?.title ?? brandName;
 	}
 
+	function currentPageId(): string | null {
+		const pathname = page.url.pathname.replace(/\/$/, '');
+		// Landing page (root /)
+		if (pathname === '') return allPages.find(p => p.isLanding)?.id ?? null;
+		return allPages.find(p => pageHref(p).replace(/\/$/, '') === pathname)?.id ?? null;
+	}
+
+	const editPageId = $derived(currentPageId());
+
 	function themeValue(value: string | null | undefined, key: keyof typeof themeDefaults.light, mode: 'light' | 'dark' | 'system') {
 		// No custom value → let CSS class (.theme-dark / @media dark) handle defaults,
 		// don't set inline style (inline style would override the class with wrong value)
@@ -209,6 +218,11 @@
 
 			<div class="topbar-right">
 				{#if data.user}
+					{#if editPageId}
+						<a href="/admin/manual/{editPageId}" class="edit-link" title="Upravit tuto stránku">
+							<IconPencil size={13} stroke={2} /><span>Upravit</span>
+						</a>
+					{/if}
 					<a href="/admin/manual" class="admin-link" target="_blank" rel="noreferrer">{m.manual_admin_link({}, { languageTag: manualLanguage })}</a>
 				{/if}
 				<button class="topbar-icon-btn" onclick={openSearch} aria-label="Vyhledat (⌘K)" title="Vyhledat (⌘K)">
@@ -540,6 +554,24 @@
 		font-size: .88rem;
 		text-align: center;
 	}
+	.edit-link {
+		height: 34px;
+		display: inline-flex;
+		align-items: center;
+		gap: .35rem;
+		padding: 0 11px;
+		border: 1px solid var(--manual-brand);
+		border-radius: max(4px, var(--manual-radius));
+		background: color-mix(in srgb, var(--manual-brand) 10%, transparent);
+		color: var(--manual-brand);
+		font-size: .8rem;
+		font-weight: 650;
+		text-decoration: none;
+		transition: background .15s;
+	}
+	.edit-link:hover {
+		background: color-mix(in srgb, var(--manual-brand) 18%, transparent);
+	}
 	.admin-link {
 		height: 34px;
 		display: inline-flex;
@@ -643,6 +675,7 @@
 		.content-area { display: block; padding: 0; }
 		.mobile-menu-btn { display: flex; }
 		.admin-link { display: none; }
+		.edit-link { display: none; }
 		.topbar-icon-btn { width: 38px; height: 38px; }
 		.sidebar {
 			position: fixed;

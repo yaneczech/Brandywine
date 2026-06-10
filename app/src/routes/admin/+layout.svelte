@@ -29,8 +29,8 @@
 	let mobileOpen = $state(false);
 	$effect(() => { mobileOpen = false; });
 
-	import type { Component } from 'svelte';
-	type NavItem = { href: string; label: string; icon: Component<{ size?: number; stroke?: number }> };
+	import type { ComponentType } from 'svelte';
+	type NavItem = { href: string; label: string; icon: ComponentType };
 
 	const isAdminUser = $derived(data.user?.role === 'admin');
 

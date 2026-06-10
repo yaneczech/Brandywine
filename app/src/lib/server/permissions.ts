@@ -1,10 +1,10 @@
 import { db } from '$db';
 import { teamMembers, teamPermissions } from '$db/schema';
 import { eq, and, inArray, isNotNull } from 'drizzle-orm';
-import type { InferSelectModel } from 'drizzle-orm';
-import type { users } from '$db/schema';
 
-type User = InferSelectModel<typeof users>;
+// Only the fields permission checks actually need — accepts both
+// SessionUser (locals.user) and full DB rows
+type User = { id: string; role: string };
 export type Action = 'read' | 'download' | 'write' | 'upload' | 'share';
 export type ResourceType = 'section' | 'folder' | 'collection';
 

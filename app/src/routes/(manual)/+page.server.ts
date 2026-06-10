@@ -4,11 +4,30 @@ import { manualPages, manualBlocks, colors, colorPalettes, typographyFonts, typo
 import { eq, asc } from 'drizzle-orm';
 
 export const load: PageServerLoad = async () => {
-	// Load the landing page and its blocks
-	const [landing] = await db
-		.select()
-		.from(manualPages)
-		.where(eq(manualPages.isLanding, true));
+	// Landing page lookup and the page tree are independent — run in parallel
+	const [[landing], pages] = await Promise.all([
+		db
+			.select()
+			.from(manualPages)
+			.where(eq(manualPages.isLanding, true)),
+		db
+			.select({
+				id: manualPages.id,
+				parentId: manualPages.parentId,
+				title: manualPages.title,
+				slug: manualPages.slug,
+				description: manualPages.description,
+				sortOrder: manualPages.sortOrder,
+				enabled: manualPages.enabled,
+				isLanding: manualPages.isLanding,
+				featureImage: manualPages.featureImage,
+				bgColor: manualPages.bgColor,
+				textColor: manualPages.textColor,
+			})
+			.from(manualPages)
+			.where(eq(manualPages.enabled, true))
+			.orderBy(asc(manualPages.sortOrder), asc(manualPages.title)),
+	]);
 
 	const allBlocks = landing
 		? await db.select().from(manualBlocks)
@@ -17,24 +36,6 @@ export const load: PageServerLoad = async () => {
 		: [];
 	// Skip blocks with empty config — they have no renderable content
 	const blocks = allBlocks.filter(b => b.config && Object.keys(b.config).length > 0);
-
-	const pages = await db
-		.select({
-			id: manualPages.id,
-			parentId: manualPages.parentId,
-			title: manualPages.title,
-			slug: manualPages.slug,
-			description: manualPages.description,
-			sortOrder: manualPages.sortOrder,
-			enabled: manualPages.enabled,
-			isLanding: manualPages.isLanding,
-			featureImage: manualPages.featureImage,
-			bgColor: manualPages.bgColor,
-			textColor: manualPages.textColor,
-		})
-		.from(manualPages)
-		.where(eq(manualPages.enabled, true))
-		.orderBy(asc(manualPages.sortOrder), asc(manualPages.title));
 
 	const needsColors = blocks.some(b => b.type === 'colors');
 	const needsTypo   = blocks.some(b => b.type === 'typography' || b.type === 'text_styles');

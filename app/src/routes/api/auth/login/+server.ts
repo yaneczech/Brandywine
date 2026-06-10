@@ -6,7 +6,9 @@ import { eq } from 'drizzle-orm';
 import { verifyPassword, createSession } from '$server/auth';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
-	const { email, password } = await request.json();
+	const body = await request.json().catch(() => null);
+	if (!body || typeof body !== 'object') error(400, 'Invalid JSON');
+	const { email, password } = body as { email?: string; password?: string };
 	if (!email || !password) error(400, 'Email and password required');
 
 	const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);

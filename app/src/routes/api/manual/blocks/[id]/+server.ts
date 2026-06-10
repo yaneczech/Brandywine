@@ -92,14 +92,19 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 };
 
 // ── helpers ────────────────────────────────────────────────────────────────────
+import { sql } from 'drizzle-orm';
+
 async function renumberBlocks(pageId: string): Promise<void> {
-	const blocks = await db.select({ id: manualBlocks.id })
-		.from(manualBlocks)
-		.where(eq(manualBlocks.pageId, pageId))
-		.orderBy(asc(manualBlocks.sortOrder));
-	for (let i = 0; i < blocks.length; i++) {
-		await db.update(manualBlocks)
-			.set({ sortOrder: (i + 1) * 10 })
-			.where(eq(manualBlocks.id, blocks[i].id));
-	}
+	// Single query using a numbered CTE instead of N individual UPDATEs
+	await db.execute(sql`
+		WITH ranked AS (
+			SELECT id, (ROW_NUMBER() OVER (ORDER BY sort_order)) * 10 AS new_order
+			FROM manual_blocks
+			WHERE page_id = ${pageId}
+		)
+		UPDATE manual_blocks mb
+		SET sort_order = r.new_order
+		FROM ranked r
+		WHERE mb.id = r.id
+	`);
 }

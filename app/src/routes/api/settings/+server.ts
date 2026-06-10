@@ -3,6 +3,7 @@ import { db } from '$lib/db';
 import { brandSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
+import { invalidateLangCache } from '$lib/server/lang-cache';
 
 type BrandSettingsInsert = typeof brandSettings.$inferInsert;
 type BrandSettingsUpdate = Partial<Omit<BrandSettingsInsert, 'id'>>;
@@ -106,14 +107,15 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 		if (key in body) Object.assign(update, { [key]: normalizeValue(key, body[key]) });
 	}
 
-	// Upsert singleton
-	const existing = await db.select({ id: brandSettings.id }).from(brandSettings).where(eq(brandSettings.id, 1));
-	if (existing.length === 0) {
-		await db.insert(brandSettings).values({ id: 1, ...update });
-	} else {
-		await db.update(brandSettings).set(update).where(eq(brandSettings.id, 1));
-	}
+	// Atomic upsert — avoids TOCTOU race between SELECT + INSERT/UPDATE
+	const [row] = await db
+		.insert(brandSettings)
+		.values({ id: 1, ...update })
+		.onConflictDoUpdate({ target: brandSettings.id, set: update })
+		.returning();
 
-	const [row] = await db.select().from(brandSettings).where(eq(brandSettings.id, 1));
+	// Invalidate in-memory language cache if the default language was changed
+	if ('defaultLanguage' in body) invalidateLangCache();
+
 	return json(row);
 };

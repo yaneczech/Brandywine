@@ -1,4 +1,4 @@
-import { pgTable, text, real, integer, json, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, text, real, integer, json, boolean, index } from 'drizzle-orm/pg-core';
 import { createId } from '../id';
 
 export type FontRole = 'display' | 'body' | 'mono' | 'accent';
@@ -42,7 +42,9 @@ export const typographyFontFiles = pgTable('typography_font_files', {
 	uploadedAt: text('uploaded_at').notNull().$defaultFn(() => new Date().toISOString()),
 	// Link to the shared assets table — set when file is registered as an asset
 	assetId: text('asset_id'),  // FK added via migration (avoids circular import)
-});
+}, (t) => [
+	index('idx_typography_files_font').on(t.fontId),
+]);
 
 export const typographyStyles = pgTable('typography_styles', {
 	id: text('id').primaryKey().$defaultFn(createId),
@@ -56,4 +58,6 @@ export const typographyStyles = pgTable('typography_styles', {
 	order: integer('order').notNull().default(0),
 	theme: text('theme').$type<StyleTheme>().notNull().default('universal'),
 	allowedColors: json('allowed_colors').$type<StyleColorToken[]>().default([])
-});
+}, (t) => [
+	index('idx_typography_styles_font').on(t.fontId),
+]);

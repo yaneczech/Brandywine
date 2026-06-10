@@ -7,6 +7,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { db } from '$lib/db';
 import { brandSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { getLangCache, setLangCache } from '$lib/server/lang-cache';
 
 type LanguageTag = 'en' | 'cs';
 
@@ -31,12 +32,17 @@ function languageFromCookie(event: Parameters<Handle>[0]['event']): LanguageTag 
 }
 
 async function manualContentLanguage(): Promise<LanguageTag> {
+	const cached = getLangCache();
+	if (cached) return cached as LanguageTag;
+
 	const [settings] = await db
 		.select({ defaultLanguage: brandSettings.defaultLanguage })
 		.from(brandSettings)
 		.where(eq(brandSettings.id, 1));
 
-	return settings?.defaultLanguage === 'cs' ? 'cs' : 'en';
+	const lang: LanguageTag = settings?.defaultLanguage === 'cs' ? 'cs' : 'en';
+	setLangCache(lang);
+	return lang;
 }
 
 async function resolveWithLanguage(event: Parameters<Handle>[0]['event'], resolve: Parameters<Handle>[0]['resolve'], lang: LanguageTag) {

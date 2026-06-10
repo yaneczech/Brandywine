@@ -199,9 +199,27 @@
 			</label>
 			<label class="field checkbox">
 				<input type="checkbox" checked={bool('frame')} onchange={e => setBool(e, 'frame')} />
-				<span>Rámeček &amp; pozadí</span>
+				<span>Pozadí</span>
 			</label>
 		</div>
+		{#if bool('frame')}
+			<div class="fields-row frame-opts">
+				<label class="field">
+					<span>Barva pozadí</span>
+					<div class="color-row">
+						<input type="color" value={str('frameBg') || '#ffffff'} oninput={e => setStr(e, 'frameBg')} class="color-swatch" />
+						<input type="text" value={str('frameBg') || '#ffffff'} placeholder="#ffffff" oninput={e => setStr(e, 'frameBg')} class="color-text" />
+					</div>
+				</label>
+				<label class="field">
+					<span>Barva okraje <span class="muted">(prázdné = bez okraje)</span></span>
+					<div class="color-row">
+						<input type="color" value={str('frameBorderColor') || '#e5e5e5'} oninput={e => setStr(e, 'frameBorderColor')} class="color-swatch" />
+						<input type="text" value={str('frameBorderColor')} placeholder="— bez okraje" oninput={e => setStr(e, 'frameBorderColor')} class="color-text" />
+					</div>
+				</label>
+			</div>
+		{/if}
 	</div>
 
 <!-- ── image_gallery / carousel ──────────────────────────────────────────────── -->
@@ -392,6 +410,10 @@
 					<input type="number" min={0} max={120} value={num('gutterRow', num('gutter', 24))} oninput={e => setNum(e, 'gutterRow')} />
 				</label>
 			{/if}
+			<label class="field">
+				<span>Baseline grid <span class="muted">(0 = vypnout)</span></span>
+				<input type="number" min={0} max={120} step={1} value={num('baselineGrid', 0)} oninput={e => setNum(e, 'baselineGrid')} />
+			</label>
 		</div>
 		<!-- Margins -->
 		{#if (str('medium') || 'web') === 'print'}
@@ -1049,6 +1071,13 @@
 .rule-cat { font-weight: 600 !important; }
 .rule-examples { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; }
 .rule-examples input { font-family: monospace; font-size: .8rem !important; }
+
+/* ── color row (frame bg / border) ──────────────────────────────────────── */
+.frame-opts { align-items: flex-start; }
+.color-row { display: flex; align-items: center; gap: .4rem; }
+.color-swatch { width: 32px; height: 32px; padding: 2px; border: 1px solid var(--color-border); border-radius: 5px; cursor: pointer; background: none; flex-shrink: 0; }
+.color-text { flex: 1; padding: .4rem .55rem; border: 1px solid var(--color-border); border-radius: 5px; font-size: .85rem; background: var(--color-surface); color: var(--color-text); outline: none; font-family: monospace; }
+.color-text:focus { border-color: var(--brand); }
 
 /* ── folder picker ───────────────────────────────────────────────────────── */
 .folder-field { display: flex; flex-direction: column; gap: 4px; }

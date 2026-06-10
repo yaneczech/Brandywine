@@ -24,13 +24,21 @@
 
 	const featureImage = $derived(assetSrc(data.page.featureImage));
 	const hasBgColor = $derived(!!data.page.bgColor);
-	const heroStyle = $derived([
-		data.page.bgColor   ? `--page-bg:${data.page.bgColor}`     : '',
-		readableTextColor(data.page.bgColor, data.page.textColor)
-			? `--page-text:${readableTextColor(data.page.bgColor, data.page.textColor)}`
-			: '',
-		data.page.bgColor   ? `--page-accent:${data.page.bgColor}` : '',
-	].filter(Boolean).join(';'));
+	const heroStyle = $derived((() => {
+		const bgSize = data.page.heroBgSize ?? 'cover';
+		const parts: string[] = [];
+		if (data.page.bgColor) parts.push(`--page-bg:${data.page.bgColor}`);
+		const txt = readableTextColor(data.page.bgColor, data.page.textColor);
+		if (txt) parts.push(`--page-text:${txt}`);
+		if (data.page.bgColor) parts.push(`--page-accent:${data.page.bgColor}`);
+		if (featureImage) {
+			parts.push(`background-image:url("${featureImage.replace(/"/g, '%22')}")`);
+			parts.push(`background-size:${bgSize === 'tile' ? 'auto' : bgSize}`);
+			parts.push(`background-repeat:${bgSize === 'tile' ? 'repeat' : 'no-repeat'}`);
+			parts.push('background-position:center');
+		}
+		return parts.join(';');
+	})());
 
 	function slugify(s: string): string {
 		return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -54,7 +62,7 @@
 </script>
 
 <div class="manual-page" style={heroStyle}>
-	<section class="page-hero" class:has-image={!!featureImage} class:has-bg={hasBgColor}>
+	<section class="page-hero" class:has-img={!!featureImage} class:has-bg={hasBgColor}>
 		<div class="page-hero-copy">
 			<p class="kicker">{m.manual_kicker({}, { languageTag: manualLanguage })}</p>
 			<h1>{data.page.title}</h1>
@@ -62,12 +70,6 @@
 				<p class="page-desc">{data.page.description}</p>
 			{/if}
 		</div>
-
-		{#if featureImage}
-			<figure class="feature-figure">
-				<img src={featureImage} alt={data.page.title} />
-			</figure>
-		{/if}
 	</section>
 
 	<div class="page-layout" class:has-toc={toc.length > 0}>
@@ -130,9 +132,19 @@
 		background: var(--page-bg);
 		border-bottom-color: color-mix(in srgb, var(--page-bg) 60%, rgba(0,0,0,.15));
 	}
-	.page-hero.has-image {
-		grid-template-columns: minmax(0, 1fr) minmax(260px, 36%);
-		align-items: center;
+	/* when featureImage is set — background image */
+	.page-hero.has-img {
+		border-bottom-color: transparent;
+	}
+	.page-hero.has-img::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: rgba(0,0,0,.38);
+		z-index: 0;
+	}
+	.page-hero.has-img.has-bg::before {
+		background: color-mix(in srgb, var(--page-bg) 72%, transparent);
 	}
 	.page-hero-copy {
 		position: relative;
@@ -148,8 +160,12 @@
 		letter-spacing: .11em;
 		text-transform: uppercase;
 	}
-	.page-hero.has-bg .kicker {
+	.page-hero.has-bg .kicker,
+	.page-hero.has-img .kicker {
 		color: color-mix(in srgb, var(--page-text) 75%, transparent);
+	}
+	.page-hero.has-img .kicker {
+		color: rgba(255,255,255,.7);
 	}
 	.page-hero h1 {
 		max-width: 760px;
@@ -167,22 +183,12 @@
 		font-size: clamp(.92rem, 1vw, 1.02rem);
 		line-height: 1.58;
 	}
-	/* default (no bgColor) — keep original dark colors */
-	.page-hero:not(.has-bg) h1        { color: var(--manual-ink); }
-	.page-hero:not(.has-bg) .page-desc { color: var(--manual-muted); }
-	.feature-figure {
-		margin: 0;
-		min-height: 300px;
-		overflow: hidden;
-		border-radius: var(--manual-radius);
-		background: color-mix(in srgb, var(--manual-surface) 86%, var(--manual-ink));
-	}
-	.feature-figure img {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
+	/* default (no bgColor, no img) — keep original dark colors */
+	.page-hero:not(.has-bg):not(.has-img) h1        { color: var(--manual-ink); }
+	.page-hero:not(.has-bg):not(.has-img) .page-desc { color: var(--manual-muted); }
+	/* image overlay — white text */
+	.page-hero.has-img h1        { color: #fff; }
+	.page-hero.has-img .page-desc { color: rgba(255,255,255,.82); }
 	.page-layout {
 		width: min(100%, 1120px);
 		display: grid;

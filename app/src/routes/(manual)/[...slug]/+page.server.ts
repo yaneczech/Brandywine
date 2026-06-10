@@ -2,25 +2,26 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { db } from '$lib/db';
 import { manualPages, manualBlocks, colors, colorPalettes, typographyFonts, typographyStyles, typographyFontFiles } from '$lib/db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, inArray } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ params }) => {
 	// slug = 'loga' or 'loga/pouziti' etc.
 	const segments = params.slug.split('/').filter(Boolean);
 
-	// Walk the tree: find the page matching the slug path
+	// One query for all candidate pages, then walk the tree in memory
+	const candidates = segments.length
+		? await db
+			.select()
+			.from(manualPages)
+			.where(inArray(manualPages.slug, segments))
+		: [];
+
 	let parentId: string | null = null;
 	let page = null;
 
 	for (const segment of segments) {
-		const all = await db
-			.select()
-			.from(manualPages)
-			.where(eq(manualPages.slug, segment))
-			.orderBy(asc(manualPages.sortOrder));
-
-		// Filter by parent
-		const match = all.find(p =>
+		const match = candidates.find(p =>
+			p.slug === segment &&
 			p.parentId === parentId &&
 			p.enabled &&
 			!p.isLanding

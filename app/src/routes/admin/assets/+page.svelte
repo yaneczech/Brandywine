@@ -134,6 +134,28 @@
 
 	let uploadProgress = $state<{ name: string; done: boolean; err?: string }[]>([]);
 
+	// ── Upload confirmation modal ─────────────────────────────────────────────
+	let pendingFiles       = $state<File[]>([]);
+	let showUploadModal    = $state(false);
+	let uploadFolderId     = $state<string | null>(null);
+	let uploadTagsInput    = $state('');
+	let uploadFolderOpen   = $state(false);
+
+	function openUploadModal(files: FileList | File[]) {
+		const list = Array.from(files);
+		if (!list.length) return;
+		pendingFiles    = list;
+		uploadFolderId  = activeFolderId;
+		uploadTagsInput = '';
+		uploadFolderOpen = false;
+		showUploadModal = true;
+	}
+
+	function cancelUpload() {
+		showUploadModal = false;
+		pendingFiles = [];
+	}
+
 	const TYPE_TABS = $derived([
 		{ key: 'all',      label: m.users_filter_all() },
 		{ key: 'image',    label: m.assets_type_images() },
@@ -349,28 +371,38 @@
 	}
 
 	// ── Upload ────────────────────────────────────────────────────────────────
-	async function uploadFiles(files: FileList | File[]) {
-		const list = Array.from(files);
-		if (!list.length) return;
-		uploadProgress = list.map(f => ({ name: f.name, done: false }));
-		for (let i = 0; i < list.length; i++) {
+	async function uploadFiles(files: File[], folderId: string | null, tags: string[]) {
+		if (!files.length) return;
+		showUploadModal = false;
+		uploadProgress = files.map(f => ({ name: f.name, done: false }));
+		for (let i = 0; i < files.length; i++) {
 			const form = new FormData();
-			form.append('file', list[i]);
-			if (activeFolderId) form.append('folderId', activeFolderId);
+			form.append('file', files[i]);
+			if (folderId) form.append('folderId', folderId);
+			if (tags.length) form.append('tags', JSON.stringify(tags));
 			try {
 				const res = await fetch('/api/assets', { method: 'POST', body: form });
 				if (!res.ok) {
 					const msg = (await res.json().catch(() => ({}))).message ?? res.statusText;
-					uploadProgress[i] = { name: list[i].name, done: true, err: msg };
+					uploadProgress[i] = { name: files[i].name, done: true, err: msg };
 				} else {
-					uploadProgress[i] = { name: list[i].name, done: true };
+					uploadProgress[i] = { name: files[i].name, done: true };
 				}
 			} catch {
-				uploadProgress[i] = { name: list[i].name, done: true, err: 'Network error' };
+				uploadProgress[i] = { name: files[i].name, done: true, err: 'Network error' };
 			}
 		}
 		await invalidateAll();
 		setTimeout(() => (uploadProgress = []), 3500);
+	}
+
+	function confirmUpload() {
+		const tags = uploadTagsInput
+			.split(',')
+			.map(t => t.trim().toLowerCase())
+			.filter(Boolean);
+		uploadFiles(pendingFiles, uploadFolderId, tags);
+		pendingFiles = [];
 	}
 
 	// ── Delete ────────────────────────────────────────────────────────────────
@@ -527,7 +559,7 @@
 <div class="shell" class:resizing-sidebar={resizingSidebar}
 	ondragover={(e) => { e.preventDefault(); dragOver = true; }}
 	ondragleave={(e) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) dragOver = false; }}
-	ondrop={(e) => { e.preventDefault(); dragOver = false; if (e.dataTransfer?.files) uploadFiles(e.dataTransfer.files); }}
+	ondrop={(e) => { e.preventDefault(); dragOver = false; if (e.dataTransfer?.files) openUploadModal(e.dataTransfer.files); }}
 >
 {#if dragOver}
 	<div class="drop-overlay">
@@ -725,7 +757,7 @@
 				<label class="btn-primary">
 					<IconUpload size={14} stroke={2} /> {m.assets_upload()}
 					<input type="file" multiple
-						onchange={(e) => { const t = e.target as HTMLInputElement; if (t.files) uploadFiles(t.files); }}
+						onchange={(e) => { const t = e.target as HTMLInputElement; if (t.files) { openUploadModal(t.files); t.value = ''; } }}
 						style="display:none" />
 				</label>
 			</div>
@@ -795,7 +827,7 @@
 						<label class="btn-primary mt">
 							<IconPlus size={14} stroke={2} /> {m.assets_add_first()}
 							<input type="file" multiple
-								onchange={(e) => { const t = e.target as HTMLInputElement; if (t.files) uploadFiles(t.files); }}
+								onchange={(e) => { const t = e.target as HTMLInputElement; if (t.files) { openUploadModal(t.files); t.value = ''; } }}
 								style="display:none" />
 						</label>
 					{/if}
@@ -1275,6 +1307,90 @@
 				<button class="btn-cancel" onclick={() => (showNewFolder = false)}>{m.users_btn_cancel()}</button>
 				<button class="btn-primary" onclick={createFolder} disabled={!newFolderName.trim()}>
 					<IconFolderPlus size={14} stroke={2} /> {m.assets_create_btn()}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- ── Upload modal ──────────────────────────────────────────────────────────── -->
+{#if showUploadModal}
+	<div class="modal-backdrop" role="presentation" onclick={cancelUpload}>
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<div class="modal upload-modal" role="dialog" tabindex="-1" onclick={e => e.stopPropagation()}>
+			<div class="modal-head">
+				<h2>Nahrát soubory</h2>
+				<button class="icon-btn" aria-label="Zavřít" onclick={cancelUpload}><IconX size={16} stroke={1.75} /></button>
+			</div>
+
+			<div class="modal-body upload-modal-body">
+				<!-- File list -->
+				<div class="upload-file-list">
+					{#each pendingFiles as f}
+						<div class="upload-file-row">
+							<span class="upload-file-name">{f.name}</span>
+							<span class="upload-file-size">{(f.size / 1024).toFixed(0)} kB</span>
+						</div>
+					{/each}
+				</div>
+
+				<!-- Folder picker -->
+				<div class="upload-section">
+					<div class="upload-section-label">Uložit do složky</div>
+					<button
+						type="button"
+						class="folder-select-btn"
+						onclick={() => uploadFolderOpen = !uploadFolderOpen}
+					>
+						<IconFolder size={15} />
+						<span>{uploadFolderId ? (folderList.find(f => f.id === uploadFolderId)?.name ?? uploadFolderId) : 'Root (bez složky)'}</span>
+						<IconChevronRight size={13} style="flex-shrink:0;color:var(--color-muted);transition:transform .15s;{uploadFolderOpen ? 'transform:rotate(90deg)' : ''}" />
+					</button>
+					{#if uploadFolderOpen}
+						<div class="folder-picker-wrap">
+							<FolderPicker
+								folders={folderList}
+								selectedId={uploadFolderId}
+								includeRoot={true}
+								rootLabel="Root (bez složky)"
+								showCounts={true}
+								onPick={(id) => { uploadFolderId = id; uploadFolderOpen = false; }}
+							/>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Tags -->
+				<div class="upload-section">
+					<label class="upload-section-label" for="upload-tags">Tagy <span class="muted">(volitelné, čárkou)</span></label>
+					<input
+						id="upload-tags"
+						type="text"
+						class="upload-tags-input"
+						bind:value={uploadTagsInput}
+						placeholder="logo, vector, print…"
+						onkeydown={e => e.key === 'Enter' && confirmUpload()}
+					/>
+					{#if allTags.length > 0}
+						<div class="tag-suggestions">
+							{#each allTags.filter(t => !uploadTagsInput.split(',').map(x => x.trim()).includes(t.tag)).slice(0, 12) as t}
+								<button type="button" class="tag-pill"
+									onclick={() => {
+										const existing = uploadTagsInput.split(',').map(x => x.trim()).filter(Boolean);
+										uploadTagsInput = [...existing, t.tag].join(', ');
+									}}
+								>{t.tag}</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			</div>
+
+			<div class="modal-foot">
+				<button class="btn-cancel" onclick={cancelUpload}>Zrušit</button>
+				<button class="btn-upload-confirm" onclick={confirmUpload}>
+					<IconUpload size={14} stroke={2} />
+					Nahrát {pendingFiles.length === 1 ? '1 soubor' : `${pendingFiles.length} soubory`}
 				</button>
 			</div>
 		</div>
@@ -1885,4 +2001,52 @@
 	font-size:0.5625rem; font-weight:700; background:rgba(0,0,0,.45); color:#fff;
 	padding:1px 0;
 }
+
+/* ── Upload modal ────────────────────────────────────────────────────────── */
+.upload-modal { max-width:520px; }
+.upload-modal-body { padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:1.25rem; color:var(--color-text); }
+.upload-file-list {
+	display:flex; flex-direction:column; gap:2px;
+	max-height:140px; overflow-y:auto;
+	border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface-raised);
+	padding:.25rem 0;
+}
+.upload-file-row {
+	display:flex; align-items:center; justify-content:space-between;
+	padding:.3rem .75rem; font-size:.8125rem;
+}
+.upload-file-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.upload-file-size { flex-shrink:0; color:var(--color-muted); font-size:.75rem; margin-left:.75rem; }
+.upload-section { display:flex; flex-direction:column; gap:.4rem; }
+.upload-section-label { font-size:.8125rem; font-weight:500; color:var(--color-text); }
+.upload-section-label .muted { font-weight:400; color:var(--color-muted); }
+.folder-select-btn {
+	display:flex; align-items:center; gap:.5rem;
+	padding:.45rem .75rem; border:1.5px solid var(--color-border); border-radius:8px;
+	background:var(--color-surface); color:var(--color-text); font-size:.875rem;
+	cursor:pointer; text-align:left; width:100%;
+}
+.folder-select-btn:hover { border-color:var(--brand); }
+.folder-select-btn span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.folder-select-btn :global(.folder-chevron) { flex-shrink:0; color:var(--color-muted); transition:transform .15s; }
+.folder-select-btn :global(.folder-chevron.open) { transform:rotate(90deg); }
+.folder-picker-wrap { border:1px solid var(--color-border); border-radius:8px; overflow:hidden; background:var(--color-surface); padding:.35rem 0; }
+.upload-tags-input {
+	height:38px; padding:0 12px; border:1.5px solid var(--color-border); border-radius:8px;
+	font-size:.875rem; background:var(--color-surface); color:var(--color-text); outline:none; width:100%; box-sizing:border-box;
+}
+.upload-tags-input:focus { border-color:var(--brand); }
+.tag-suggestions { display:flex; flex-wrap:wrap; gap:5px; margin-top:.25rem; }
+.tag-suggestions .tag-pill {
+	background:var(--color-surface-raised); border:1px solid var(--color-border);
+	border-radius:20px; padding:2px 9px; font-size:.78rem; color:var(--color-muted);
+	cursor:pointer;
+}
+.tag-suggestions .tag-pill:hover { border-color:var(--brand); color:var(--brand); }
+.btn-upload-confirm {
+	display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 18px;
+	border-radius:8px; border:none; background:var(--brand); color:#fff;
+	font-size:.875rem; font-weight:600; cursor:pointer;
+}
+.btn-upload-confirm:hover { filter:brightness(1.1); }
 </style>

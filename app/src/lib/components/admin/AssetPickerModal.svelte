@@ -7,7 +7,7 @@
     onClose    — called when user closes without selecting
 -->
 <script lang="ts">
-	import { IconSearch, IconX, IconPhoto, IconCheck } from '@tabler/icons-svelte';
+	import { IconSearch, IconX, IconPhoto, IconCheck, IconUpload } from '@tabler/icons-svelte';
 	import AssetThumb from '$lib/components/admin/AssetThumb.svelte';
 
 	type Asset = {
@@ -36,9 +36,11 @@
 
 	let assets      = $state<Asset[]>([]);
 	let loading     = $state(false);
+	let uploading   = $state(false);
 	let search      = $state('');
 	let typeFilter  = $state<string>(mimeFilter === 'all' ? 'all' : 'image');
 	let hoveredId   = $state<string | null>(null);
+	let fileInputEl = $state<HTMLInputElement | null>(null);
 
 	// Fetch assets when modal opens
 	$effect(() => {
@@ -103,6 +105,25 @@
 			{ key: 'video',    label: 'Video' },
 			{ key: 'other',    label: 'Ostatní' },
 		];
+
+	async function handleUpload(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		input.value = '';
+
+		uploading = true;
+		try {
+			const fd = new FormData();
+			fd.append('file', file);
+			const res = await fetch('/api/assets', { method: 'POST', body: fd });
+			if (res.ok) {
+				await loadAssets();
+			}
+		} finally {
+			uploading = false;
+		}
+	}
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onClose();
@@ -187,7 +208,20 @@
 
 			<div class="picker-footer">
 				<span class="picker-count">{filtered.length} {filtered.length === 1 ? 'asset' : 'assetů'}</span>
-				<button type="button" class="btn-cancel" onclick={onClose}>Zrušit</button>
+				<div class="footer-actions">
+					<label class="btn-upload" class:uploading>
+						<input
+							bind:this={fileInputEl}
+							type="file"
+							accept={mimeFilter === 'image' ? 'image/*' : undefined}
+							onchange={handleUpload}
+							style="display:none"
+						/>
+						<IconUpload size={14} />
+						{uploading ? 'Nahrávám…' : 'Nahrát soubor'}
+					</label>
+					<button type="button" class="btn-cancel" onclick={onClose}>Zrušit</button>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -390,10 +424,37 @@
 	padding: .65rem 1rem;
 	border-top: 1px solid var(--color-border);
 	flex-shrink: 0;
+	gap: .5rem;
 }
 .picker-count {
 	font-size: .8rem;
 	color: var(--color-muted);
+}
+.footer-actions {
+	display: flex;
+	align-items: center;
+	gap: .5rem;
+}
+.btn-upload {
+	display: inline-flex;
+	align-items: center;
+	gap: .4rem;
+	padding: .4rem .9rem;
+	border: 1px solid var(--brand);
+	border-radius: 7px;
+	background: color-mix(in srgb, var(--brand) 8%, transparent);
+	color: var(--brand);
+	font-size: .84rem;
+	font-family: inherit;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background .12s;
+}
+.btn-upload:hover { background: color-mix(in srgb, var(--brand) 16%, transparent); }
+.btn-upload.uploading {
+	opacity: .6;
+	cursor: default;
+	pointer-events: none;
 }
 .btn-cancel {
 	padding: .4rem .9rem;

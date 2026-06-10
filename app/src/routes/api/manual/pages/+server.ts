@@ -1,14 +1,13 @@
-import { canEdit } from '$server/permissions';
 /**
  * GET  /api/manual/pages  — full page tree (flat list, sorted by sort_order)
  * POST /api/manual/pages  — create a new page
  */
+import { canEdit } from '$server/permissions';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
 import { manualPages } from '$db/schema';
 import { asc, isNull, eq } from 'drizzle-orm';
-import { createId } from '$lib/db/id';
 
 // ── GET — return all pages (admin builds the tree client-side) ─────────────────
 export const GET: RequestHandler = async ({ locals }) => {
@@ -28,7 +27,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) error(401, 'Unauthorized');
 	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
-	const body = await request.json();
+	const body = await request.json().catch(() => null);
+	if (!body || typeof body !== 'object') error(400, 'Invalid JSON');
+
 	const { parentId = null, title, slug, description } = body as {
 		parentId?: string | null;
 		title: string;
@@ -40,30 +41,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!slug?.trim()) error(400, 'slug is required');
 	if (!/^[a-z0-9-]+$/.test(slug)) error(400, 'slug must be lowercase letters, numbers and hyphens');
 
-	// Check slug uniqueness within same parent
-	const existing = await db
-		.select({ id: manualPages.id })
-		.from(manualPages)
-		.where(
-			parentId
-				? eq(manualPages.parentId, parentId)
-				: isNull(manualPages.parentId)
-		)
-		.then(rows => rows);
-
-	// Use slug filter manually (drizzle doesn't have a simple AND with dynamic null check)
-	const duplicate = await db
-		.select({ id: manualPages.id })
-		.from(manualPages)
-		.where(eq(manualPages.slug, slug))
-		.then(rows => rows.filter(r => {
-			// We need to check in JS since we can't easily do COALESCE in where
-			return true; // will validate differently below
-		}));
-
-	// Proper duplicate check via raw query helper
+	// Single query: fetch siblings for both uniqueness check and sortOrder
 	const siblings = await db
-		.select({ id: manualPages.id, slug: manualPages.slug })
+		.select({ id: manualPages.id, slug: manualPages.slug, sortOrder: manualPages.sortOrder })
 		.from(manualPages)
 		.where(parentId ? eq(manualPages.parentId, parentId) : isNull(manualPages.parentId));
 
@@ -71,14 +51,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		error(409, 'A page with this slug already exists at this level');
 	}
 
-	// Determine sort_order (append last)
-	const maxOrder = siblings.reduce((m, s) => Math.max(m, 0), 0);
-	const sortOrder = (siblings.length + 1) * 10;
+	const maxSortOrder = siblings.reduce((m, s) => Math.max(m, s.sortOrder), 0);
+	const sortOrder = maxSortOrder + 10;
 
 	const [page] = await db
 		.insert(manualPages)
 		.values({
-			id: createId(),
 			parentId: parentId ?? null,
 			title: title.trim(),
 			slug: slug.trim(),
