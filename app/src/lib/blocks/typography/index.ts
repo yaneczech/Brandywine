@@ -1,5 +1,6 @@
 import { defineBlock } from '../define';
 import { IconTypography } from '$lib/icons';
+import Editor from './Editor.svelte';
 import Render from './Render.svelte';
 
 export default defineBlock({
@@ -8,5 +9,6 @@ export default defineBlock({
 	order: 50,
 	icon: IconTypography,
 	Render,
+	Editor,
 	rendersWithoutConfig: true,
 });

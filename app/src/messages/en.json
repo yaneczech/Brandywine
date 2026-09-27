@@ -858,6 +858,7 @@
 	"be_square": "Square (1:1)",
 	"be_controls": "Controls",
 	"be_chart_placeholder": "Modern:85\nTraditional:30\nPlayful:60\nSerious:70\nFriendly:90\nFormal:40",
+	"be_raw_json": "Raw JSON config",
 	"be_no_folder": "No folder",
 	"be_all_folders": "All folders",
 	"be_choose": "Choose",

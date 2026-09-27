@@ -858,6 +858,7 @@
 	"be_square": "Čtverec (1:1)",
 	"be_controls": "Ovládání",
 	"be_chart_placeholder": "Moderní:85\nTradiční:30\nHravý:60\nSeriózní:70\nPřátelský:90\nFormální:40",
+	"be_raw_json": "Konfigurace (JSON)",
 	"be_no_folder": "Žádný folder",
 	"be_all_folders": "Všechny složky",
 	"be_choose": "Vybrat",

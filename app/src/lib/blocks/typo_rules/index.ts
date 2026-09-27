@@ -1,5 +1,6 @@
 import { defineBlock } from '../define';
 import { IconTextSpellcheck } from '$lib/icons';
+import Editor from './Editor.svelte';
 import Render from './Render.svelte';
 
 export default defineBlock({
@@ -8,4 +9,5 @@ export default defineBlock({
 	order: 120,
 	icon: IconTextSpellcheck,
 	Render,
+	Editor,
 });

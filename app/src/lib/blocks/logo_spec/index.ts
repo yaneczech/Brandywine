@@ -1,5 +1,6 @@
 import { defineBlock } from '../define';
 import { IconBadge } from '$lib/icons';
+import Editor from './Editor.svelte';
 import Render from './Render.svelte';
 
 export default defineBlock({
@@ -8,4 +9,5 @@ export default defineBlock({
 	order: 80,
 	icon: IconBadge,
 	Render,
+	Editor,
 });

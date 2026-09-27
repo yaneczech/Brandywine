@@ -1,5 +1,6 @@
 import { defineBlock } from '../define';
 import { IconGridDots } from '$lib/icons';
+import Editor from './Editor.svelte';
 import Render from './Render.svelte';
 
 export default defineBlock({
@@ -8,5 +9,6 @@ export default defineBlock({
 	order: 90,
 	icon: IconGridDots,
 	Render,
+	Editor,
 	rendersWithoutConfig: true,
 });
