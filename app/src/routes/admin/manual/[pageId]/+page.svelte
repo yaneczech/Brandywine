@@ -13,7 +13,7 @@
 		IconAbc, IconTextSpellcheck, IconIcons, IconStairs, IconChartRadar,
 		IconCards, IconNumbers, IconTable, IconLink, IconSeparator,
 		IconFolders, IconDownload, IconCode, IconBrackets, IconChartPie, IconContrast, IconPointer, IconFileDownload, IconTableOptions
-	} from '@tabler/icons-svelte';
+	} from '$lib/icons';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';

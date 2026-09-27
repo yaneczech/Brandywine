@@ -11,7 +11,7 @@
 		IconListNumbers,
 		IconPlus,
 		IconTrash
-	} from '@tabler/icons-svelte';
+	} from '$lib/icons';
 
 	type RichItemType = 'text' | 'attention' | 'alert';
 	type RichItem = { id: string; type: RichItemType; html: string };

@@ -16,7 +16,7 @@
 		IconMenu2,
 		IconBook2,
 		IconExternalLink
-	} from '@tabler/icons-svelte';
+	} from '$lib/icons';
 	const { children, data } = $props();
 
 	const brand = $derived(data.brand);
@@ -33,8 +33,8 @@
 
 	let mobileOpen = $state(false);
 
-	import type { ComponentType } from 'svelte';
-	type NavItem = { href: string; label: string; icon: ComponentType };
+	import type { IconComponent } from '$lib/icons';
+	type NavItem = { href: string; label: string; icon: IconComponent };
 
 	const isAdminUser = $derived(data.user?.role === 'admin');
 

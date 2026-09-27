@@ -8,7 +8,7 @@
 	import {
 		IconArrowLeft, IconRefresh, IconCircleX, IconAlertTriangle, IconInfoCircle,
 		IconCircleCheck, IconChevronRight
-	} from '@tabler/icons-svelte';
+	} from '$lib/icons';
 
 	const { data }: { data: PageData } = $props();
 

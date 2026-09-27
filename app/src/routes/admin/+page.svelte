@@ -3,8 +3,8 @@
 	import * as m from '$lib/paraglide/messages';
 	import {
 		IconPalette, IconTypography, IconFolder, IconUsers, IconBook, IconArrowUpRight
-	} from '@tabler/icons-svelte';
-	import type { ComponentType } from 'svelte';
+	} from '$lib/icons';
+	import type { IconComponent } from '$lib/icons';
 
 	const { data }: { data: PageData } = $props();
 
@@ -18,7 +18,7 @@
 	type Card = {
 		href: string; title: string; description: string;
 		count: number | null; unit: string | null;
-		icon: ComponentType;
+		icon: IconComponent;
 	};
 
 	const sections: Card[] = $derived([

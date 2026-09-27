@@ -6,7 +6,7 @@
 -->
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
-	import { IconPhoto, IconReplace, IconTrash, IconLink } from '@tabler/icons-svelte';
+	import { IconPhoto, IconReplace, IconTrash, IconLink } from '$lib/icons';
 
 	let {
 		label,

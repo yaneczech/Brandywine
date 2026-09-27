@@ -3,7 +3,7 @@
   "pages in this section" lists).
 -->
 <script lang="ts">
-	import { IconArrowUpRight } from '@tabler/icons-svelte';
+	import { IconArrowUpRight } from '$lib/icons';
 
 	type CardPage = {
 		id: string;
@@ -79,7 +79,7 @@
 	.page-cards {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
-		gap: 16px;
+		gap: 2.25rem 1.25rem;
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -91,28 +91,19 @@
 		flex: 1;
 		flex-direction: column;
 		min-width: 0;
-		overflow: hidden;
-		border: 1px solid var(--manual-border);
-		border-radius: calc(var(--manual-radius) + 4px);
-		background: var(--manual-surface);
 		color: var(--manual-ink);
 		text-decoration: none;
-		transition: border-color .2s ease, box-shadow .2s ease, transform .2s var(--manual-ease);
-	}
-	.page-card:hover {
-		border-color: var(--manual-border-strong);
-		box-shadow: 0 18px 40px -18px rgba(0,0,0,.22);
-		transform: translateY(-2px);
 	}
 	.card-visual {
-		--card-bg: color-mix(in srgb, var(--manual-brand) 7%, var(--manual-surface));
+		--card-bg: var(--manual-stage);
 		--card-fg: var(--manual-brand);
 		position: relative;
 		display: flex;
 		align-items: flex-end;
-		aspect-ratio: 16 / 9;
+		aspect-ratio: 4 / 3;
 		padding: 16px;
 		overflow: hidden;
+		border-radius: var(--manual-radius);
 		background: var(--card-bg);
 		color: var(--card-fg);
 	}
@@ -126,12 +117,12 @@
 	}
 	.page-card:hover .card-visual img { transform: scale(1.035); }
 	/* Auto previews (no feature image) */
-	.card-visual.has-preview:not(.has-color) { --card-bg: color-mix(in srgb, var(--manual-ink) 3%, var(--manual-surface)); }
+	.card-visual.has-preview:not(.has-color) { --card-bg: var(--manual-stage); }
 	.pv-colors { position: absolute; inset: 0; display: flex; flex-direction: column; }
 	.pv-colors span { flex: 1; }
 	.pv-type {
 		position: absolute; inset: 0; display: grid; place-items: center;
-		color: var(--card-fg); font-size: clamp(3.5rem, 7vw, 5.5rem); font-weight: 600; letter-spacing: var(--tracking-tight); line-height: 1;
+		color: var(--card-fg); font-size: clamp(3.5rem, 7vw, 5.5rem); font-weight: 500; letter-spacing: -.04em; line-height: 1;
 	}
 	.card-visual.has-preview:not(.has-color) .pv-type { color: var(--manual-ink); }
 	.pv-image { position: absolute; inset: 0; }
@@ -142,7 +133,7 @@
 	.page-card:hover .pv-image.contain img { transform: scale(1.06); }
 	.card-index {
 		font-size: 2.4rem;
-		font-weight: 600;
+		font-weight: 300;
 		letter-spacing: var(--tracking-display);
 		line-height: 1;
 		opacity: .85;
@@ -153,13 +144,13 @@
 		flex: 1;
 		flex-direction: column;
 		gap: 6px;
-		padding: 16px 48px 18px 18px;
+		padding: 14px 32px 0 0;
 	}
 	.card-title {
 		font-size: var(--text-lg);
-		font-weight: 600;
+		font-weight: 500;
 		line-height: 1.3;
-		letter-spacing: var(--tracking-snug);
+		letter-spacing: -.012em;
 	}
 	.card-desc {
 		display: -webkit-box;
@@ -173,10 +164,12 @@
 	}
 	.card-arrow {
 		position: absolute;
-		right: 16px;
-		bottom: 18px;
+		right: 0;
+		bottom: auto;
+		top: calc(100% - 3.1rem);
 		color: var(--manual-muted);
 		transition: color .2s ease, transform .2s var(--manual-ease);
 	}
-	.page-card:hover .card-arrow { color: var(--manual-brand); transform: translate(2px, -2px); }
+	.page-card:hover .card-arrow { color: var(--manual-ink); transform: translate(2px, -2px); }
+	.page-card:hover .card-title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 </style>

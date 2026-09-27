@@ -6,7 +6,7 @@
 </script>
 
 <script lang="ts">
-	import { IconX, IconChevronLeft, IconChevronRight, IconDownload } from '@tabler/icons-svelte';
+	import { IconX, IconChevronLeft, IconChevronRight, IconDownload } from '$lib/icons';
 	import { focusTrap } from '$lib/actions/focus-trap';
 	import { useManualStrings } from '$lib/manual/ui-strings';
 

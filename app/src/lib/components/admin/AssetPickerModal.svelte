@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
-	import { IconSearch, IconX, IconUpload, IconPhoto } from '@tabler/icons-svelte';
+	import { IconSearch, IconX, IconUpload, IconPhoto } from '$lib/icons';
 	import AssetThumb from '$lib/components/admin/AssetThumb.svelte';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import Tabs from '$lib/components/ui/Tabs.svelte';

@@ -5,7 +5,7 @@
 	import PageCards from '$lib/components/manual/PageCards.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { useManualStrings, type ManualLanguage } from '$lib/manual/ui-strings';
-	import { IconArrowLeft, IconArrowRight, IconChevronDown, IconChevronRight } from '@tabler/icons-svelte';
+	import { IconArrowLeft, IconArrowRight, IconChevronDown, IconChevronRight } from '$lib/icons';
 
 	const { data }: { data: PageData } = $props();
 	const strings = useManualStrings();
@@ -242,12 +242,20 @@
 	}
 	.page-layout.has-toc { grid-template-columns: minmax(0, 1fr) 200px; }
 	.article { min-width: 0; }
+	/* Editorial rhythm: a titled block opens a new section (hairline + generous
+	   space); an untitled block continues the section above it, so it follows
+	   at reading distance instead of chapter distance. */
 	.blocks {
 		display: flex;
 		flex-direction: column;
-		gap: clamp(3.5rem, 6vw, 5.5rem);
 		container-type: inline-size;
 		container-name: manual-blocks;
+	}
+	.blocks > :global(* + .manual-block) { margin-top: var(--manual-flow-gap); }
+	.blocks > :global(* + .manual-block:not(.no-context)) {
+		margin-top: var(--manual-section-gap);
+		padding-top: var(--manual-section-gap-inner);
+		border-top: 1px solid var(--manual-border);
 	}
 
 	/* ── ToC ─────────────────────────────────────────────────────────────── */
@@ -351,12 +359,10 @@
 			top: calc(var(--manual-topbar) + 8px);
 			z-index: 20;
 			margin-bottom: -8px;
-			border: 1px solid var(--manual-border);
-			border-radius: calc(var(--manual-radius) + 4px);
-			background: color-mix(in srgb, var(--manual-surface) 92%, transparent);
+			border-block: 1px solid var(--manual-border);
+			background: color-mix(in srgb, var(--manual-paper) 90%, transparent);
 			-webkit-backdrop-filter: blur(12px);
 			backdrop-filter: blur(12px);
-			box-shadow: var(--manual-shadow-sm);
 		}
 		.toc-mobile summary {
 			display: flex;
@@ -364,9 +370,9 @@
 			justify-content: space-between;
 			gap: 12px;
 			min-height: 44px;
-			padding: 0 14px;
-			font-size: var(--text-base);
-			font-weight: 600;
+			padding: 0;
+			font-size: var(--text-sm);
+			font-weight: 500;
 			list-style: none;
 			cursor: pointer;
 		}
@@ -388,7 +394,7 @@
 			font-size: var(--text-base);
 			text-decoration: none;
 		}
-		.toc-mobile nav a.active { color: var(--manual-brand); font-weight: 600; background: color-mix(in srgb, var(--manual-brand) 7%, transparent); }
+		.toc-mobile nav a.active { color: var(--manual-ink); font-weight: 500; }
 	}
 	@media (max-width: 900px) {
 		.page-layout { width: auto; padding: 0 16px; }

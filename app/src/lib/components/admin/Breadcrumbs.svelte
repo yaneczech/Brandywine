@@ -7,7 +7,7 @@
 </script>
 
 <script lang="ts">
-	import { IconChevronRight } from '@tabler/icons-svelte';
+	import { IconChevronRight } from '$lib/icons';
 
 	let {
 		items,

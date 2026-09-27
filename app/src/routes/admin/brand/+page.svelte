@@ -25,7 +25,7 @@
 		IconArrowsExchange,
 		IconX,
 		IconTypography
-	} from '@tabler/icons-svelte';
+	} from '$lib/icons';
 	import ManualThemeColorField from '$lib/components/admin/ManualThemeColorField.svelte';
 	import AssetThumb from '$lib/components/admin/AssetThumb.svelte';
 	import AssetPickerModal from '$lib/components/admin/AssetPickerModal.svelte';

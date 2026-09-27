@@ -3,7 +3,7 @@
   weights, info, glyph map and a live type tester.
 -->
 <script lang="ts">
-	import { IconDownload, IconExternalLink, IconChevronDown } from '@tabler/icons-svelte';
+	import { IconDownload, IconExternalLink, IconChevronDown } from '$lib/icons';
 	import { useManualStrings } from '$lib/manual/ui-strings';
 
 	type FontRow = {
@@ -195,61 +195,59 @@
 </article>
 
 <style>
-	.fs {
-		overflow: hidden;
-		border: 1px solid var(--manual-border);
-		border-radius: calc(var(--manual-radius) + 4px);
-		background: var(--manual-surface);
-	}
+	/* The typeface is shown on a stage; everything about it is set as a
+	   hairline index underneath — no card. */
+	.fs { display: flex; flex-direction: column; }
 	.fs-hero {
 		display: flex; flex-direction: column; align-items: center; gap: .35rem;
-		padding: clamp(2rem, 6vw, 3.5rem) 1.25rem clamp(1.5rem, 4vw, 2.25rem);
+		padding: clamp(2.5rem, 7vw, 4.5rem) 1.25rem clamp(1.75rem, 4vw, 2.5rem);
+		border-radius: var(--manual-radius);
+		background: var(--manual-stage);
 		font-family: var(--fs-family);
 		color: var(--manual-ink);
 		text-align: center;
 	}
-	.fs-aa { font-size: clamp(5rem, 14vw, 9rem); font-weight: 600; line-height: .95; letter-spacing: var(--tracking-display); }
-	.fs-name { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 600; letter-spacing: var(--tracking-snug); }
+	.fs-aa { font-size: clamp(5rem, 14vw, 9rem); font-weight: 500; line-height: .95; letter-spacing: var(--tracking-display); }
+	.fs-name { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 500; letter-spacing: -.02em; }
 	.fs-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem .8rem; margin-top: .35rem; font-family: var(--manual-font); color: var(--manual-muted); font-size: var(--text-sm); }
-	.fs-role { color: var(--manual-muted); font-size: var(--text-2xs); font-weight: 500; text-transform: uppercase; letter-spacing: var(--tracking-eyebrow); }
-	.fs-desc { margin: 0; padding: 0 1.25rem 1.25rem; color: var(--manual-muted); font-size: var(--text-md); line-height: 1.6; text-align: center; }
-	.fs-rows { border-top: 1px solid var(--manual-border); }
-	.fs-row { border-top: 1px solid var(--manual-border); }
-	.fs-row:first-child { border-top: 0; }
+	.fs-role { color: var(--manual-muted); font-size: var(--manual-label-size); font-weight: 500; text-transform: uppercase; letter-spacing: var(--manual-label-tracking); }
+	.fs-desc { max-width: 60ch; margin: 0; padding: 1rem 0 0; color: var(--manual-muted); font-size: var(--text-md); line-height: 1.6; }
+	.fs-rows { margin-top: 1.25rem; border-top: 1px solid var(--manual-border); }
+	.fs-row { border-bottom: 1px solid var(--manual-border); }
 	.fs-row-action, .fs-row summary {
 		display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-		min-height: 56px; padding: .6rem 1.15rem; color: var(--manual-ink); font-size: var(--text-md); font-weight: 500;
+		min-height: 52px; padding: .5rem 0; color: var(--manual-ink); font-size: var(--text-md); font-weight: 500;
 	}
-	.fs-row summary { list-style: none; cursor: pointer; transition: background .15s ease; }
+	.fs-row summary { list-style: none; cursor: pointer; transition: color .15s ease; }
 	.fs-row summary::-webkit-details-marker { display: none; }
-	.fs-row summary:hover { background: var(--manual-hover); }
+	.fs-row summary:hover { color: color-mix(in srgb, var(--manual-ink) 72%, transparent); }
 	.fs-summary-end { display: inline-flex; align-items: center; gap: .5rem; color: var(--manual-muted); font-weight: 500; font-variant-numeric: tabular-nums; }
-	.fs-summary-end :global(svg) { transition: transform .2s ease; }
+	.fs-summary-end :global(svg) { transition: transform .25s var(--manual-ease, ease); }
 	details[open] > summary .fs-summary-end :global(svg) { transform: rotate(180deg); }
 	.fs-btn {
-		display: inline-flex; align-items: center; gap: .35rem; height: 36px; padding: 0 .95rem;
-		border: 1px solid var(--manual-border-strong); border-radius: var(--radius-full);
+		display: inline-flex; align-items: center; gap: .4rem; height: 32px; padding: 0 .75rem;
+		border: 1px solid var(--manual-border); border-radius: var(--manual-radius);
 		color: var(--manual-ink); font-size: var(--text-sm); font-weight: 500; text-decoration: none; white-space: nowrap;
-		transition: background .15s ease;
+		transition: border-color .15s ease;
 	}
-	.fs-btn:hover { background: var(--manual-hover); }
+	.fs-btn:hover { border-color: var(--manual-border-strong); }
 	.fs-btn small { color: var(--manual-muted); font-weight: 500; }
 
-	.fs-weights { margin: 0; padding: 0 1.15rem 1rem; list-style: none; font-family: var(--fs-family); }
+	.fs-weights { margin: 0; padding: 0 0 1rem; list-style: none; font-family: var(--fs-family); }
 	.fs-weights li { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: .55rem 0; border-top: 1px solid var(--manual-border); color: var(--manual-ink); font-size: clamp(1.1rem, 2.2vw, 1.5rem); }
 	.fs-weight-sample { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.fs-weight-num { flex: 0 0 auto; color: var(--manual-muted); font-family: var(--manual-font); font-size: var(--text-xs); font-weight: 500; font-variant-numeric: tabular-nums; }
 
-	.fs-info { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: .9rem 1.5rem; margin: 0; padding: .25rem 1.15rem 1.15rem; }
-	.fs-info dt { color: var(--manual-muted); font-size: var(--text-xs); font-weight: 500; }
+	.fs-info { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: .9rem 1.5rem; margin: 0; padding: .25rem 0 1.25rem; }
+	.fs-info dt { color: var(--manual-muted); font-size: var(--manual-label-size); font-weight: 500; text-transform: uppercase; letter-spacing: var(--manual-label-tracking); }
 	.fs-info dd { margin: .15rem 0 0; color: var(--manual-ink); font-size: var(--text-base); overflow-wrap: anywhere; }
 	.fs-info code { font-family: var(--manual-mono, monospace); font-size: var(--text-sm); }
 
-	.fs-glyphs { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr); gap: 1rem; padding: .25rem 1.15rem 1.15rem; font-family: var(--fs-family); }
+	.fs-glyphs { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr); gap: 1rem; padding: .25rem 0 1.25rem; font-family: var(--fs-family); }
 	.fs-glyph-big {
 		position: sticky; top: calc(var(--manual-topbar, 60px) + 16px); align-self: start;
 		display: grid; place-items: center; aspect-ratio: 1; border-radius: var(--manual-radius);
-		background: color-mix(in srgb, var(--manual-ink) 4%, var(--manual-surface)); color: var(--manual-ink);
+		background: var(--manual-stage); color: var(--manual-ink);
 		font-size: clamp(4rem, 10vw, 7.5rem); line-height: 1;
 	}
 	.fs-glyph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 2px; }
@@ -259,12 +257,12 @@
 	}
 	.fs-glyph-grid button:hover, .fs-glyph-grid button.active { background: var(--manual-ink); color: var(--manual-paper); }
 
-	.fs-tester { display: flex; flex-direction: column; gap: .75rem; padding: .25rem 1.15rem 1.15rem; }
+	.fs-tester { display: flex; flex-direction: column; gap: .75rem; padding: .25rem 0 1.25rem; }
 	.fs-tester-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.5rem; color: var(--manual-muted); font-size: var(--text-sm); }
 	.fs-tester-controls label { display: inline-flex; align-items: center; gap: .5rem; }
 	.fs-tester-controls input[type="range"] { width: 140px; accent-color: var(--manual-brand); }
 	.fs-tester-controls output { min-width: 3.5em; color: var(--manual-ink); font-weight: 500; font-variant-numeric: tabular-nums; }
-	.fs-tester-controls select { height: 30px; padding: 0 .5rem; border: 1px solid var(--manual-border); border-radius: var(--radius); background: var(--manual-paper); color: var(--manual-ink); font-family: inherit; }
+	.fs-tester-controls select { height: 30px; padding: 0 .5rem; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: transparent; color: var(--manual-ink); font-family: inherit; }
 	.fs-check input { accent-color: var(--manual-brand); }
 	.fs-tester-text {
 		width: 100%; min-height: 1.6em; padding: .5rem 0; border: 0; border-bottom: 1px solid var(--manual-border);

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { IconRotateClockwise, IconCheck, IconAlertTriangle } from '@tabler/icons-svelte';
+	import { IconRotateClockwise, IconCheck, IconAlertTriangle } from '$lib/icons';
 	import BrandColorPicker from './BrandColorPicker.svelte';
 	import { contrastRatio } from '$lib/utils/colors';
 
