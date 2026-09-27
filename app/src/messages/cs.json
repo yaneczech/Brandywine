@@ -933,5 +933,7 @@
 	"be_title": "Nadpis",
 	"be_choose_image": "Vybrat obrázek",
 	"be_choose_image_hint": "Z knihovny assetů, nebo nahrajte nový",
-	"assets_select_item": "Vybrat"
+	"assets_select_item": "Vybrat",
+	"brand_numbering_label": "Číslovat kapitoly a nadpisy",
+	"brand_numbering_hint": "Kapitoly, podkapitoly a sekce dostanou čísla podle hierarchie: 1, 1.1, 1.1.1. Úvodní stránka se nečísluje."
 }

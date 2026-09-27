@@ -38,6 +38,7 @@
 		styleRows    = [],
 		fontFileRows = [],
 		assetRows    = [],
+		sectionNumber = null,
 	}: {
 		block: Block;
 		colorRows?: ColorRow[];
@@ -46,6 +47,8 @@
 		styleRows?: StyleRow[];
 		fontFileRows?: FontFileRow[];
 		assetRows?: AssetRow[];
+		/** Chapter number for this block's heading (e.g. 1.2.3), when numbering is on */
+		sectionNumber?: string | null;
 	} = $props();
 
 	// ── Helpers ───────────────────────────────────────────────────────────────
@@ -443,7 +446,7 @@
 	<div class="divider divider-{dividerStyle}" id={anchorId} role="separator" style="--divider-space:{Math.min(20, Math.max(0, Number(block.config.spacing ?? 4)))}rem"></div>
 
 {:else if block.type === 'rich_text'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if richContent(block.config).length}
 			<div class="rich-flow">
 				{#each richContent(block.config) as item, itemIndex (itemIndex)}
@@ -465,7 +468,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'image'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if block.config.url}
 			<figure class="img-figure" class:full-width={block.config.fullWidth}
 					class:framed={block.config.frame}
@@ -492,7 +495,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'before_after'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if block.config.beforeUrl && block.config.afterUrl}
 			<div class="ba-wrap">
 				<div class="ba-slider" style="--split:{sliderValue}%">
@@ -514,7 +517,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'colors'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if filteredColors.length && colorDisplay !== 'cards'}
 			<div class="colors-wrap">
 				<div class="format-tabs" role="tablist" aria-label={t.colorFormat}>
@@ -725,7 +728,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'typography'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{@const pickedFontIds = list<string>('fontIds')}
 		{@const shownFonts = pickedFontIds.length ? fontRows.filter(f => pickedFontIds.includes(f.id)) : fontRows}
 		{#if shownFonts.length}
@@ -775,7 +778,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'logo_spec'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if block.config.logoUrl}
 			<div class="logo-spec">
 				<div class="logo-preview-wrap" style="--cz:{Math.min(3, Math.max(0.1, Number(block.config.clearspace ?? 1)))}">
@@ -813,7 +816,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'naming'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if block.config.markdown}
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -- markdownFallback() escapes input before adding paragraph markup. -->
 			<div class="prose">{@html markdownFallback(block.config.markdown)}</div>
@@ -821,7 +824,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'text_styles'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if styleRows.length}
 			<div class="text-styles">
 				{#each styleRows as style (style.id)}
@@ -849,7 +852,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'grid'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{@const gcols     = Math.max(1, Number(block.config.columns ?? 12))}
 		{@const grows     = Math.max(0, Number(block.config.rows ?? 0))}
 		{@const ggutter   = Number(block.config.gutter ?? 24)}
@@ -1052,7 +1055,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'do_dont'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if Array.isArray(block.config.items)}
 			<div class="do-dont-grid">
 				{#each block.config.items as item, i (i)}
@@ -1076,7 +1079,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'process'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if Array.isArray(block.config.steps)}
 			<ol class="process-list">
 				{#each block.config.steps as step, i (i)}
@@ -1093,7 +1096,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'cards'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if Array.isArray(block.config.cards) && block.config.cards.length}
 			<div class="cards-grid">
 				{#each block.config.cards as card, i (i)}
@@ -1114,7 +1117,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'chart'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if block.config.data}
 			{@const lines = String(block.config.data).trim().split('\n').filter(Boolean)}
 			{@const entries = lines.map(l => { const [label, val] = l.split(':'); return { label: label?.trim() ?? '', value: Math.min(100, Math.max(0, Number(val?.trim() ?? 0))) }; })}
@@ -1170,7 +1173,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'accordion'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if Array.isArray(block.config.items)}
 			<div class="accordion">
 				{#each block.config.items as item, i (i)}
@@ -1187,7 +1190,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'table'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if Array.isArray(block.config.headers)}
 			<div class="table-wrap">
 				<table class="block-table">
@@ -1205,7 +1208,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'html'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if block.config.html}
 			{#if block.config.showPreview !== false}
 				<iframe class="html-preview" title={t.htmlPreview} sandbox="" srcdoc={sandboxedHtmlPreview(block.config.html)}></iframe>
@@ -1215,7 +1218,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'code'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		<div class="code-shell">
 			<div class="code-head">
 				<span class="code-lang">{cfgStr('language') || 'code'}</span>
@@ -1228,7 +1231,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'typo_rules'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if Array.isArray(block.config.languages) && block.config.languages.length}
 			{@const langs = block.config.languages as Array<{ lang: string; label: string; rules: Array<{ category: string; rule: string; correct?: string; wrong?: string }> }>}
 			<!-- language tabs -->
@@ -1277,7 +1280,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'image_gallery' || block.type === 'carousel'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{@const galleryAssets = assetsForBlock(block.config, true, true)}
 		{#if galleryAssets.length}
 			{@const lbImages = galleryAssets.map((asset) => ({ src: assetSrc(asset.storagePath), alt: asset.filename.replace(/\.[^.]+$/, ''), caption: block.config.showCaptions === false ? undefined : asset.filename, download: assetDownload(asset) }))}
@@ -1316,7 +1319,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'icons'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{@const iconAssets = assetsForBlock(block.config, true, true)}
 		{#if block.config.description}<p class="block-text">{block.config.description}</p>{/if}
 		{#if iconAssets.length}
@@ -1334,7 +1337,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'asset_gallery'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{@const galleryAssets = assetsForBlock(block.config)}
 		{#if galleryAssets.length}
 			<div class="asset-gallery" class:list={block.config.layout === 'list'}>
@@ -1354,7 +1357,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'download'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{@const downloadAssets = assetsForBlock(block.config)}
 		{#if block.config.description}<p class="block-text download-description">{block.config.description}</p>{/if}
 		{#if downloadAssets.length}
@@ -1374,7 +1377,7 @@
 {:else if block.type === 'font_usage'}
 	{@const usageRows = list<{ label: string; fontIds?: string[] }>('rows').filter(r => r?.label)}
 	{@const usageFonts = (() => { const ids = new Set(usageRows.flatMap(r => r.fontIds ?? [])); return fontRows.filter(f => ids.has(f.id)); })()}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if usageRows.length && usageFonts.length}
 			<div class="table-wrap">
 				<table class="block-table usage-table">
@@ -1400,7 +1403,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'logo_download'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		<LogoDownload blockId={block.id} config={block.config} />
 	</ManualBlockShell>
 
@@ -1413,7 +1416,7 @@
 		})
 		.filter((item): item is { hex: string; label: string; percent: number } => !!item && item.percent > 0)}
 	{@const ratioTotal = ratioItems.reduce((sum, item) => sum + item.percent, 0) || 1}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if ratioItems.length}
 			<div class="ratio-block">
 				<div class="ratio-bar" role="img" aria-label={ratioItems.map((i) => `${i.label} ${Math.round(i.percent / ratioTotal * 100)} %`).join(', ')}>
@@ -1437,7 +1440,7 @@
 	{@const bg = /^#[0-9a-f]{6}$/i.test(contrastBg) ? contrastBg : '#ffffff'}
 	{@const ratio = wcagContrast(fg, bg)}
 	{@const paletteForChecker = colorRows.length ? colorRows : []}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		<div class="cc-block">
 			<div class="cc-preview" style="background:{bg}; color:{fg}">
 				<span class="cc-big">Aa</span>
@@ -1479,7 +1482,7 @@
 
 {:else if block.type === 'hotspots'}
 	{@const spots = list<{ x: number; y: number; title?: string; text?: string }>('points').filter((p) => Number.isFinite(Number(p?.x)) && Number.isFinite(Number(p?.y)))}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if cfgStr('imageUrl')}
 			<figure class="hs-figure">
 				<div class="hs-stage">
@@ -1519,7 +1522,7 @@
 	</ManualBlockShell>
 
 {:else if block.type === 'quote'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if cfgStr('quote').trim()}
 			<figure class="quote-block" class:large={cfgStr('size') !== 'normal'}>
 				<span class="quote-mark" aria-hidden="true"><IconQuote size={30} stroke={1.5} /></span>
@@ -1536,7 +1539,7 @@
 
 {:else if block.type === 'callout'}
 	{@const tone = ['info', 'success', 'warning', 'danger'].includes(cfgStr('tone')) ? cfgStr('tone') : 'info'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if cfgStr('title') || cfgStr('text')}
 			<div class="callout-block tone-{tone}" role="note">
 				<span class="callout-block-icon" aria-hidden="true">
@@ -1555,7 +1558,7 @@
 
 {:else if block.type === 'stats'}
 	{@const stats = list<{ value: string; label: string; description?: string }>('items').filter((item) => item?.value || item?.label)}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if stats.length}
 			<div class="stats-grid" style="--stat-cols:{Math.min(4, stats.length)}">
 				{#each stats as stat, si (si)}
@@ -1572,7 +1575,7 @@
 {:else if block.type === 'embed'}
 	{@const embed = resolveEmbed(block.config.url)}
 	{@const ratio = ['16/9', '4/3', '1/1', '9/16', '21/9'].includes(cfgStr('ratio')) ? cfgStr('ratio') : '16/9'}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if embed.kind === 'iframe'}
 			<figure class="embed-figure">
 				<div class="embed-frame" style="aspect-ratio:{ratio}">
@@ -1620,7 +1623,7 @@
 {:else if block.type === 'text_image'}
 	{@const img = cfgStr('imageUrl')}
 	{@const body = richContent(block.config)}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		<div class="text-image" class:image-left={cfgStr('imagePosition') === 'left'} class:no-image={!img}>
 			<div class="text-image-copy">
 				{#if cfgStr('title')}<h3>{cfgStr('title')}</h3>{/if}
@@ -1645,7 +1648,7 @@
 
 {:else if block.type === 'links'}
 	{@const links = list<{ title: string; url: string; description?: string }>('items').filter((item) => item?.url)}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if links.length}
 			<ul class="links-grid">
 				{#each links as link, li (li)}
@@ -1666,7 +1669,7 @@
 	</ManualBlockShell>
 
 {:else}
-	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		<div class="muted-block">
 			<span class="block-type-label">{block.type}</span>
 		</div>

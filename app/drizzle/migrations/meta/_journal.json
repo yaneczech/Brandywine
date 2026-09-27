@@ -162,6 +162,13 @@
       "when": 1780817683291,
       "tag": "0021_fix_asset_urls",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1780817683292,
+      "tag": "0022_manual_numbering",
+      "breakpoints": true
     }
   ]
 }

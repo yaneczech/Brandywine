@@ -933,5 +933,7 @@
 	"be_title": "Title",
 	"be_choose_image": "Choose an image",
 	"be_choose_image_hint": "From the asset library, or upload a new one",
-	"assets_select_item": "Select"
+	"assets_select_item": "Select",
+	"brand_numbering_label": "Number chapters and headings",
+	"brand_numbering_hint": "Chapters, subchapters and sections are numbered by hierarchy: 1, 1.1, 1.1.1. The landing page is not numbered."
 }

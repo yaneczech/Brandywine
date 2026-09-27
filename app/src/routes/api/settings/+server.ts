@@ -68,6 +68,10 @@ function normalizeValue(key: string, value: unknown): unknown {
 		if (value !== null && typeof value === 'object' && !Array.isArray(value)) return value;
 		error(400, 'Invalid locale rules');
 	}
+	if (key === 'manualNumbering') {
+		if (typeof value === 'boolean') return value;
+		error(400, 'Invalid manual numbering flag');
+	}
 	if (key === 'manualBorderRadius') {
 		const radius = Number(value);
 		if (Number.isFinite(radius) && radius >= 0 && radius <= 32) return Math.round(radius);
@@ -113,6 +117,7 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 		'manualAccentColor',
 		'manualAccentColorDark',
 		'manualBorderRadius',
+		'manualNumbering',
 		'showAttribution',
 		'customFooterText',
 		'accessMode',

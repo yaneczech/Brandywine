@@ -22,11 +22,13 @@
 		id,
 		type,
 		config,
+		number = null,
 		children
 	}: {
 		id?: string;
 		type: string;
 		config: Record<string, unknown>;
+		number?: string | null;
 		children?: Snippet;
 	} = $props();
 
@@ -66,6 +68,7 @@
 		<aside class="block-context">
 			{#if heading}
 				<h2>
+					{#if number}<span class="section-num">{number}</span>{/if}
 					{heading}
 					{#if id}
 						<button class="anchor-btn" onclick={copyAnchorLink} aria-label={strings().copyLink} title={strings().copyLink}>
@@ -153,6 +156,14 @@
 		letter-spacing: -.028em;
 		line-height: 1.1;
 		text-wrap: balance;
+	}
+	/* Chapter number: set in the heading's size but light and muted, with a
+	   fixed gap so numbered headings align down the page */
+	.section-num {
+		margin-right: .1em;
+		color: var(--manual-muted);
+		font-weight: 400;
+		font-variant-numeric: tabular-nums;
 	}
 	.anchor-btn {
 		display: inline-grid;

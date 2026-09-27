@@ -25,7 +25,8 @@
 		pages,
 		baseHref = '',
 		previews = {},
-	}: { pages: CardPage[]; baseHref?: string; previews?: Record<string, Preview> } = $props();
+		numbers = new Map<string, string>(),
+	}: { pages: CardPage[]; baseHref?: string; previews?: Record<string, Preview>; numbers?: Map<string, string> } = $props();
 
 	function assetSrc(path: string | null | undefined): string | null {
 		if (!path) return null;
@@ -60,11 +61,11 @@
 							<img src={assetSrc(preview.src)} alt="" loading="lazy" decoding="async" />
 						</span>
 					{:else}
-						<span class="card-index" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+						{#if !numbers.size}<span class="card-index" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>{/if}
 					{/if}
 				</div>
 				<div class="card-body">
-					<span class="card-title">{p.title}</span>
+					<span class="card-title">{#if numbers.get(p.id)}<span class="card-num">{numbers.get(p.id)}</span>{/if}{p.title}</span>
 					{#if p.description}
 						<span class="card-desc">{p.description}</span>
 					{/if}
@@ -171,5 +172,6 @@
 		transition: color .2s ease, transform .2s var(--manual-ease);
 	}
 	.page-card:hover .card-arrow { color: var(--manual-ink); transform: translate(2px, -2px); }
+	.card-num { margin-right: .5em; color: var(--manual-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
 	.page-card:hover .card-title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 </style>

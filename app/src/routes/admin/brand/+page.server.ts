@@ -26,6 +26,7 @@ const DEFAULTS = {
 	manualMutedColor: '#737373',
 	manualAccentColor: null,
 	manualBorderRadius: 8,
+	manualNumbering: false,
 	accessMode: 'public',
 	accessPassword: null,
 	emailWhitelist: [],

@@ -57,6 +57,7 @@
 		manualAccentColor?: string | null;
 		manualAccentColorDark?: string | null;
 		manualBorderRadius?: number | null;
+		manualNumbering?: boolean | null;
 		logoDarkPath?: string | null;
 	};
 
@@ -804,6 +805,13 @@
 					<small>{uiLanguage === 'cs'
 						? 'Ovlivní karty, tlačítka, navigaci, boxy a obsahové bloky veřejného manuálu.'
 						: 'Affects cards, buttons, navigation, boxes, and content blocks in the public manual.'}</small>
+				</label>
+				<label class="switch-row">
+					<input type="checkbox" checked={Boolean(s.manualNumbering)} onchange={(e) => (s.manualNumbering = (e.currentTarget as HTMLInputElement).checked)} />
+					<span>
+						<strong>{m.brand_numbering_label()}</strong>
+						<small>{m.brand_numbering_hint()}</small>
+					</span>
 				</label>
 			</div>
 		</section>

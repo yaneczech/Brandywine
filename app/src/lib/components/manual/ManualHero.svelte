@@ -14,6 +14,7 @@
 		bgColor = null,
 		textColor = null,
 		size = 'page',
+		number = null,
 		eyebrow,
 		children,
 	}: {
@@ -24,6 +25,7 @@
 		bgColor?: string | null;
 		textColor?: string | null;
 		size?: 'page' | 'landing';
+		number?: string | null;
 		eyebrow?: Snippet;
 		children?: Snippet;
 	} = $props();
@@ -70,7 +72,7 @@
 >
 	<div class="hero-copy">
 		{#if eyebrow}<div class="hero-eyebrow">{@render eyebrow()}</div>{/if}
-		<h1>{title}</h1>
+		<h1>{#if number}<span class="hero-num">{number}</span>{/if}{title}</h1>
 		{#if description}
 			<p class="hero-desc">{description}</p>
 		{/if}
@@ -87,13 +89,16 @@
 		display: flex;
 		align-items: flex-end;
 		width: calc(100% + var(--manual-gutter));
-		min-height: clamp(180px, 20vw, 280px);
-		margin: 0 0 clamp(32px, 4vw, 56px) calc(-1 * var(--manual-gutter));
-		padding: clamp(40px, 5vw, 72px) var(--manual-page-pad) clamp(32px, 3.6vw, 52px);
+		margin: 0 0 48px calc(-1 * var(--manual-gutter));
+		padding: 56px var(--manual-page-pad) 40px;
 		border-bottom: 1px solid var(--manual-border);
 		overflow: hidden;
 	}
-	.hero.landing { min-height: clamp(260px, 32vw, 440px); }
+	/* Height only where there is a picture or a colour field to show; a plain
+	   header is as tall as its words, so the content starts above the fold */
+	.hero.has-bg, .hero.has-img { min-height: 240px; }
+	.hero.landing.has-bg, .hero.landing.has-img { min-height: 360px; }
+	.hero.landing { padding-top: 72px; padding-bottom: 48px; }
 	.hero.has-bg {
 		--hero-muted: color-mix(in srgb, var(--hero-text) 76%, transparent);
 		background: var(--hero-bg);
@@ -141,22 +146,23 @@
 		margin: 0;
 		max-width: 20ch;
 		color: var(--hero-text);
-		font-size: clamp(2.1rem, 4.2vw, 3.9rem);
-		font-weight: 600;
-		line-height: 1.02;
+		font-size: clamp(2rem, 3.2vw, 3rem);
+		font-weight: 500;
+		line-height: 1.05;
 		letter-spacing: var(--tracking-display);
 		text-wrap: balance;
 	}
-	.hero.landing h1 { font-size: clamp(2.5rem, 6vw, 5.4rem); max-width: 16ch; }
+	.hero-num { margin-right: .3em; color: var(--hero-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+	.hero.landing h1 { font-size: clamp(2.5rem, 4.4vw, 4rem); max-width: 16ch; }
 	.hero-desc {
 		max-width: 62ch;
 		margin: 16px 0 0;
 		color: var(--hero-muted);
-		font-size: clamp(1rem, 1.25vw, 1.2rem);
+		font-size: var(--text-xl);
 		line-height: 1.55;
 		text-wrap: pretty;
 	}
-	.hero-extra { margin-top: 28px; }
+	.hero-extra { margin-top: 24px; }
 
 	@media (max-width: 900px) {
 		.hero {
@@ -165,6 +171,6 @@
 			margin: 0 0 32px;
 			padding: 40px 16px 28px;
 		}
-		.hero.landing { min-height: 0; padding-top: 56px; }
+		.hero.landing { padding-top: 48px; }
 	}
 </style>

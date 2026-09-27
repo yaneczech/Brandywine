@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ensureContrast } from '$lib/ui/contrast';
+	import { pageNumbers } from '$lib/manual/numbering';
 	import type { LayoutData } from './$types';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -26,6 +27,7 @@
 	};
 
 	const brand = $derived(data.settings);
+	const chapterNumbers = $derived(brand?.manualNumbering ? pageNumbers(data.pages ?? [], data.sectionCounts ?? {}) : new Map<string, string>());
 	const brandName = $derived(brand?.name ?? 'Brand Manual');
 	const manualLanguage = $derived((brand?.defaultLanguage === 'cs' ? 'cs' : 'en') as ManualLanguage);
 	const t = $derived(manualStrings(manualLanguage));
@@ -521,6 +523,7 @@
 					class:active={exactActive}
 					class:ancestor={isActive(href) && !exactActive}
 					aria-current={exactActive ? 'page' : undefined}>
+					{#if chapterNumbers.get(p.id)}<span class="chapter-num">{chapterNumbers.get(p.id)}</span>{/if}
 					<span>{p.title}</span>
 				</a>
 				{#if kids.length}
@@ -927,6 +930,15 @@
 		transition: color .14s ease;
 	}
 	.nav-item span { overflow-wrap: anywhere; }
+	/* Chapter numbers: quiet, tabular, aligned as a column */
+	.chapter-num {
+		flex: 0 0 auto;
+		min-width: 2.2em;
+		margin-right: 8px;
+		color: var(--manual-muted);
+		font-variant-numeric: tabular-nums;
+		font-weight: 400;
+	}
 	.nav-item:hover { color: var(--manual-ink); }
 	/* Current page: ink text with a short brand rule — located, not highlighted */
 	.nav-item.active { color: var(--manual-ink); font-weight: 500; }

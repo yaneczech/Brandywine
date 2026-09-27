@@ -56,6 +56,8 @@ export const brandSettings = pgTable('brand_settings', {
 	manualAccentColor: text('manual_accent_color'),
 	manualAccentColorDark: text('manual_accent_color_dark'),
 	manualBorderRadius: integer('manual_border_radius').notNull().default(8),
+	// Hierarchical chapter numbers (1, 1.1, 1.1.1) in navigation and headings
+	manualNumbering: boolean('manual_numbering').notNull().default(false),
 	// Access control
 	accessMode: text('access_mode').$type<AccessMode>().notNull().default('public'),
 	accessPassword: text('access_password'),

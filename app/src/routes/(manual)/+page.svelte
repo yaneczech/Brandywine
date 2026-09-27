@@ -5,6 +5,7 @@
 	import PageCards from '$lib/components/manual/PageCards.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import type { ManualLanguage } from '$lib/manual/ui-strings';
+	import { pageNumbers } from '$lib/manual/numbering';
 
 	const { data }: { data: PageData } = $props();
 
@@ -23,6 +24,7 @@
 	};
 
 	const brand = $derived(data.settings);
+	const chapterNumbers = $derived(brand?.manualNumbering ? pageNumbers(data.pages ?? [], data.sectionCounts ?? {}) : new Map<string, string>());
 	const brandName = $derived(brand?.name ?? 'Brand Manual');
 	const manualLanguage = $derived((brand?.defaultLanguage === 'cs' ? 'cs' : 'en') as ManualLanguage);
 	const pages = $derived((data.pages ?? []) as ManualPage[]);
@@ -68,7 +70,7 @@
 					{/each}
 				</div>
 			{:else if topLevelPages.length}
-				<PageCards pages={topLevelPages} previews={data.previews} />
+				<PageCards pages={topLevelPages} previews={data.previews} numbers={chapterNumbers} />
 			{:else}
 				<section class="empty">
 					<p>{m.manual_empty_sections({}, { locale: manualLanguage })}</p>
