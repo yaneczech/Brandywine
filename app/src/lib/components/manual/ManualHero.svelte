@@ -152,7 +152,18 @@
 		letter-spacing: var(--tracking-display);
 		text-wrap: balance;
 	}
-	.hero-num { margin-right: .3em; color: var(--hero-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+	.hero-num {
+		/* Superior figure scaled to the title: its cap line meets the title's
+		   (raise = cap height × (1 − .32) ÷ .32 ≈ 1.49em), whatever the size */
+		position: relative;
+		top: -1.49em;
+		margin-right: .35em;
+		color: var(--hero-muted);
+		font-size: .32em;
+		font-weight: 400;
+		letter-spacing: 0;
+		font-variant-numeric: tabular-nums;
+	}
 	.hero.landing h1 { font-size: clamp(2.5rem, 4.4vw, 4rem); max-width: 16ch; }
 	.hero-desc {
 		max-width: 62ch;

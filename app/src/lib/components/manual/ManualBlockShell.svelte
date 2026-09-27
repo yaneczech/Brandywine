@@ -159,10 +159,16 @@
 	}
 	/* Chapter number: set in the heading's size but light and muted, with a
 	   fixed gap so numbered headings align down the page */
+	/* Chapter number: a small superior figure on the cap line — present for
+	   orientation, quiet next to the heading itself */
 	.section-num {
-		margin-right: .1em;
+		align-self: flex-start;
+		margin: .3em .2em 0 0;
 		color: var(--manual-muted);
+		font-size: var(--text-sm);
 		font-weight: 400;
+		letter-spacing: 0;
+		line-height: 1;
 		font-variant-numeric: tabular-nums;
 	}
 	.anchor-btn {

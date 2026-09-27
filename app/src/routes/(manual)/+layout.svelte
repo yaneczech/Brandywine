@@ -933,9 +933,10 @@
 	/* Chapter numbers: quiet, tabular, aligned as a column */
 	.chapter-num {
 		flex: 0 0 auto;
-		min-width: 2.2em;
-		margin-right: 8px;
+		min-width: 1.9em;
+		margin-right: 4px;
 		color: var(--manual-muted);
+		font-size: var(--text-sm);
 		font-variant-numeric: tabular-nums;
 		font-weight: 400;
 	}
