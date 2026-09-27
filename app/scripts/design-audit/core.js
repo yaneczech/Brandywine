@@ -191,7 +191,7 @@
 	const offType = new Map();
 	for (const el of all) {
 		const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
-		if (!own || isBrandMaterial(el) || el.closest('svg') || el.closest('h1,h2,.stat-value,.cc-big,.card-index,.pv-type,.quote-block,.hero,.manual-hero,.fs-aa,.page-title')) continue;
+		if (!own || isBrandMaterial(el) || el.closest('svg') || el.closest('h1,h2,.stat-value,.cc-big,.card-index,.pv-type,.pv-fallback-mark,.quote-block,.hero,.manual-hero,.fs-aa,.page-title')) continue;
 		const fs = Math.round(parseFloat(getComputedStyle(el).fontSize) * 10) / 10;
 		if (![...scale].some((s) => Math.abs(s - fs) < 0.6)) {
 			const k = fs + '|' + describe(el);
@@ -237,7 +237,7 @@
 		}).filter(Boolean));
 	const brandHue = tokenHues(['--color-accent', '--manual-brand'])[0];
 	for (const el of all) {
-		if (isBrandMaterial(el) || el.closest('svg,[role=dialog],.toast,[role=status]')) continue;
+		if (isBrandMaterial(el) || el.closest('svg,[role=dialog],.toast,[role=status],.content-callout,.intro-callout,.block-callout')) continue;
 		const c = parseColor(getComputedStyle(el).backgroundColor);
 		if (!c || c.a < 0.04) continue;
 		const bg = effectiveBg(el); if (!bg) continue;

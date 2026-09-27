@@ -257,16 +257,17 @@
 	.ld-variants button.active { color: var(--manual-ink); border-bottom-color: var(--manual-ink); }
 	.ld-card { display: flex; flex-direction: column; }
 	.ld-stage {
-		display: grid; place-items: center; min-height: 280px; padding: clamp(2rem, 7%, 4rem);
+		display: grid; place-items: center; box-sizing: border-box;
+		height: clamp(280px, 42vw, 420px); padding: clamp(2rem, 7%, 4rem); overflow: hidden;
 		border-radius: var(--manual-radius);
 		background-color: #fff;
 		box-shadow: inset 0 0 0 1px color-mix(in srgb, #000 7%, transparent);
 	}
 	.ld-stage.dark { background-color: #111; box-shadow: none; }
 	.ld-canvas {
-		position: relative; width: min(100%, 420px);
+		position: relative; max-width: 100%; max-height: 100%;
 		outline: 1px dashed color-mix(in srgb, var(--manual-brand) 60%, transparent); outline-offset: 0;
-		transition: aspect-ratio .15s ease;
+		transition: width .15s ease, aspect-ratio .15s ease;
 	}
 	.ld-canvas:not([style*="aspect-ratio"]) { min-height: 120px; }
 	.ld-logo { position: absolute; }

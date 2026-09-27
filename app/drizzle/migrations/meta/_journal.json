@@ -169,6 +169,13 @@
       "when": 1780817683292,
       "tag": "0022_manual_numbering",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1780817683293,
+      "tag": "0023_manual_art_direction",
+      "breakpoints": true
     }
   ]
 }

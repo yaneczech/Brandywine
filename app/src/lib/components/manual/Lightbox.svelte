@@ -153,7 +153,7 @@
 		max-width: min(1600px, 100%);
 		max-height: calc(100dvh - 150px);
 		object-fit: contain;
-		border-radius: var(--radius-sm);
+		border-radius: var(--manual-control-radius);
 		pointer-events: auto;
 		animation: lb-img .22s cubic-bezier(.2,.7,.2,1);
 	}

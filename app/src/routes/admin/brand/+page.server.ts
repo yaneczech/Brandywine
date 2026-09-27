@@ -26,6 +26,8 @@ const DEFAULTS = {
 	manualMutedColor: '#737373',
 	manualAccentColor: null,
 	manualBorderRadius: 8,
+	manualTypographyPreset: 'neutral',
+	manualLandingLayout: 'grid',
 	manualNumbering: false,
 	accessMode: 'public',
 	accessPassword: null,

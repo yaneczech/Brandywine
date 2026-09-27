@@ -29,6 +29,7 @@
 	const brand = $derived(data.settings);
 	const chapterNumbers = $derived(brand?.manualNumbering ? pageNumbers(data.pages ?? [], data.sectionCounts ?? {}) : new Map<string, string>());
 	const brandName = $derived(brand?.name ?? 'Brand Manual');
+	const typographyPreset = $derived(brand?.manualTypographyPreset ?? 'neutral');
 	const manualLanguage = $derived((brand?.defaultLanguage === 'cs' ? 'cs' : 'en') as ManualLanguage);
 	const t = $derived(manualStrings(manualLanguage));
 	setManualStrings(() => t);
@@ -330,6 +331,8 @@
 <div
 	class="manual-shell"
 	class:is-dark={isDark}
+	class:typography-editorial={typographyPreset === 'editorial'}
+	class:typography-technical={typographyPreset === 'technical'}
 	class:follows-system={effectiveThemeMode === 'system' || (manualThemeMode === 'toggle' && !userTheme)}
 	style={manualShellStyle}
 	lang={manualLanguage}
@@ -363,20 +366,20 @@
 			</a>
 
 			<div class="topbar-right">
-				<button class="search-trigger" onclick={openSearch} aria-label="{t.search} ({isMac ? '⌘' : 'Ctrl'}K)">
-					<IconSearch size={15} stroke={1.9} />
+				<button class="search-trigger header-action" onclick={openSearch} aria-label="{t.search} ({isMac ? '⌘' : 'Ctrl'}K)">
+					<IconSearch size={18} />
 					<span class="search-trigger-label">{t.searchPlaceholder}</span>
 					<kbd class="search-kbd">{isMac ? '⌘' : 'Ctrl'} K</kbd>
 				</button>
 
 				{#if manualThemeMode === 'toggle'}
 					<button
-						class="icon-btn"
+						class="icon-btn header-action"
 						onclick={() => setTheme(isDark ? 'light' : 'dark')}
 						aria-label={isDark ? t.themeLight : t.themeDark}
 						title={isDark ? t.themeLight : t.themeDark}
 					>
-						{#if isDark}<IconSun size={17} stroke={1.8} />{:else}<IconMoon size={17} stroke={1.8} />{/if}
+						{#if isDark}<IconSun size={18} />{:else}<IconMoon size={18} />{/if}
 					</button>
 				{/if}
 
@@ -571,7 +574,10 @@
 		--manual-flow-gap: 32px;
 		--manual-stage: color-mix(in srgb, var(--manual-ink) 3.5%, var(--manual-paper));
 		--manual-label-size: .6875rem;
-		--manual-label-tracking: .08em;
+			--manual-label-tracking: .08em;
+			--manual-display-weight: 500;
+			--manual-heading-tracking: -.028em;
+			--manual-body-leading: 1.6;
 		--manual-info: #2563eb;
 		--manual-success: #16a34a;
 		--manual-warning: #d97706;
@@ -609,6 +615,21 @@
 		--manual-shadow-lg: 0 24px 64px -12px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.06);
 		color-scheme: dark;
 	}
+	.manual-shell.typography-editorial {
+		--manual-display-weight: 400;
+		--manual-heading-tracking: -.04em;
+		--manual-body-leading: 1.7;
+		--manual-label-tracking: .1em;
+	}
+	.manual-shell.typography-technical {
+		--manual-display-weight: 600;
+		--manual-heading-tracking: -.012em;
+		--manual-body-leading: 1.52;
+		--manual-label-tracking: .06em;
+		--manual-section-gap: 56px;
+		--manual-section-gap-inner: 28px;
+		--manual-flow-gap: 24px;
+	}
 	@media (min-width: 900px) {
 		.manual-shell {
 			--manual-section-gap: 96px;
@@ -637,7 +658,7 @@
 	.manual-shell :global(:focus-visible) {
 		outline: 2px solid var(--manual-brand);
 		outline-offset: 2px;
-		border-radius: var(--radius-sm);
+		border-radius: var(--manual-control-radius);
 	}
 	.manual-shell :global(kbd) {
 		display: inline-flex;
@@ -648,7 +669,7 @@
 		padding: 0 4px;
 		border: 1px solid var(--manual-border-strong);
 		border-bottom-width: 2px;
-		border-radius: var(--radius-sm);
+		border-radius: var(--manual-control-radius);
 		background: var(--manual-surface);
 		color: var(--manual-muted);
 		font: 600 .68rem/1 var(--manual-font);
@@ -660,7 +681,7 @@
 		left: 10px;
 		z-index: 300;
 		padding: 8px 16px;
-		border-radius: var(--radius);
+		border-radius: var(--manual-control-radius);
 		background: var(--manual-ink);
 		color: var(--manual-paper);
 		font-size: var(--text-base);
@@ -699,7 +720,7 @@
 		margin-right: auto;
 		color: inherit;
 		text-decoration: none;
-		border-radius: var(--radius);
+		border-radius: var(--manual-control-radius);
 	}
 	.logo-img { display: block; width: auto; height: auto; max-width: 140px; max-height: 32px; }
 	.logo-fallback {
@@ -738,6 +759,8 @@
 		transition: background .15s ease, border-color .15s ease;
 	}
 	.icon-btn:hover { background: var(--manual-hover); }
+	.header-action { color: var(--manual-muted); }
+	.header-action:hover { color: var(--manual-ink); }
 	.mobile-menu-btn { display: none; margin-left: -8px; }
 
 	.search-trigger {
@@ -835,7 +858,7 @@
 		height: 24px;
 		padding: 0 8px;
 		border: 1px solid var(--manual-border-strong);
-		border-radius: var(--radius);
+		border-radius: var(--manual-control-radius);
 		background: transparent;
 		color: var(--manual-muted);
 		font: 600 .7rem/1 var(--manual-font);
@@ -862,7 +885,7 @@
 	.search-result-main { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
 	.search-result-crumbs { color: var(--manual-muted); font-size: var(--text-xs); font-weight: 500; }
 	.search-result-title { font-size: var(--text-md); font-weight: 500; color: var(--manual-ink); }
-	.search-result-title mark { background: color-mix(in srgb, var(--manual-brand) 20%, transparent); color: inherit; border-radius: var(--radius-xs); padding: 0 1px; }
+	.search-result-title mark { background: color-mix(in srgb, var(--manual-brand) 20%, transparent); color: inherit; border-radius: min(var(--manual-control-radius), 3px); padding: 0 1px; }
 	.search-result-desc { font-size: var(--text-sm); color: var(--manual-muted); line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	:global(.search-result-arrow) { flex: 0 0 auto; color: var(--manual-muted); opacity: 0; transition: opacity .12s ease; }
 	.search-result-item.active :global(.search-result-arrow) { opacity: 1; color: var(--manual-ink); }
@@ -964,7 +987,7 @@
 		width: 26px;
 		height: 26px;
 		border: 0;
-		border-radius: var(--radius);
+		border-radius: var(--manual-control-radius);
 		background: transparent;
 		color: var(--manual-muted);
 		cursor: pointer;

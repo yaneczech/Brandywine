@@ -35,6 +35,8 @@
 
 	type AccessMode = 'public' | 'password' | 'email_whitelist' | 'token';
 	type ManualThemeMode = 'light' | 'dark' | 'system' | 'toggle';
+	type ManualTypographyPreset = 'editorial' | 'neutral' | 'technical';
+	type ManualLandingLayout = 'editorial' | 'grid' | 'gallery';
 	type BrandColor  = { id: string; name: string; hex: string; paletteId: string | null };
 	type BrandPalette = { id: string; name: string };
 	const brandColors   = $derived((data.brandColors   ?? []) as BrandColor[]);
@@ -58,6 +60,8 @@
 		manualAccentColorDark?: string | null;
 		manualBorderRadius?: number | null;
 		manualNumbering?: boolean | null;
+		manualTypographyPreset?: ManualTypographyPreset | null;
+		manualLandingLayout?: ManualLandingLayout | null;
 		logoDarkPath?: string | null;
 	};
 
@@ -241,6 +245,35 @@
 		if (mode === 'dark') return 'The public manual always uses the dark palette.';
 		if (mode === 'toggle') return 'Visitors can switch between light and dark.';
 		return 'The manual follows the visitor device preference.';
+	}
+
+	function typographyPresetLabel(preset: ManualTypographyPreset) {
+		const labels = uiLanguage === 'cs'
+			? { editorial: 'Editorial', neutral: 'Neutrální', technical: 'Technický' }
+			: { editorial: 'Editorial', neutral: 'Neutral', technical: 'Technical' };
+		return labels[preset];
+	}
+
+	function typographyPresetDescription(preset: ManualTypographyPreset) {
+		const descriptions = uiLanguage === 'cs'
+			? {
+				editorial: 'Vzdušnější rytmus a výraznější titulky.',
+				neutral: 'Vyvážený univerzální rám pro většinu značek.',
+				technical: 'Kompaktnější, přesnější a informačně hustší.'
+			}
+			: {
+				editorial: 'Airier rhythm with more expressive headlines.',
+				neutral: 'A balanced frame for most brand systems.',
+				technical: 'More compact, precise, and information-dense.'
+			};
+		return descriptions[preset];
+	}
+
+	function landingLayoutLabel(layout: ManualLandingLayout) {
+		const labels = uiLanguage === 'cs'
+			? { editorial: 'Editorial', grid: 'Mřížka', gallery: 'Galerie' }
+			: { editorial: 'Editorial', grid: 'Grid', gallery: 'Gallery' };
+		return labels[layout];
 	}
 
 	function autoGenerateTheme() {
@@ -591,6 +624,42 @@
 					: 'Global color treatment for the public manual. Individual page hero colors are still controlled per page.'}</p>
 			</div>
 			<div class="panel">
+				<div class="direction-builder">
+					<div class="direction-group">
+						<div class="direction-head">
+							<strong>{uiLanguage === 'cs' ? 'Typografický režim' : 'Typography mode'}</strong>
+							<span>{uiLanguage === 'cs' ? 'Řídí hierarchii, rytmus a hustotu manuálu.' : 'Controls hierarchy, rhythm, and density.'}</span>
+						</div>
+						<div class="direction-option-grid">
+							{#each ['editorial', 'neutral', 'technical'] as preset (preset)}
+								<button type="button" class="direction-card typography-sample {preset}"
+									class:active={(s.manualTypographyPreset ?? 'neutral') === preset}
+									onclick={() => (s.manualTypographyPreset = preset as ManualTypographyPreset)}>
+									<span class="direction-sample" aria-hidden="true">Aa</span>
+									<strong>{typographyPresetLabel(preset as ManualTypographyPreset)}</strong>
+									<small>{typographyPresetDescription(preset as ManualTypographyPreset)}</small>
+								</button>
+							{/each}
+						</div>
+					</div>
+					<div class="direction-group">
+						<div class="direction-head">
+							<strong>{uiLanguage === 'cs' ? 'Kompozice úvodní stránky' : 'Landing composition'}</strong>
+							<span>{uiLanguage === 'cs' ? 'Určuje poměr a důraz karet kapitol.' : 'Sets chapter-card proportion and emphasis.'}</span>
+						</div>
+						<div class="direction-option-grid">
+							{#each ['editorial', 'grid', 'gallery'] as layout (layout)}
+								<button type="button" class="direction-card layout-sample {layout}"
+									class:active={(s.manualLandingLayout ?? 'grid') === layout}
+									onclick={() => (s.manualLandingLayout = layout as ManualLandingLayout)}>
+									<span class="layout-diagram" aria-hidden="true"><i></i><i></i><i></i></span>
+									<strong>{landingLayoutLabel(layout as ManualLandingLayout)}</strong>
+								</button>
+							{/each}
+						</div>
+					</div>
+				</div>
+
 				<div class="theme-mode-grid">
 					{#each ['light', 'dark', 'system', 'toggle'] as mode (mode)}
 						<button
@@ -984,6 +1053,32 @@
 	.swatch { width: 34px; height: 34px; border-radius: var(--radius); border: 1px solid var(--color-border); }
 	.theme-mode-grid { display: grid; gap: 12px; }
 	.theme-mode-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+	.direction-builder { display: grid; gap: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--color-border); }
+	.direction-group { display: grid; gap: 12px; }
+	.direction-head { display: flex; flex-direction: column; gap: 2px; }
+	.direction-head strong { font-size: var(--text-sm); font-weight: 600; }
+	.direction-head span { color: var(--color-muted); font-size: var(--text-xs); }
+	.direction-option-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+	.direction-card {
+		display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; min-height: 116px;
+		padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius);
+		background: var(--color-bg); color: var(--color-text); text-align: left;
+	}
+	.direction-card:hover { border-color: var(--color-border-strong); }
+	.direction-card.active { border-color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-accent); }
+	.direction-card strong { margin-top: auto; font-size: var(--text-sm); font-weight: 600; }
+	.direction-card small { color: var(--color-muted); font-size: var(--text-xs); line-height: 1.35; }
+	.direction-sample { font-size: 2rem; line-height: 1; }
+	.typography-sample.editorial .direction-sample { font-weight: 400; letter-spacing: -.04em; }
+	.typography-sample.neutral .direction-sample { font-weight: 500; letter-spacing: -.028em; }
+	.typography-sample.technical .direction-sample { font-weight: 600; letter-spacing: -.012em; }
+	.layout-diagram { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; width: 100%; height: 40px; }
+	.layout-diagram i { grid-column: span 4; border-radius: 2px; background: var(--color-border-strong); }
+	.layout-sample.editorial .layout-diagram i:first-child { grid-column: span 5; }
+	.layout-sample.editorial .layout-diagram i:nth-child(2) { grid-column: span 3; }
+	.layout-sample.gallery .layout-diagram i:first-child { grid-column: span 8; }
+	.layout-sample.gallery .layout-diagram i:nth-child(2),
+	.layout-sample.gallery .layout-diagram i:nth-child(3) { grid-column: span 4; }
 	.theme-builder-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 	.btn-auto, .btn-reset {
 		display: inline-flex; align-items: center; gap: 4px;
@@ -1195,7 +1290,7 @@
 		.theme-columns { grid-template-columns: 1fr; }
 	}
 	@media (max-width: 560px) {
-		.grid-two, .access-grid, .theme-mode-grid { grid-template-columns: 1fr; }
+		.grid-two, .access-grid, .theme-mode-grid, .direction-option-grid { grid-template-columns: 1fr; }
 		.path-input-row { grid-template-columns: 1fr; }
 		.path-picker-btn { width: 100%; }
 		.theme-builder-head { flex-direction: column; }

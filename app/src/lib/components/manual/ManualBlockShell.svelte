@@ -152,8 +152,8 @@
 		margin: 0;
 		color: var(--manual-ink);
 		font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem);
-		font-weight: 500;
-		letter-spacing: -.028em;
+		font-weight: var(--manual-display-weight, 500);
+		letter-spacing: var(--manual-heading-tracking, -.028em);
 		line-height: 1.1;
 		text-wrap: balance;
 	}
@@ -178,7 +178,7 @@
 		width: 28px;
 		height: 28px;
 		border: 0;
-		border-radius: var(--radius);
+		border-radius: var(--manual-control-radius);
 		background: transparent;
 		color: var(--manual-muted);
 		cursor: pointer;
@@ -198,7 +198,7 @@
 		max-width: 60ch;
 		color: var(--manual-muted);
 		font-size: var(--text-lg);
-		line-height: 1.6;
+		line-height: var(--manual-body-leading, 1.6);
 		text-wrap: pretty;
 	}
 	.intro-text :global(p)         { margin: 0 0 .6em; }
@@ -216,8 +216,9 @@
 		display: grid;
 		grid-template-columns: 16px minmax(0, 1fr);
 		gap: 12px;
-		padding: .1rem 0 .1rem 16px;
-		border-left: 1px solid var(--note);
+		padding: 12px 14px;
+		border-radius: var(--manual-control-radius);
+		background: color-mix(in srgb, var(--note) 7%, var(--manual-paper));
 		color: var(--manual-ink);
 		font-size: var(--text-md);
 		line-height: 1.55;

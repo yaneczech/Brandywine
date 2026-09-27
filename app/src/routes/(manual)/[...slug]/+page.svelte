@@ -157,12 +157,18 @@
 		{#if toc.length > 1}
 			<details class="toc-mobile" bind:open={mobileTocOpen}>
 				<summary>
-					<span>{t.onThisPage}</span>
+					<span class="toc-mobile-title">
+						<span>{t.onThisPage}</span>
+						<small>({toc.length})</small>
+					</span>
 					<IconChevronDown size={16} stroke={2} class="toc-mobile-chevron" />
 				</summary>
 				<nav aria-label={t.onThisPage}>
 					{#each toc as item (item.anchor)}
-						<a href="#{item.anchor}" class:active={activeAnchor === item.anchor} onclick={() => (mobileTocOpen = false)}>{#if item.number}<span class="toc-num">{item.number}</span>{/if}{item.label}</a>
+						<a href="#{item.anchor}" class:active={activeAnchor === item.anchor} onclick={() => (mobileTocOpen = false)}>
+							{#if item.number}<span class="toc-num">{item.number}</span>{/if}
+							<span class="toc-mobile-link-title">{item.label}</span>
+						</a>
 					{/each}
 				</nav>
 			</details>
@@ -365,11 +371,11 @@
 		.toc-mobile {
 			display: block;
 			position: sticky;
-			top: calc(var(--manual-topbar) + 8px);
+			top: var(--manual-topbar);
 			z-index: 20;
-			margin-bottom: -8px;
-			border-block: 1px solid var(--manual-border);
-			background: color-mix(in srgb, var(--manual-paper) 90%, transparent);
+			margin-bottom: 24px;
+			border-block: 1px solid var(--manual-border-strong);
+			background: color-mix(in srgb, var(--manual-ink) 4%, var(--manual-paper));
 			-webkit-backdrop-filter: blur(12px);
 			backdrop-filter: blur(12px);
 		}
@@ -378,7 +384,7 @@
 			align-items: center;
 			justify-content: space-between;
 			gap: 12px;
-			min-height: 44px;
+			min-height: 52px;
 			padding: 0;
 			font-size: var(--text-sm);
 			font-weight: 500;
@@ -386,29 +392,53 @@
 			cursor: pointer;
 		}
 		.toc-mobile summary::-webkit-details-marker { display: none; }
-		.toc-mobile :global(.toc-mobile-chevron) { transition: transform .18s ease; color: var(--manual-muted); }
+		.toc-mobile-title { display: inline-flex; align-items: baseline; gap: 8px; color: var(--manual-ink); }
+		.toc-mobile-title small {
+			color: var(--manual-muted); font-family: var(--manual-mono); font-size: var(--text-2xs);
+			font-weight: 400; font-variant-numeric: tabular-nums;
+		}
+		.toc-mobile :global(.toc-mobile-chevron) { transition: transform .18s ease; color: var(--manual-ink); }
 		.toc-mobile[open] :global(.toc-mobile-chevron) { transform: rotate(180deg); }
 		.toc-mobile nav {
-			display: flex;
-			flex-direction: column;
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			column-gap: clamp(24px, 5vw, 48px);
 			max-height: 50vh;
 			overflow-y: auto;
-			padding: 4px 8px 8px;
+			padding: 8px 0 16px;
 			border-top: 1px solid var(--manual-border);
 		}
 		.toc-mobile nav a {
-			padding: 8px 8px;
-			border-radius: var(--radius);
+			display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px;
+			padding: 12px 0;
+			border-bottom: 1px solid var(--manual-border);
 			color: var(--manual-muted);
-			font-size: var(--text-base);
+			font-size: var(--text-sm);
 			text-decoration: none;
 		}
-		.toc-mobile nav a.active { color: var(--manual-ink); font-weight: 500; }
+		.toc-mobile nav a:hover { color: var(--manual-ink); }
+		.toc-mobile nav a.active {
+			color: var(--manual-ink); font-weight: 600;
+		}
+		.toc-mobile nav a.active .toc-mobile-link-title {
+			text-decoration: underline; text-decoration-color: var(--manual-brand);
+			text-decoration-thickness: 2px; text-underline-offset: 5px;
+		}
+		.toc-mobile nav .toc-num { margin-right: 0; color: var(--manual-muted); font-family: var(--manual-mono); }
+		.toc-mobile-link-title { min-width: 0; overflow-wrap: anywhere; }
 	}
 	@media (max-width: 900px) {
 		.page-layout { width: auto; padding: 0 16px; }
+		.toc-mobile {
+			width: calc(100% + 32px);
+			margin-inline: -16px;
+			border-top: 0;
+		}
+		.toc-mobile summary { padding-inline: 16px; }
+		.toc-mobile nav { padding: 8px 16px 16px; }
 	}
 	@media (max-width: 560px) {
+		.toc-mobile nav { grid-template-columns: minmax(0, 1fr); }
 		.page-nav { grid-template-columns: 1fr; }
 		.page-nav > span:empty { display: none; }
 		.page-nav-item.next { text-align: left; align-items: flex-start; }

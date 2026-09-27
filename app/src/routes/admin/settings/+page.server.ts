@@ -27,6 +27,8 @@ const DEFAULTS: SafeBrandSettings = {
 	manualAccentColor: null,
 	manualAccentColorDark: null,
 	manualBorderRadius: 8,
+	manualTypographyPreset: 'neutral',
+	manualLandingLayout: 'grid',
 	manualNumbering: false,
 	showAttribution: true,
 	customFooterText: null,

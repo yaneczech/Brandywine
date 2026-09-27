@@ -70,7 +70,7 @@
 					{/each}
 				</div>
 			{:else if topLevelPages.length}
-				<PageCards pages={topLevelPages} previews={data.previews} numbers={chapterNumbers} />
+				<PageCards pages={topLevelPages} previews={data.previews} numbers={chapterNumbers} variant="landing" layout={brand?.manualLandingLayout ?? 'grid'} />
 			{:else}
 				<section class="empty">
 					<p>{m.manual_empty_sections({}, { locale: manualLanguage })}</p>

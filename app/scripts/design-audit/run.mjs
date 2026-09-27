@@ -13,7 +13,16 @@ const variants = [
 	{ width: 390, height: 844, scheme: 'light' }
 ];
 
-const browser = await chromium.launch({ channel: 'chrome' });
+let browser;
+try {
+	browser = await chromium.launch();
+} catch (bundledError) {
+	try {
+		browser = await chromium.launch({ channel: 'chrome' });
+	} catch (chromeError) {
+		throw new AggregateError([bundledError, chromeError], 'Design audit could not launch bundled Chromium or system Chrome.');
+	}
+}
 const discover = await browser.newPage();
 await discover.goto(base + '/', { waitUntil: 'networkidle' });
 const paths = await discover.evaluate(() =>

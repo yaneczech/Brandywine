@@ -252,7 +252,7 @@
 	}
 	.fs-glyph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 2px; }
 	.fs-glyph-grid button {
-		aspect-ratio: 1; padding: 0; border: 0; border-radius: var(--radius); background: transparent; color: var(--manual-ink);
+		aspect-ratio: 1; padding: 0; border: 0; border-radius: var(--manual-control-radius); background: transparent; color: var(--manual-ink);
 		font-family: inherit; font-size: var(--text-xl); cursor: default;
 	}
 	.fs-glyph-grid button:hover, .fs-glyph-grid button.active { background: var(--manual-ink); color: var(--manual-paper); }

@@ -72,7 +72,7 @@
 >
 	<div class="hero-copy">
 		{#if eyebrow}<div class="hero-eyebrow">{@render eyebrow()}</div>{/if}
-		<h1>{#if number}<span class="hero-num">{number}</span>{/if}{title}</h1>
+		<h1 class:has-number={!!number}>{#if number}<span class="hero-num">{number}</span>{/if}<span>{title}</span></h1>
 		{#if description}
 			<p class="hero-desc">{description}</p>
 		{/if}
@@ -143,24 +143,25 @@
 	}
 	.hero:not(.has-bg):not(.has-img) .hero-eyebrow { color: var(--manual-muted); }
 	.hero h1 {
+		display: flex;
+		align-items: flex-start;
+		gap: .28em;
 		margin: 0;
 		max-width: 20ch;
 		color: var(--hero-text);
 		font-size: clamp(2rem, 3.2vw, 3rem);
-		font-weight: 500;
+		font-weight: var(--manual-display-weight, 500);
 		line-height: 1.05;
-		letter-spacing: var(--tracking-display);
+		letter-spacing: var(--manual-heading-tracking, var(--tracking-display));
 		text-wrap: balance;
 	}
 	.hero-num {
-		/* Superior figure scaled to the title: its cap line meets the title's
-		   (raise = cap height × (1 − .32) ÷ .32 ≈ 1.49em), whatever the size */
-		position: relative;
-		top: -1.49em;
-		margin-right: .35em;
+		flex: 0 0 auto;
+		padding-top: .18em;
 		color: var(--hero-muted);
-		font-size: .32em;
+		font-size: .34em;
 		font-weight: 400;
+		line-height: 1;
 		letter-spacing: 0;
 		font-variant-numeric: tabular-nums;
 	}

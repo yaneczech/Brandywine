@@ -10,6 +10,8 @@ import { withoutManualPassword } from '$server/brand-settings';
 type BrandSettingsInsert = typeof brandSettings.$inferInsert;
 type BrandSettingsUpdate = Partial<Omit<BrandSettingsInsert, 'id'>>;
 const manualThemeModes = new Set(['light', 'dark', 'system', 'toggle']);
+const manualTypographyPresets = new Set(['editorial', 'neutral', 'technical']);
+const manualLandingLayouts = new Set(['editorial', 'grid', 'gallery']);
 const validUnitsDigital = new Set(['px', 'rem', 'em', 'vw']);
 const validUnitsPrint   = new Set(['mm', 'cm', 'pt', 'in', 'pc']);
 const validUnitsType    = new Set(['px', 'pt', 'rem', 'em']);
@@ -33,6 +35,14 @@ function normalizeValue(key: string, value: unknown): unknown {
 	if (key === 'manualThemeMode') {
 		if (manualThemeModes.has(String(value))) return value;
 		error(400, 'Invalid manual theme mode');
+	}
+	if (key === 'manualTypographyPreset') {
+		if (manualTypographyPresets.has(String(value))) return value;
+		error(400, 'Invalid manual typography preset');
+	}
+	if (key === 'manualLandingLayout') {
+		if (manualLandingLayouts.has(String(value))) return value;
+		error(400, 'Invalid manual landing layout');
 	}
 	if (key === 'unitDigital') {
 		if (validUnitsDigital.has(String(value))) return value;
@@ -117,6 +127,8 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 		'manualAccentColor',
 		'manualAccentColorDark',
 		'manualBorderRadius',
+		'manualTypographyPreset',
+		'manualLandingLayout',
 		'manualNumbering',
 		'showAttribution',
 		'customFooterText',
