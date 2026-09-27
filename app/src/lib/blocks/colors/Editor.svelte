@@ -17,7 +17,7 @@
 				<option value={palette.id}>{palette.name}</option>
 			{/each}
 			{#if str('source') && str('source') !== 'all' && !resolveColorPalette(str('source'), brandPalettes)}
-				<option value={str('source')} disabled>Nedostupná paleta ({str('source')})</option>
+				<option value={str('source')} disabled>{m.be_palette_unavailable({ name: str('source') })}</option>
 			{/if}
 		</select>
 	</label>

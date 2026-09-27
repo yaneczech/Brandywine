@@ -7,7 +7,7 @@
 	import { onMount, tick } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { focusTrap } from '$lib/actions/focus-trap';
-	import { manualStrings, setManualStrings, type ManualLanguage } from '$lib/manual/ui-strings';
+	import { manualStrings, setManualStrings, toManualLanguage } from '$lib/manual/ui-strings';
 	import {
 		IconSearch, IconSun, IconMoon, IconX, IconPencil, IconMenu2,
 		IconChevronRight, IconCornerDownLeft, IconArrowUp, IconArrowDown, IconExternalLink,
@@ -30,7 +30,7 @@
 	const chapterNumbers = $derived(brand?.manualNumbering ? pageNumbers(data.pages ?? [], data.sectionCounts ?? {}) : new Map<string, string>());
 	const brandName = $derived(brand?.name ?? 'Brand Manual');
 	const typographyPreset = $derived(brand?.manualTypographyPreset ?? 'neutral');
-	const manualLanguage = $derived((brand?.defaultLanguage === 'cs' ? 'cs' : 'en') as ManualLanguage);
+	const manualLanguage = $derived(toManualLanguage(brand?.defaultLanguage));
 	const t = $derived(manualStrings(manualLanguage));
 	setManualStrings(() => t);
 

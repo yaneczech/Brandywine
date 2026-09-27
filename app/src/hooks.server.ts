@@ -1,14 +1,14 @@
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
-import { getTextDirection, locales } from '$lib/paraglide/runtime';
+import { baseLocale, getTextDirection, locales } from '$lib/paraglide/runtime';
 import { getSession } from '$server/auth';
 import { db } from '$lib/db';
 import { brandSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getLangCache, setLangCache } from '$lib/server/lang-cache';
 
-type LanguageTag = 'en' | 'cs';
+type LanguageTag = (typeof locales)[number];
 
 const LANG_COOKIE_NAME = 'paraglide_lang';
 const DEFAULT_LANGUAGE: LanguageTag = 'en';
@@ -37,7 +37,7 @@ async function manualContentLanguage(): Promise<LanguageTag> {
 		.from(brandSettings)
 		.where(eq(brandSettings.id, 1));
 
-	const lang: LanguageTag = settings?.defaultLanguage === 'cs' ? 'cs' : 'en';
+	const lang: LanguageTag = locales.includes(settings?.defaultLanguage as LanguageTag) ? (settings!.defaultLanguage as LanguageTag) : baseLocale;
 	setLangCache(lang);
 	return lang;
 }

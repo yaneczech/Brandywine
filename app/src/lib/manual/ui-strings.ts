@@ -2,10 +2,10 @@
  * UI strings for the public manual. The manual language is chosen per brand
  * (brand_settings.defaultLanguage), independently of the admin locale, so the
  * public shell and blocks read from this small dictionary via context.
+ * To add a manual language, add its dictionary to STRINGS (TypeScript checks
+ * that it has every key) and the language to project.inlang/settings.json.
  */
 import { getContext, setContext } from 'svelte';
-
-export type ManualLanguage = 'en' | 'cs';
 
 const STRINGS = {
 	en: {
@@ -212,7 +212,18 @@ const STRINGS = {
 	},
 };
 
+export type ManualLanguage = keyof typeof STRINGS;
 export type ManualStrings = (typeof STRINGS)['en'];
+// Every language must define every string the English dictionary has
+const _complete: Record<ManualLanguage, ManualStrings> = STRINGS;
+void _complete;
+
+export const MANUAL_LANGUAGES = Object.keys(STRINGS) as ManualLanguage[];
+
+/** A brand's language setting → a language the manual has strings for (English otherwise). */
+export function toManualLanguage(value: unknown): ManualLanguage {
+	return MANUAL_LANGUAGES.includes(value as ManualLanguage) ? (value as ManualLanguage) : 'en';
+}
 
 const KEY = Symbol('manual-ui-strings');
 

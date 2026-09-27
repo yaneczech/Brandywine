@@ -1,3 +1,4 @@
+import { toManualLanguage } from '$lib/manual/ui-strings';
 import * as m from '$lib/paraglide/messages';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$db';
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 
 	return {
 		returnTo,
-		language: (settings.defaultLanguage === 'cs' ? 'cs' : 'en') as 'cs' | 'en',
+		language: toManualLanguage(settings.defaultLanguage),
 		brand: {
 			name: settings.name,
 			logoPath: settings.logoPath,
@@ -45,7 +46,7 @@ export const actions: Actions = {
 		if (!settings || settings.accessMode !== 'password') redirect(302, returnTo);
 		if (!password || !(await verifyManualPassword(password, settings.accessPassword))) {
 			await new Promise((resolve) => setTimeout(resolve, 300));
-			const locale = settings.defaultLanguage === 'cs' ? 'cs' : 'en';
+			const locale = toManualLanguage(settings.defaultLanguage);
 			return fail(401, { error: m.access_wrong_password({}, { locale }), returnTo });
 		}
 

@@ -3,7 +3,6 @@
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
 	import * as m from '$lib/paraglide/messages';
-	import { getLocale } from '$lib/paraglide/runtime';
 	import {
 		IconAlertTriangle,
 		IconAt,
@@ -79,7 +78,6 @@
 	// svelte-ignore state_referenced_locally
 	let originalWhitelist = $state((s.emailWhitelist ?? []).join('\n'));
 	const isDirty = $derived(JSON.stringify(s) !== originalString || accessPassword.trim() !== '' || whitelistText !== originalWhitelist);
-	const uiLanguage = $derived(getLocale());
 	const manualLanguage = $derived((s.defaultLanguage === 'cs' ? 'cs' : 'en') as 'cs' | 'en');
 	const themeDefaults = {
 		light: { bg: '#FBFAF8', surface: '#FFFFFF', text: '#171717', muted: '#737373' },
@@ -123,19 +121,19 @@
 		},
 		{
 			label: m.brand_colors_item(),
-			detail: countLabel(data.health.colorCount, uiLanguage === 'cs' ? 'barva' : 'color', uiLanguage === 'cs' ? 'barvy' : 'colors'),
+			detail: countLabel(data.health.colorCount, m.brand_color(), m.brand_colors()),
 			done: data.health.colorCount > 0,
 			icon: IconPalette
 		},
 		{
 			label: m.brand_typography_item(),
-			detail: `${countLabel(data.health.fontCount, uiLanguage === 'cs' ? 'font' : 'font', uiLanguage === 'cs' ? 'fonty' : 'fonts')} · ${countLabel(data.health.styleCount, uiLanguage === 'cs' ? 'styl' : 'style', uiLanguage === 'cs' ? 'styly' : 'styles')}`,
+			detail: `${countLabel(data.health.fontCount, m.brand_font(), m.brand_fonts())} · ${countLabel(data.health.styleCount, m.brand_style(), m.brand_styles())}`,
 			done: data.health.fontCount > 0 && data.health.styleCount > 0,
 			icon: IconTypography
 		},
 		{
 			label: m.brand_assets_item(),
-			detail: countLabel(data.health.assetCount, uiLanguage === 'cs' ? 'asset' : 'asset', uiLanguage === 'cs' ? 'assety' : 'assets'),
+			detail: countLabel(data.health.assetCount, m.brand_asset(), m.brand_assets()),
 			done: data.health.assetCount > 0,
 			icon: IconFolder
 		},
@@ -166,20 +164,13 @@
 	}
 
 	function pickerTitle() {
-		if (assetPickerTarget === 'favicon') return uiLanguage === 'cs' ? 'Vybrat favicon' : 'Choose favicon';
-		if (assetPickerTarget === 'logoDark') return uiLanguage === 'cs' ? 'Vybrat logo (tmavý režim)' : 'Choose logo (dark mode)';
-		return uiLanguage === 'cs' ? 'Vybrat logo' : 'Choose logo';
+		if (assetPickerTarget === 'favicon') return m.brand_choose_favicon();
+		if (assetPickerTarget === 'logoDark') return m.brand_choose_logo_dark_mode();
+		return m.brand_choose_logo();
 	}
 
 	function pickerHint() {
-		if (uiLanguage === 'cs') {
-			return assetPickerTarget === 'favicon'
-				? 'Nejlépe SVG nebo PNG ve čtvercovém formátu.'
-				: 'Použijte schválený obrázek z knihovny assetů.';
-		}
-		return assetPickerTarget === 'favicon'
-			? 'SVG or a square PNG works best.'
-			: 'Use an approved image from the asset library.';
+		return assetPickerTarget === 'favicon' ? m.brand_picker_hint_favicon() : m.brand_picker_hint_asset();
 	}
 
 	function openAssetPicker(target: 'logo' | 'logoDark' | 'favicon') {
@@ -193,81 +184,34 @@
 		assetPickerTarget = null;
 	}
 
+	// Sample copy for the theme preview, in the manual's language
 	function manualPreviewText(key: 'title' | 'sub' | 'overview' | 'colors' | 'typography' | 'assets' | 'content') {
-		const cs = {
-			title: 'Brand manuál',
-			sub: 'Barvy, typografie, loga a schválené assety.',
-			overview: 'Přehled',
-			colors: 'Barvy',
-			typography: 'Typografie',
-			assets: 'Assety',
-			content: 'obsah'
+		const texts = {
+			title: m.brand_preview_title, sub: m.brand_preview_sub, overview: m.brand_preview_overview,
+			colors: m.brand_preview_colors, typography: m.brand_preview_typography, assets: m.brand_preview_assets,
+			content: m.brand_preview_content,
 		};
-		const en = {
-			title: 'Brand Manual',
-			sub: 'Colors, typography, logos and approved assets.',
-			overview: 'Overview',
-			colors: 'Colors',
-			typography: 'Typography',
-			assets: 'Assets',
-			content: 'content'
-		};
-		return (manualLanguage === 'cs' ? cs : en)[key];
+		return texts[key]({}, { locale: manualLanguage });
 	}
 
 	function themeModeLabel(mode: ManualThemeMode) {
-		if (uiLanguage === 'cs') {
-			if (mode === 'light') return 'Světlý';
-			if (mode === 'dark') return 'Tmavý';
-			if (mode === 'toggle') return 'Přepínač';
-			return 'Podle systému';
-		}
-		if (mode === 'light') return 'Light';
-		if (mode === 'dark') return 'Dark';
-		if (mode === 'toggle') return 'Toggle';
-		return 'System';
+		return { light: m.brand_theme_light, dark: m.brand_theme_dark, toggle: m.brand_theme_toggle, system: m.brand_theme_system }[mode]();
 	}
 
 	function themeModeDescription(mode: ManualThemeMode) {
-		if (uiLanguage === 'cs') {
-			if (mode === 'light') return 'Veřejný manuál drží světlou sadu barev.';
-			if (mode === 'dark') return 'Veřejný manuál drží tmavou sadu barev.';
-			if (mode === 'toggle') return 'Návštěvník si může přepnout světlý i tmavý režim.';
-			return 'Manuál použije preferenci zařízení návštěvníka.';
-		}
-		if (mode === 'light') return 'The public manual always uses the light palette.';
-		if (mode === 'dark') return 'The public manual always uses the dark palette.';
-		if (mode === 'toggle') return 'Visitors can switch between light and dark.';
-		return 'The manual follows the visitor device preference.';
+		return { light: m.brand_theme_light_desc, dark: m.brand_theme_dark_desc, toggle: m.brand_theme_toggle_desc, system: m.brand_theme_system_desc }[mode]();
 	}
 
 	function typographyPresetLabel(preset: ManualTypographyPreset) {
-		const labels = uiLanguage === 'cs'
-			? { editorial: 'Editorial', neutral: 'Neutrální', technical: 'Technický' }
-			: { editorial: 'Editorial', neutral: 'Neutral', technical: 'Technical' };
-		return labels[preset];
+		return { editorial: m.brand_type_editorial, neutral: m.brand_type_neutral, technical: m.brand_type_technical }[preset]();
 	}
 
 	function typographyPresetDescription(preset: ManualTypographyPreset) {
-		const descriptions = uiLanguage === 'cs'
-			? {
-				editorial: 'Vzdušnější rytmus a výraznější titulky.',
-				neutral: 'Vyvážený univerzální rám pro většinu značek.',
-				technical: 'Kompaktnější, přesnější a informačně hustší.'
-			}
-			: {
-				editorial: 'Airier rhythm with more expressive headlines.',
-				neutral: 'A balanced frame for most brand systems.',
-				technical: 'More compact, precise, and information-dense.'
-			};
-		return descriptions[preset];
+		return { editorial: m.brand_type_editorial_desc, neutral: m.brand_type_neutral_desc, technical: m.brand_type_technical_desc }[preset]();
 	}
 
 	function landingLayoutLabel(layout: ManualLandingLayout) {
-		const labels = uiLanguage === 'cs'
-			? { editorial: 'Editorial', grid: 'Mřížka', gallery: 'Galerie' }
-			: { editorial: 'Editorial', grid: 'Grid', gallery: 'Gallery' };
-		return labels[layout];
+		return { editorial: m.brand_layout_editorial, grid: m.brand_layout_grid, gallery: m.brand_layout_gallery }[layout]();
 	}
 
 	function autoGenerateTheme() {
@@ -375,29 +319,11 @@
 	}
 
 	function modeLabel(mode: AccessMode) {
-		if (uiLanguage === 'cs') {
-			if (mode === 'public') return 'Veřejný';
-			if (mode === 'password') return 'Heslo';
-			if (mode === 'email_whitelist') return 'Seznam e-mailů';
-			return 'Tajný odkaz';
-		}
-		if (mode === 'public') return 'Public';
-		if (mode === 'password') return 'Password';
-		if (mode === 'email_whitelist') return 'Email list';
-		return 'Secret link';
+		return { public: m.brand_access_public, password: m.brand_access_password, email_whitelist: m.brand_access_email_whitelist, token: m.brand_access_token }[mode]();
 	}
 
 	function modeDescription(mode: AccessMode) {
-		if (uiLanguage === 'cs') {
-			if (mode === 'public') return 'Kdokoliv s odkazem může manuál zobrazit.';
-			if (mode === 'password') return 'Návštěvník musí zadat sdílené heslo.';
-			if (mode === 'email_whitelist') return 'Manuál uvidí jen přihlášení uživatelé ze schválených e-mailů.';
-			return 'Tento režim zatím není ve veřejném manuálu napojený.';
-		}
-		if (mode === 'public') return 'Anyone with the link can view the manual.';
-		if (mode === 'password') return 'Visitors must pass a shared password gate.';
-		if (mode === 'email_whitelist') return 'Only signed-in approved emails can view the manual.';
-			return 'This mode is not wired in the public manual yet.';
+		return { public: m.brand_access_public_desc, password: m.brand_access_password_desc, email_whitelist: m.brand_access_email_whitelist_desc, token: m.brand_access_token_desc }[mode]();
 	}
 
 	async function save() {
@@ -460,7 +386,7 @@
 				<iframe
 					bind:this={previewFrame}
 					src="/"
-					title={uiLanguage === 'cs' ? 'Náhled brand manuálu' : 'Brand manual preview'}
+					title={m.brand_brand_manual_preview()}
 					class="manual-iframe"
 					scrolling="no"
 					tabindex="-1"
@@ -470,11 +396,11 @@
 			<div class="iframe-actions">
 				<a href="/" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
 					<IconExternalLink size={13} stroke={1.75} />
-					{uiLanguage === 'cs' ? 'Otevřít manuál' : 'Open manual'}
+					{m.brand_open_manual()}
 				</a>
 				<button type="button" class="btn btn-secondary btn-sm" onclick={() => previewFrame?.contentWindow?.location.reload()}>
 					<IconRefresh size={13} stroke={1.75} />
-					{uiLanguage === 'cs' ? 'Obnovit' : 'Refresh'}
+					{m.brand_refresh()}
 				</button>
 			</div>
 		</div>
@@ -528,7 +454,7 @@
 							<input bind:value={s.logoPath} placeholder="/uploads/logo.svg" />
 							<button type="button" class="btn btn-secondary path-picker-btn" onclick={() => openAssetPicker('logo')}>
 								<IconPhoto size={15} stroke={1.75} />
-								{uiLanguage === 'cs' ? 'Vybrat asset' : 'Choose asset'}
+								{m.brand_choose_asset()}
 							</button>
 						</div>
 						{#if s.logoPath}
@@ -536,17 +462,17 @@
 								<div class="asset-path-thumb">
 									<img src={assetSrc(s.logoPath)} alt="" onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')} />
 								</div>
-								<small>{uiLanguage === 'cs' ? 'Logo z cesty nebo assetu' : 'Logo from path or asset'}</small>
+								<small>{m.brand_logo_path_asset()}</small>
 							</div>
 						{/if}
 					</label>
 					<label class="field">
-						<span>{uiLanguage === 'cs' ? 'Logo (tmavý režim)' : 'Logo (dark mode)'}</span>
+						<span>{m.brand_logo_dark_mode()}</span>
 						<div class="path-input-row">
-							<input bind:value={s.logoDarkPath} placeholder={uiLanguage === 'cs' ? 'Volitelné, jinak se použije světlé' : 'Optional, falls back to light logo'} />
+							<input bind:value={s.logoDarkPath} placeholder={m.brand_optional_falls_back_light()} />
 							<button type="button" class="btn btn-secondary path-picker-btn" onclick={() => openAssetPicker('logoDark')}>
 								<IconPhoto size={15} stroke={1.75} />
-								{uiLanguage === 'cs' ? 'Vybrat asset' : 'Choose asset'}
+								{m.brand_choose_asset()}
 							</button>
 						</div>
 						{#if s.logoDarkPath}
@@ -554,10 +480,10 @@
 								<div class="asset-path-thumb">
 									<img src={assetSrc(s.logoDarkPath)} alt="" onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')} />
 								</div>
-								<small>{uiLanguage === 'cs' ? 'Logo pro tmavý režim' : 'Logo for dark mode'}</small>
+								<small>{m.brand_logo_dark_mode_2()}</small>
 							</div>
 						{:else}
-							<p class="field-hint">{uiLanguage === 'cs' ? 'Pokud nevyplněno, použije se světlé logo' : 'If empty, light logo is used'}</p>
+							<p class="field-hint">{m.brand_if_empty_light_logo()}</p>
 						{/if}
 					</label>
 					<label class="field">
@@ -566,7 +492,7 @@
 							<input bind:value={s.faviconPath} placeholder="/favicon.svg" />
 							<button type="button" class="btn btn-secondary path-picker-btn" onclick={() => openAssetPicker('favicon')}>
 								<IconPhoto size={15} stroke={1.75} />
-								{uiLanguage === 'cs' ? 'Vybrat asset' : 'Choose asset'}
+								{m.brand_choose_asset()}
 							</button>
 						</div>
 						{#if s.faviconPath}
@@ -574,7 +500,7 @@
 								<div class="asset-path-thumb favicon-thumb">
 									<img src={assetSrc(s.faviconPath)} alt="" onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')} />
 								</div>
-								<small>{uiLanguage === 'cs' ? 'Favicon z cesty nebo assetu' : 'Favicon from path or asset'}</small>
+								<small>{m.brand_favicon_path_asset()}</small>
 							</div>
 						{/if}
 					</label>
@@ -612,17 +538,15 @@
 
 		<section class="section" id="appearance">
 			<div class="section-meta">
-				<h2>{uiLanguage === 'cs' ? 'Vzhled manuálu' : 'Manual appearance'}</h2>
-				<p>{uiLanguage === 'cs'
-					? 'Globální barevnost veřejného manuálu. Barvy konkrétních hero sekcí se nastavují u jednotlivých stránek.'
-					: 'Global color treatment for the public manual. Individual page hero colors are still controlled per page.'}</p>
+				<h2>{m.brand_manual_appearance()}</h2>
+				<p>{m.brand_global_color_treatment_public()}</p>
 			</div>
 			<div class="panel">
 				<div class="direction-builder">
 					<div class="direction-group">
 						<div class="direction-head">
-							<strong>{uiLanguage === 'cs' ? 'Typografický režim' : 'Typography mode'}</strong>
-							<span>{uiLanguage === 'cs' ? 'Řídí hierarchii, rytmus a hustotu manuálu.' : 'Controls hierarchy, rhythm, and density.'}</span>
+							<strong>{m.brand_typography_mode()}</strong>
+							<span>{m.brand_controls_hierarchy_rhythm_density()}</span>
 						</div>
 						<div class="direction-option-grid">
 							{#each ['editorial', 'neutral', 'technical'] as preset (preset)}
@@ -638,17 +562,17 @@
 					</div>
 					<div class="direction-group">
 						<div class="direction-head">
-							<strong>{uiLanguage === 'cs' ? 'Písma' : 'Typefaces'}</strong>
-							<span>{uiLanguage === 'cs' ? 'Fonty z modulu Typografie. Čísla kapitol a ovládání zůstávají v písmu textu.' : 'Fonts from the Typography module. Chapter numbers and controls use the body face.'}</span>
+							<strong>{m.brand_typefaces()}</strong>
+							<span>{m.brand_fonts_typography_module_chapter()}</span>
 						</div>
 						<div class="font-pick-grid">
-							{#each [['manualHeadingFontId', uiLanguage === 'cs' ? 'Nadpisy' : 'Headings'], ['manualBodyFontId', uiLanguage === 'cs' ? 'Text' : 'Body text']] as [key, label] (key)}
+							{#each [['manualHeadingFontId', m.brand_headings()], ['manualBodyFontId', m.brand_body_text()]] as [key, label] (key)}
 								<label class="field">
 									<span>{label}</span>
 									<select value={s[key as 'manualHeadingFontId' | 'manualBodyFontId'] ?? ''}
 										onchange={(e) => (s[key as 'manualHeadingFontId' | 'manualBodyFontId'] = (e.currentTarget as HTMLSelectElement).value || null)}
 										disabled={!brandFonts.length}>
-										<option value="">{uiLanguage === 'cs' ? 'Výchozí (Geist)' : 'Default (Geist)'}</option>
+										<option value="">{m.brand_default_geist()}</option>
 										{#each brandFonts as f (f.id)}
 											<option value={f.id}>{f.name}</option>
 										{/each}
@@ -657,13 +581,13 @@
 							{/each}
 						</div>
 						{#if !brandFonts.length}
-							<small class="field-hint">{uiLanguage === 'cs' ? 'Nejdřív přidej font v sekci Typografie.' : 'Add a font in Typography first.'}</small>
+							<small class="field-hint">{m.brand_add_font_typography_first()}</small>
 						{/if}
 					</div>
 					<div class="direction-group">
 						<div class="direction-head">
-							<strong>{uiLanguage === 'cs' ? 'Kompozice úvodní stránky' : 'Landing composition'}</strong>
-							<span>{uiLanguage === 'cs' ? 'Určuje poměr a důraz karet kapitol.' : 'Sets chapter-card proportion and emphasis.'}</span>
+							<strong>{m.brand_landing_composition()}</strong>
+							<span>{m.brand_sets_chapter_card_proportion()}</span>
 						</div>
 						<div class="direction-option-grid">
 							{#each ['editorial', 'grid', 'gallery'] as layout (layout)}
@@ -700,19 +624,17 @@
 				<div class="theme-builder">
 					<div class="theme-builder-head">
 						<div>
-							<h3>{uiLanguage === 'cs' ? 'Barevné tokeny manuálu' : 'Manual color tokens'}</h3>
-							<p>{uiLanguage === 'cs'
-								? 'Nastavte zvlášť světlý a tmavý režim. Kontrast se kontroluje proti pozadí a kartám.'
-								: 'Tune light and dark mode separately. Contrast is checked against page and card backgrounds.'}</p>
+							<h3>{m.brand_manual_color_tokens()}</h3>
+							<p>{m.brand_tune_light_dark_mode()}</p>
 						</div>
 						<div class="theme-builder-actions">
 							<button type="button" class="btn-reset" onclick={resetThemeColors}
-								title={uiLanguage === 'cs' ? 'Resetovat barvy na výchozí hodnoty' : 'Reset colors to defaults'}>
+								title={m.brand_reset_colors_defaults()}>
 								<IconRefresh size={13} stroke={2} />
-								{uiLanguage === 'cs' ? 'Výchozí' : 'Default'}
+								{m.brand_default()}
 							</button>
 							<button type="button" class="btn-auto" onclick={autoGenerateTheme} disabled={!brandColors.length}
-								title={brandColors.length ? (uiLanguage === 'cs' ? 'Vygenerovat theme z barev značky' : 'Auto-generate theme from brand colors') : (uiLanguage === 'cs' ? 'Nejprve přidejte barvy v sekci Barvy' : 'Add colors in the Colors section first')}>
+								title={brandColors.length ? (m.brand_auto_generate_theme_brand()) : (m.brand_add_colors_colors_section())}>
 								<IconSparkles size={13} stroke={2} />
 								Auto
 							</button>
@@ -724,8 +646,8 @@
 							<div class="theme-column-head">
 								<span class="theme-column-icon light" aria-hidden="true"><IconSun size={17} stroke={1.9} /></span>
 								<div>
-									<h4>{uiLanguage === 'cs' ? 'Světlý režim' : 'Light mode'}</h4>
-									<p>{uiLanguage === 'cs' ? 'Výchozí pro běžné klientské manuály.' : 'Default for standard client manuals.'}</p>
+									<h4>{m.brand_light_mode()}</h4>
+									<p>{m.brand_default_standard_client_manuals()}</p>
 								</div>
 							</div>
 							<div
@@ -736,57 +658,57 @@
 								<div class="preview-card">
 									<strong>{manualPreviewText('colors')}</strong>
 									<span>{manualPreviewText('sub')}</span>
-									<button type="button">{uiLanguage === 'cs' ? 'Akce' : 'Action'}</button>
+									<button type="button">{m.brand_action()}</button>
 								</div>
 							</div>
 							<div class="theme-token-list">
 								<ManualThemeColorField
 									bind:value={s.manualBackgroundColor}
-									label={uiLanguage === 'cs' ? 'Pozadí stránky' : 'Page background'}
-									hint={uiLanguage === 'cs' ? 'Základní plocha kolem obsahu.' : 'The base canvas around content.'}
+									label={m.brand_page_background()}
+									hint={m.brand_base_canvas_around_content()}
 									placeholder="#FBFAF8"
 									previewText="Bg"
-									checks={[{ label: uiLanguage === 'cs' ? 'Text' : 'Text', against: manualTheme.light.text, min: 4.5 }, { label: uiLanguage === 'cs' ? 'Vedlejší' : 'Muted', against: manualTheme.light.muted, min: 3 }]}
+									checks={[{ label: m.brand_text(), against: manualTheme.light.text, min: 4.5 }, { label: m.brand_muted(), against: manualTheme.light.muted, min: 3 }]}
 									{brandColors}
 									{brandPalettes}
 								/>
 								<ManualThemeColorField
 									bind:value={s.manualSurfaceColor}
-									label={uiLanguage === 'cs' ? 'Karty a plochy' : 'Cards and surfaces'}
-									hint={uiLanguage === 'cs' ? 'Navigace, karty a obsahové bloky.' : 'Navigation, cards, and content blocks.'}
+									label={m.brand_cards_surfaces()}
+									hint={m.brand_navigation_cards_content_blocks()}
 									placeholder="#FFFFFF"
 									previewText="Ui"
-									checks={[{ label: uiLanguage === 'cs' ? 'Text' : 'Text', against: manualTheme.light.text, min: 4.5 }, { label: uiLanguage === 'cs' ? 'Akcent' : 'Accent', against: manualTheme.accentLight, min: 3 }]}
+									checks={[{ label: m.brand_text(), against: manualTheme.light.text, min: 4.5 }, { label: m.brand_accent(), against: manualTheme.accentLight, min: 3 }]}
 									{brandColors}
 									{brandPalettes}
 								/>
 								<ManualThemeColorField
 									bind:value={s.manualTextColor}
-									label={uiLanguage === 'cs' ? 'Primární text' : 'Primary text'}
-									hint={uiLanguage === 'cs' ? 'Nadpisy a hlavní text.' : 'Headlines and main body text.'}
+									label={m.brand_primary_text()}
+									hint={m.brand_headlines_main_body_text()}
 									placeholder="#171717"
 									previewText="Aa"
-									checks={[{ label: uiLanguage === 'cs' ? 'Pozadí' : 'Canvas', against: manualTheme.light.bg, min: 4.5 }, { label: uiLanguage === 'cs' ? 'Karty' : 'Cards', against: manualTheme.light.surface, min: 4.5 }]}
+									checks={[{ label: m.brand_canvas(), against: manualTheme.light.bg, min: 4.5 }, { label: m.brand_cards(), against: manualTheme.light.surface, min: 4.5 }]}
 									{brandColors}
 									{brandPalettes}
 								/>
 								<ManualThemeColorField
 									bind:value={s.manualMutedColor}
-									label={uiLanguage === 'cs' ? 'Vedlejší text' : 'Muted text'}
-									hint={uiLanguage === 'cs' ? 'Popisky, metadata a méně důležitý text.' : 'Captions, metadata, and secondary copy.'}
+									label={m.brand_muted_text()}
+									hint={m.brand_captions_metadata_secondary_copy()}
 									placeholder="#737373"
 									previewText="Aa"
-									checks={[{ label: uiLanguage === 'cs' ? 'Pozadí' : 'Canvas', against: manualTheme.light.bg, min: 3 }, { label: uiLanguage === 'cs' ? 'Karty' : 'Cards', against: manualTheme.light.surface, min: 3 }]}
+									checks={[{ label: m.brand_canvas(), against: manualTheme.light.bg, min: 3 }, { label: m.brand_cards(), against: manualTheme.light.surface, min: 3 }]}
 									{brandColors}
 									{brandPalettes}
 								/>
 								<ManualThemeColorField
 									bind:value={s.manualAccentColor}
-									label={uiLanguage === 'cs' ? 'Akcent' : 'Accent'}
-									hint={uiLanguage === 'cs' ? 'Aktivní odkazy, šipky a vybrané prvky.' : 'Active links, arrows, and selected states.'}
+									label={m.brand_accent()}
+									hint={m.brand_active_links_arrows_selected()}
 									placeholder={s.primaryColor ?? '#4A1204'}
 									previewText="Aa"
-									checks={[{ label: uiLanguage === 'cs' ? 'Pozadí' : 'Canvas', against: manualTheme.light.bg, min: 3 }, { label: uiLanguage === 'cs' ? 'Karty' : 'Cards', against: manualTheme.light.surface, min: 3 }]}
+									checks={[{ label: m.brand_canvas(), against: manualTheme.light.bg, min: 3 }, { label: m.brand_cards(), against: manualTheme.light.surface, min: 3 }]}
 									{brandColors}
 									{brandPalettes}
 								/>
@@ -797,8 +719,8 @@
 							<div class="theme-column-head">
 								<span class="theme-column-icon dark" aria-hidden="true"><IconMoon size={17} stroke={1.9} /></span>
 								<div>
-									<h4>{uiLanguage === 'cs' ? 'Tmavý režim' : 'Dark mode'}</h4>
-									<p>{uiLanguage === 'cs' ? 'Použije se pro dark/system/toggle režim.' : 'Used for dark, system, and toggle modes.'}</p>
+									<h4>{m.brand_dark_mode()}</h4>
+									<p>{m.brand_used_dark_system_toggle()}</p>
 								</div>
 							</div>
 							<div
@@ -809,57 +731,57 @@
 								<div class="preview-card">
 									<strong>{manualPreviewText('colors')}</strong>
 									<span>{manualPreviewText('sub')}</span>
-									<button type="button">{uiLanguage === 'cs' ? 'Akce' : 'Action'}</button>
+									<button type="button">{m.brand_action()}</button>
 								</div>
 							</div>
 							<div class="theme-token-list">
 								<ManualThemeColorField
 									bind:value={s.manualBackgroundColorDark}
-									label={uiLanguage === 'cs' ? 'Pozadí stránky' : 'Page background'}
-									hint={uiLanguage === 'cs' ? 'Základní tmavá plocha.' : 'The base dark canvas.'}
+									label={m.brand_page_background()}
+									hint={m.brand_base_dark_canvas()}
 									placeholder="#101010"
 									previewText="Bg"
-									checks={[{ label: uiLanguage === 'cs' ? 'Text' : 'Text', against: manualTheme.dark.text, min: 4.5 }, { label: uiLanguage === 'cs' ? 'Vedlejší' : 'Muted', against: manualTheme.dark.muted, min: 3 }]}
+									checks={[{ label: m.brand_text(), against: manualTheme.dark.text, min: 4.5 }, { label: m.brand_muted(), against: manualTheme.dark.muted, min: 3 }]}
 									{brandColors}
 									{brandPalettes}
 								/>
 								<ManualThemeColorField
 									bind:value={s.manualSurfaceColorDark}
-									label={uiLanguage === 'cs' ? 'Karty a plochy' : 'Cards and surfaces'}
-									hint={uiLanguage === 'cs' ? 'Navigace, karty a obsahové bloky.' : 'Navigation, cards, and content blocks.'}
+									label={m.brand_cards_surfaces()}
+									hint={m.brand_navigation_cards_content_blocks()}
 									placeholder="#171717"
 									previewText="Ui"
-									checks={[{ label: uiLanguage === 'cs' ? 'Text' : 'Text', against: manualTheme.dark.text, min: 4.5 }, { label: uiLanguage === 'cs' ? 'Akcent' : 'Accent', against: manualTheme.accentDark, min: 3 }]}
+									checks={[{ label: m.brand_text(), against: manualTheme.dark.text, min: 4.5 }, { label: m.brand_accent(), against: manualTheme.accentDark, min: 3 }]}
 									{brandColors}
 									{brandPalettes}
 								/>
 								<ManualThemeColorField
 									bind:value={s.manualTextColorDark}
-									label={uiLanguage === 'cs' ? 'Primární text' : 'Primary text'}
-									hint={uiLanguage === 'cs' ? 'Nadpisy a hlavní text.' : 'Headlines and main body text.'}
+									label={m.brand_primary_text()}
+									hint={m.brand_headlines_main_body_text()}
 									placeholder="#F4F4F4"
 									previewText="Aa"
-									checks={[{ label: uiLanguage === 'cs' ? 'Pozadí' : 'Canvas', against: manualTheme.dark.bg, min: 4.5 }, { label: uiLanguage === 'cs' ? 'Karty' : 'Cards', against: manualTheme.dark.surface, min: 4.5 }]}
+									checks={[{ label: m.brand_canvas(), against: manualTheme.dark.bg, min: 4.5 }, { label: m.brand_cards(), against: manualTheme.dark.surface, min: 4.5 }]}
 									{brandColors}
 									{brandPalettes}
 								/>
 								<ManualThemeColorField
 									bind:value={s.manualMutedColorDark}
-									label={uiLanguage === 'cs' ? 'Vedlejší text' : 'Muted text'}
-									hint={uiLanguage === 'cs' ? 'Popisky, metadata a méně důležitý text.' : 'Captions, metadata, and secondary copy.'}
+									label={m.brand_muted_text()}
+									hint={m.brand_captions_metadata_secondary_copy()}
 									placeholder="#A3A3A3"
 									previewText="Aa"
-									checks={[{ label: uiLanguage === 'cs' ? 'Pozadí' : 'Canvas', against: manualTheme.dark.bg, min: 3 }, { label: uiLanguage === 'cs' ? 'Karty' : 'Cards', against: manualTheme.dark.surface, min: 3 }]}
+									checks={[{ label: m.brand_canvas(), against: manualTheme.dark.bg, min: 3 }, { label: m.brand_cards(), against: manualTheme.dark.surface, min: 3 }]}
 									{brandColors}
 									{brandPalettes}
 								/>
 								<ManualThemeColorField
 									bind:value={s.manualAccentColorDark}
-									label={uiLanguage === 'cs' ? 'Akcent' : 'Accent'}
-									hint={uiLanguage === 'cs' ? 'Aktivní odkazy, šipky a vybrané prvky.' : 'Active links, arrows, and selected states.'}
+									label={m.brand_accent()}
+									hint={m.brand_active_links_arrows_selected()}
 									placeholder={manualTheme.accentLight}
 									previewText="Aa"
-									checks={[{ label: uiLanguage === 'cs' ? 'Pozadí' : 'Canvas', against: manualTheme.dark.bg, min: 3 }, { label: uiLanguage === 'cs' ? 'Karty' : 'Cards', against: manualTheme.dark.surface, min: 3 }]}
+									checks={[{ label: m.brand_canvas(), against: manualTheme.dark.bg, min: 3 }, { label: m.brand_cards(), against: manualTheme.dark.surface, min: 3 }]}
 									{brandColors}
 									{brandPalettes}
 								/>
@@ -869,7 +791,7 @@
 				</div>
 
 				<label class="field radius-field">
-					<span>{uiLanguage === 'cs' ? 'Zaoblení rohů' : 'Corner radius'}</span>
+					<span>{m.brand_corner_radius()}</span>
 					<div class="radius-control">
 						<input
 							type="range"
@@ -889,9 +811,7 @@
 						/>
 						<span class="radius-unit">px</span>
 					</div>
-					<small>{uiLanguage === 'cs'
-						? 'Ovlivní karty, tlačítka, navigaci, boxy a obsahové bloky veřejného manuálu.'
-						: 'Affects cards, buttons, navigation, boxes, and content blocks in the public manual.'}</small>
+					<small>{m.brand_affects_cards_buttons_navigation()}</small>
 				</label>
 				<label class="switch-row">
 					<input type="checkbox" checked={Boolean(s.manualNumbering)} onchange={(e) => (s.manualNumbering = (e.currentTarget as HTMLInputElement).checked)} />
@@ -913,17 +833,17 @@
 					<button type="button" class:active={s.accessMode === 'public'} onclick={() => (s.accessMode = 'public')}>
 						<IconGlobe size={18} stroke={1.75} />
 						<strong>{modeLabel('public')}</strong>
-						<span>{uiLanguage === 'cs' ? 'Kdokoliv s odkazem' : 'Anyone with the link'}</span>
+						<span>{m.brand_anyone_link()}</span>
 					</button>
 					<button type="button" class:active={s.accessMode === 'password'} onclick={() => (s.accessMode = 'password')}>
 						<IconLock size={18} stroke={1.75} />
 						<strong>{modeLabel('password')}</strong>
-						<span>{uiLanguage === 'cs' ? 'Sdílený přístup' : 'Shared gate'}</span>
+						<span>{m.brand_shared_gate()}</span>
 					</button>
 					<button type="button" class:active={s.accessMode === 'email_whitelist'} onclick={() => (s.accessMode = 'email_whitelist')}>
 						<IconAt size={18} stroke={1.75} />
 						<strong>{modeLabel('email_whitelist')}</strong>
-						<span>{uiLanguage === 'cs' ? 'Schválení uživatelé' : 'Approved users'}</span>
+						<span>{m.brand_approved_users()}</span>
 					</button>
 				</div>
 				<div class="access-note">
@@ -932,27 +852,25 @@
 				</div>
 				{#if s.accessMode === 'password'}
 					<label class="field">
-						<span>{uiLanguage === 'cs' ? 'Nastavit nové heslo manuálu' : 'Set new manual password'}</span>
+						<span>{m.brand_set_new_manual_password()}</span>
 						<input
 							type="password"
 							bind:value={accessPassword}
-							placeholder={uiLanguage === 'cs' ? 'Prázdné pole ponechá aktuální heslo' : 'Leave empty to keep current password'}
+							placeholder={m.brand_leave_empty_keep_current()}
 							autocomplete="new-password"
 						/>
 					</label>
 				{/if}
 				{#if s.accessMode === 'email_whitelist'}
 					<label class="field">
-						<span>{uiLanguage === 'cs' ? 'Povolené e-mailové adresy' : 'Allowed email addresses'}</span>
+						<span>{m.brand_allowed_email_addresses()}</span>
 						<textarea rows="5" bind:value={whitelistText} placeholder="alice@company.com&#10;*@partner.com"></textarea>
 					</label>
 				{/if}
 				{#if s.accessMode === 'token'}
 					<div class="warning-note">
 						<IconAlertTriangle size={15} stroke={2} />
-						{uiLanguage === 'cs'
-							? 'Tajný odkaz zatím není ve veřejném manuálu napojený. Přepněte přístup na veřejný, heslo nebo seznam e-mailů.'
-							: 'Secret-link access is not wired in the public manual yet. Switch access to public, password, or email list.'}
+						{m.brand_secret_link_access_not()}
 					</div>
 				{/if}
 			</div>
