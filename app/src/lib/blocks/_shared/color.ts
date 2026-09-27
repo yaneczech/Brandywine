@@ -1,8 +1,12 @@
 /**
- * Colour maths for the colour blocks: conversions, WCAG contrast, tints and
- * print references. Values match what the colour cards have always shown.
+ * Colour helpers for the colour blocks: display formats, WCAG badges and
+ * print references. Shade and contrast maths come from $lib/utils/colors.
  */
 import type { ColorRow, ProductionRef } from '../types';
+import { contrastRatio } from '$lib/utils/colors';
+
+// One implementation for the whole app — admin, token export and manual share it
+export { generateShades, mixHex, relativeLuminance } from '$lib/utils/colors';
 
 export function hexParts(hex: string) {
 	return {
@@ -18,21 +22,9 @@ export function hexToRgbStr(hex: string, color: ColorRow): string {
 	return `${r}, ${g}, ${b}`;
 }
 
-// WCAG 2.1 relative luminance
-export function relativeLuminance(hex: string): number {
-	const { r,g,b } = hexParts(hex);
-	const ch = [r,g,b].map(v => {
-		const s = v / 255;
-		return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-	});
-	return 0.2126*ch[0] + 0.7152*ch[1] + 0.0722*ch[2];
-}
-
+/** WCAG contrast ratio rounded to one decimal, as the colour cards show it */
 export function wcagContrast(hex1: string, hex2: string): number {
-	const l1 = relativeLuminance(hex1);
-	const l2 = relativeLuminance(hex2);
-	const light = Math.max(l1, l2), dark = Math.min(l1, l2);
-	return Math.round(((light + 0.05) / (dark + 0.05)) * 10) / 10;
+	return Math.round(contrastRatio(hex1, hex2) * 10) / 10;
 }
 
 export function contrastOnColor(hex: string): string {
@@ -81,31 +73,6 @@ export function fmtHsl(hsl: { h:number; s:number; l:number }): string {
 
 export function fmtCmyk(c: { c:number;m:number;y:number;k:number }): string {
 	return `C${c.c} M${c.m} Y${c.y} K${c.k}`;
-}
-
-// Mix two hex colors (ratio: 0 = original, 1 = target)
-export function mixHex(hex: string, target: string, ratio: number): string {
-	const { r: r1, g: g1, b: b1 } = hexParts(hex);
-	const { r: r2, g: g2, b: b2 } = hexParts(target);
-	const r = Math.round(r1 + (r2 - r1) * ratio).toString(16).padStart(2, '0');
-	const g = Math.round(g1 + (g2 - g1) * ratio).toString(16).padStart(2, '0');
-	const b = Math.round(b1 + (b2 - b1) * ratio).toString(16).padStart(2, '0');
-	return `#${r}${g}${b}`;
-}
-
-// Generate 9 tints/shades (100–900) from a base hex
-export function generateShades(hex: string): Array<{ label: string; hex: string }> {
-	return [
-		{ label: '100', hex: mixHex(hex, '#ffffff', 0.88) },
-		{ label: '200', hex: mixHex(hex, '#ffffff', 0.72) },
-		{ label: '300', hex: mixHex(hex, '#ffffff', 0.54) },
-		{ label: '400', hex: mixHex(hex, '#ffffff', 0.32) },
-		{ label: '500', hex },
-		{ label: '600', hex: mixHex(hex, '#000000', 0.18) },
-		{ label: '700', hex: mixHex(hex, '#000000', 0.36) },
-		{ label: '800', hex: mixHex(hex, '#000000', 0.54) },
-		{ label: '900', hex: mixHex(hex, '#000000', 0.70) },
-	];
 }
 
 export function productionRefsFor(color: ColorRow): ProductionRef[] {
