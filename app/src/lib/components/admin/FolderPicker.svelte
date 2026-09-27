@@ -63,7 +63,7 @@
 			</button>
 		{/if}
 
-		{#each visibleFolders() as folder}
+		{#each visibleFolders() as folder (folder.id)}
 			<button
 				type="button"
 				class="folder-row"
@@ -72,7 +72,7 @@
 				title={folder.path}
 				onclick={() => onPick(folder.id)}
 			>
-				<span class="folder-dot" style="background:{folder.color ?? '#94a3b8'}"></span>
+				<span class="folder-dot" style="background:{folder.color ?? '#a9a8a3'}"></span>
 				<span class="folder-name">{folder.name}</span>
 				{#if showCounts && typeof folder.assetCount === 'number'}
 					<span class="folder-count">{folder.assetCount}</span>
@@ -108,16 +108,15 @@
 		width: 100%;
 		height: 34px;
 		padding: 0 34px;
-		border: 1.5px solid var(--color-border);
-		border-radius: 8px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
 		background: var(--color-surface);
 		color: var(--color-text);
-		font-size: 0.8125rem;
+		font-size: var(--text-sm);
 		outline: none;
 	}
 	.folder-search input:focus {
-		border-color: var(--brand);
-	}
+		border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
 	.folder-search button {
 		position: absolute;
 		right: 8px;
@@ -147,19 +146,19 @@
 		min-height: 34px;
 		padding: 7px 10px 7px calc(10px + var(--depth, 0) * 16px);
 		border: 0;
-		border-radius: 8px;
+		border-radius: var(--radius);
 		background: none;
 		color: var(--color-text);
-		font-size: 0.875rem;
+		font-size: var(--text-base);
 		text-align: left;
 		cursor: pointer;
 	}
 	.folder-row:hover {
-		background: var(--color-surface-raised);
+		background: var(--color-hover);
 	}
 	.folder-row.active {
-		background: color-mix(in srgb, var(--brand) 9%, transparent);
-		color: var(--brand);
+		background: color-mix(in srgb, var(--color-accent) 9%, transparent);
+		color: var(--color-accent);
 		font-weight: 600;
 	}
 	.folder-dot {
@@ -180,10 +179,10 @@
 		min-width: 20px;
 		padding: 0 6px;
 		border: 1px solid var(--color-border);
-		border-radius: 20px;
+		border-radius: var(--radius-sm);
 		background: var(--color-surface-raised);
 		color: var(--color-muted);
-		font-size: 0.6875rem;
+		font-size: var(--text-2xs);
 		line-height: 18px;
 		text-align: center;
 	}
@@ -191,7 +190,7 @@
 		margin: 0;
 		padding: 1rem;
 		color: var(--color-muted);
-		font-size: 0.8125rem;
+		font-size: var(--text-sm);
 		text-align: center;
 	}
 </style>

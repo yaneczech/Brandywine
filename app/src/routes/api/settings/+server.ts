@@ -4,6 +4,8 @@ import { brandSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { invalidateLangCache } from '$lib/server/lang-cache';
+import { hashPassword } from '$server/auth';
+import { withoutManualPassword } from '$server/brand-settings';
 
 type BrandSettingsInsert = typeof brandSettings.$inferInsert;
 type BrandSettingsUpdate = Partial<Omit<BrandSettingsInsert, 'id'>>;
@@ -11,6 +13,7 @@ const manualThemeModes = new Set(['light', 'dark', 'system', 'toggle']);
 const validUnitsDigital = new Set(['px', 'rem', 'em', 'vw']);
 const validUnitsPrint   = new Set(['mm', 'cm', 'pt', 'in', 'pc']);
 const validUnitsType    = new Set(['px', 'pt', 'rem', 'em']);
+const validAccessModes  = new Set(['public', 'password', 'email_whitelist', 'token']);
 const colorKeys = new Set([
 	'primaryColor',
 	'manualBackgroundColor',
@@ -43,6 +46,23 @@ function normalizeValue(key: string, value: unknown): unknown {
 		if (validUnitsType.has(String(value))) return value;
 		error(400, 'Invalid type unit');
 	}
+	if (key === 'accessMode') {
+		if (validAccessModes.has(String(value))) return value;
+		error(400, 'Invalid access mode');
+	}
+	if (key === 'emailWhitelist' || key === 'activeLanguages') {
+		if (!Array.isArray(value) || value.length > 100 || value.some((item) => typeof item !== 'string' || item.length > 254)) {
+			error(400, `Invalid ${key}`);
+		}
+		return [...new Set(value.map((item) => {
+			const normalized = item.trim();
+			return key === 'emailWhitelist' ? normalized.toLowerCase() : normalized;
+		}).filter(Boolean))];
+	}
+	if (key === 'defaultLanguage') {
+		if (typeof value === 'string' && /^[a-z]{2,3}(?:-[A-Z]{2})?$/.test(value)) return value;
+		error(400, 'Invalid default language');
+	}
 	if (key === 'localeRules') {
 		// accept any plain object — deeper validation happens in schema
 		if (value !== null && typeof value === 'object' && !Array.isArray(value)) return value;
@@ -64,12 +84,15 @@ function normalizeValue(key: string, value: unknown): unknown {
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
 	const [row] = await db.select().from(brandSettings).where(eq(brandSettings.id, 1));
-	return json(row ?? null);
+	if (!row) return json(null);
+	return json({ ...withoutManualPassword(row), accessPasswordConfigured: Boolean(row.accessPassword) });
 };
 
 export const PATCH: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') error(403, 'Forbidden');
-	const body = await request.json();
+	const body = await request.json().catch(() => null);
+	if (!body || typeof body !== 'object' || Array.isArray(body)) error(400, 'Invalid JSON');
+	const [existing] = await db.select().from(brandSettings).where(eq(brandSettings.id, 1));
 
 	const allowed = [
 		'systemName',
@@ -104,7 +127,19 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 	] as const;
 	const update: BrandSettingsUpdate = {};
 	for (const key of allowed) {
-		if (key in body) Object.assign(update, { [key]: normalizeValue(key, body[key]) });
+		if (!(key in body)) continue;
+		if (key === 'accessPassword') {
+			const password = String(body[key] ?? '');
+			if (password.length < 8 || password.length > 200) {
+				error(400, 'Manual password must be between 8 and 200 characters');
+			}
+			update.accessPassword = await hashPassword(password);
+			continue;
+		}
+		Object.assign(update, { [key]: normalizeValue(key, body[key]) });
+	}
+	if (body.accessMode === 'password' && !update.accessPassword && !existing?.accessPassword) {
+		error(400, 'Set a manual password before enabling password access');
 	}
 
 	// Atomic upsert — avoids TOCTOU race between SELECT + INSERT/UPDATE
@@ -117,5 +152,5 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 	// Invalidate in-memory language cache if the default language was changed
 	if ('defaultLanguage' in body) invalidateLangCache();
 
-	return json(row);
+	return json({ ...withoutManualPassword(row), accessPasswordConfigured: Boolean(row.accessPassword) });
 };

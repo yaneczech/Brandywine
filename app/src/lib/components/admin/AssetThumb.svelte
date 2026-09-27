@@ -24,15 +24,17 @@
 	}
 
 	const isSvg      = $derived(mime === 'image/svg+xml');
+	// Graphics (vector / possibly transparent) are shown whole on a transparency grid
+	const isGraphic  = $derived(isSvg || /^image\/(png|gif|webp)$/i.test(mime));
 	const isFont     = $derived(mime.startsWith('font/'));
 	const isVideo    = $derived(mime.startsWith('video/'));
 	const isDocument = $derived(mime.includes('pdf') || mime === 'application/postscript' || mime.startsWith('application/'));
 	const src        = $derived(thumbSrc(mime, thumbnailPath, assetId));
-	const useContain = $derived(isSvg || isFont);
+	const useContain = $derived(isGraphic || isFont);
 	const fontFamily = $derived(isFont ? `'card-font-${assetId}',serif` : null);
 </script>
 
-<div class="at" class:svg-bg={isSvg}>
+<div class="at" class:graphic={isGraphic}>
 	{#if src}
 		<img {src} alt={filename} loading="lazy" class:contain={useContain} />
 	{:else if isFont && fontFamily}
@@ -53,18 +55,26 @@
 		color: var(--color-muted);
 		overflow: hidden;
 	}
-	.at.svg-bg { background: #8a8a8a; }
+	.at.graphic {
+		--chk: rgba(20, 20, 20, 0.05);
+		background-color: var(--color-surface);
+		background-image:
+			linear-gradient(45deg, var(--chk) 25%, transparent 25%, transparent 75%, var(--chk) 75%),
+			linear-gradient(45deg, var(--chk) 25%, transparent 25%, transparent 75%, var(--chk) 75%);
+		background-size: 14px 14px;
+		background-position: 0 0, 7px 7px;
+	}
 	.at img {
 		width: 100%; height: 100%;
 		object-fit: cover; display: block;
 	}
 	.at img.contain {
 		object-fit: contain;
-		padding: .5rem;
+		padding: 12%;
 		box-sizing: border-box;
 	}
 	.font-preview {
-		font-size: 2rem; font-weight: 700;
-		color: var(--color-muted); letter-spacing: -0.04em; line-height: 1;
+		font-size: 2rem; font-weight: 600;
+		color: var(--color-muted); letter-spacing: var(--tracking-display); line-height: 1;
 	}
 </style>

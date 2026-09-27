@@ -3,6 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/db';
 import { brandSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { withoutManualSecrets } from '$server/brand-settings';
 
 const PUBLIC_ADMIN_PATHS = ['/admin/login', '/admin/setup'];
 
@@ -26,7 +27,9 @@ const DEFAULT_BRAND = {
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	// Load brand settings for all admin routes (needed for sidebar/title even on auth pages)
 	const [brand] = await db.select().from(brandSettings).where(eq(brandSettings.id, 1));
-	const brandData = brand ?? DEFAULT_BRAND;
+	const brandData = brand
+		? withoutManualSecrets(brand)
+		: DEFAULT_BRAND;
 
 	if (PUBLIC_ADMIN_PATHS.some((p) => url.pathname.startsWith(p))) {
 		return { user: locals.user, brand: brandData };

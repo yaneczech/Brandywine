@@ -1,4 +1,21 @@
+{
+	auto_https disable_redirects
+}
+
+http://{$APP_DOMAIN:localhost} {
+	redir {$APP_URL:https://localhost}{uri} permanent
+}
+
 {$APP_DOMAIN:localhost} {
 	reverse_proxy app:3000
-	encode gzip
+	encode zstd gzip
+	request_body {
+		max_size 210MB
+	}
+	header {
+		-X-Powered-By
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
 }

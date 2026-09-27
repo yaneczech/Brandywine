@@ -1,12 +1,18 @@
 import { test, expect } from '@playwright/test';
 
-test('brand manual home redirects or loads', async ({ page }) => {
-	await page.goto('/en/manual');
-	await expect(page).not.toHaveURL('/error');
+test('manual home responds with visible content', async ({ page }) => {
+	const response = await page.goto('/');
+	expect(response?.status()).toBe(200);
+	await expect(page.locator('h1')).toBeVisible();
 });
 
-test('admin login page is accessible', async ({ page }) => {
+test('admin requires authentication', async ({ page }) => {
 	await page.goto('/admin');
-	// Should redirect to login when unauthenticated
-	await expect(page.url()).toContain('login');
+	await expect(page).toHaveURL(/\/admin\/(login|setup)(?:\?|$)/);
+	await expect(page.locator('input[type="email"]')).toBeVisible();
+});
+
+test('unknown manual page returns a real 404', async ({ request }) => {
+	const response = await request.get('/__brandywine_missing_page__');
+	expect(response.status()).toBe(404);
 });

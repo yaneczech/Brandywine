@@ -1,11 +1,16 @@
 <script lang="ts">
+	import { toast } from '$lib/ui/toast.svelte';
+	import { ask } from '$lib/ui/dialog.svelte';
+	import Modal from '$lib/components/ui/Modal.svelte';
 	import type { PageData } from './$types';
 	import { invalidateAll } from '$app/navigation';
 	import { checkContrast } from '$lib/utils/colors';
 	import * as m from '$lib/paraglide/messages';
+	import { focusTrap } from '$lib/actions/focus-trap';
+	import { SvelteSet } from 'svelte/reactivity';
 	import {
 		IconPlus, IconPencil, IconTrash, IconX, IconDownload, IconUpload,
-		IconTypography, IconChevronDown, IconChevronRight, IconGripVertical,
+		IconTypography, IconChevronDown, IconGripVertical,
 		IconSunFilled, IconMoonFilled
 	} from '@tabler/icons-svelte';
 
@@ -22,17 +27,15 @@
 	type FontFile = { id: string; originalName: string; format: string; fileSize: number; isVariable: boolean; axes: VariableAxis[] };
 	type Font  = { id: string; name: string; foundry: string | null; license: string | null; sourceUrl: string | null; role: string; weights: number[]; isVariable: boolean; variableAxes: VariableAxis[]; order: number; styles: Style[]; files: FontFile[] };
 
-	let fonts = $state<Font[]>(data.fonts as Font[]);
-	let brandColors = $state<BrandColor[]>((data.colors ?? []) as BrandColor[]);
+	let fonts = $derived(data.fonts as Font[]);
+	let brandColors = $derived((data.colors ?? []) as BrandColor[]);
 	let saving = $state(false);
 	let error  = $state('');
 
 	// Expanded cards — collapsed by default
-	let expandedFonts = $state<Set<string>>(new Set<string>());
+	const expandedFonts = new SvelteSet<string>();
 	function toggleFont(id: string) {
-		const next = new Set(expandedFonts);
-		next.has(id) ? next.delete(id) : next.add(id);
-		expandedFonts = next;
+		expandedFonts.has(id) ? expandedFonts.delete(id) : expandedFonts.add(id);
 	}
 
 	// ── Type tester per-font state ─────────────────────────────────────────────
@@ -98,10 +101,9 @@
 		return 'U+' + char.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0');
 	}
 
-	// ── Confirm modal ─────────────────────────────────────────────────────────
-	let confirmModal = $state<{ title: string; message: string; onConfirm: () => void } | null>(null);
-	function showConfirm(title: string, message: string, onConfirm: () => void) {
-		confirmModal = { title, message, onConfirm };
+	// ── Confirm ───────────────────────────────────────────────────────────────
+	async function showConfirm(title: string, message: string, onConfirm: () => void) {
+		if (await ask({ title, description: message, confirmLabel: m.users_btn_delete() })) onConfirm();
 	}
 
 	// ── Modals ─────────────────────────────────────────────────────────────────
@@ -116,7 +118,6 @@
 
 	// ── File upload ────────────────────────────────────────────────────────────
 	let uploadingFontId = $state<string | null>(null);
-	let uploadProgress  = $state(false);
 
 	let showStyleModal  = $state(false);
 	let editingStyle    = $state<Style | null>(null);
@@ -174,7 +175,7 @@
 		return colorHex(allowedColorsForStyle(s)[0], 'inherit');
 	}
 	function toggleAllowedColor(token: StyleColorToken) {
-		const set = new Set(styleForm.allowedColors);
+		const set = new SvelteSet(styleForm.allowedColors);
 		set.has(token) ? set.delete(token) : set.add(token);
 		styleForm.allowedColors = [...set];
 	}
@@ -183,7 +184,7 @@
 	let testerText      = $state('The quick brown fox jumps over the lazy dog');
 	let testerSize      = $state(32);
 	let testerDark      = $state<Record<string, boolean>>({});
-	let testerFeatures  = $state<Record<string, Set<string>>>({});
+	let testerFeatures  = $state<Record<string, SvelteSet<string>>>({});
 
 	const OT_FEATURES = [
 		{ tag: 'liga',  label: 'Ligatures' },
@@ -199,14 +200,14 @@
 		{ tag: 'zero',  label: 'Slashed Zero' },
 	];
 	function previewGlyphCount(): number {
-		return new Set(GLYPH_SETS.flatMap(set => set.chars.split(''))).size;
+		return new SvelteSet(GLYPH_SETS.flatMap(set => set.chars.split(''))).size;
 	}
 	function coverageTooltip(group: (typeof COVERAGE_GROUPS)[number]): string {
 		const count = group.sets.reduce((sum, label) => sum + (GLYPH_SETS.find(set => set.label === label)?.chars.length ?? 0), 0);
 		return `${group.sets.join(', ')} · ${count} preview glyphs`;
 	}
 	function toggleOTFeature(fontId: string, tag: string) {
-		const current = new Set(testerFeatures[fontId] ?? []);
+		const current = new SvelteSet(testerFeatures[fontId] ?? []);
 		current.has(tag) ? current.delete(tag) : current.add(tag);
 		testerFeatures[fontId] = current;
 	}
@@ -380,19 +381,17 @@
 		const file = fileInput.files?.[0];
 		if (!file) return;
 		uploadingFontId = fontId;
-		uploadProgress = true;
 		try {
 			const fd = new FormData();
 			fd.append('file', file);
 			const res = await fetch(`/api/typography/fonts/${fontId}/files`, { method: 'POST', body: fd });
 			if (!res.ok) {
-				const msg = (await res.json().catch(() => ({}))).message ?? 'Upload failed';
-				alert(msg);
+				const msg = (await res.json().catch(() => ({}))).message ?? m.typo_upload_failed();
+				toast.error(msg);
 			} else {
 				await refresh();
 			}
 		} finally {
-			uploadProgress = false;
 			uploadingFontId = null;
 			fileInput.value = '';
 		}
@@ -448,12 +447,6 @@
 		return `${(n/1024/1024).toFixed(1)} MB`;
 	}
 
-	// ── Inline style edit ──────────────────────────────────────────────────────
-	async function patchStyle(fontId: string, styleId: string, field: string, value: unknown) {
-		await api('PATCH', `/api/typography/fonts/${fontId}/styles/${styleId}`, { [field]: value });
-		await refresh();
-	}
-
 	// ── Weight toggle ──────────────────────────────────────────────────────────
 	const ALL_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
 	function toggleWeight(w: number) {
@@ -463,7 +456,7 @@
 
 	// ── Role label ─────────────────────────────────────────────────────────────
 	const ROLE_LABELS: Record<string, string> = { display: 'Display', body: 'Body', mono: 'Mono', accent: 'Accent' };
-	const ROLE_COLORS: Record<string, string> = { display: '#6366f1', body: '#10b981', mono: '#f59e0b', accent: '#ec4899' };
+	const ROLE_COLORS: Record<string, string> = { display: '#141414', body: '#4f6470', mono: '#8a6f55', accent: '#9a5b4b' };
 
 	// ── Google Fonts helper ────────────────────────────────────────────────────
 	function googleFontsUrl(name: string, weights: number[]) {
@@ -471,9 +464,6 @@
 		const wgts = weights.join(';');
 		return `https://fonts.googleapis.com/css2?family=${family}:wght@${wgts}&display=swap`;
 	}
-
-	// Glyphs to display
-	const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:!?@#$%&()[]{}"\'/\\-–—…';
 
 	// Inject font <link> tags dynamically (svelte:head can only appear once)
 	$effect(() => {
@@ -489,14 +479,7 @@
 	});
 </script>
 
-<svelte:window onkeydown={(e) => {
-	if (e.key !== 'Escape') return;
-	if (glyphModal) { glyphModal = null; return; }
-	if (confirmModal) { confirmModal = null; return; }
-	if (showAxesModal) { showAxesModal = false; return; }
-	if (showStyleModal) { showStyleModal = false; return; }
-	if (showFontModal) { showFontModal = false; return; }
-}} />
+
 
 <svelte:head><title>Typography · Brandywine</title></svelte:head>
 
@@ -531,7 +514,7 @@
 			<button class="ptab" class:active={activeRole === null} onclick={() => activeRole = null}>
 				{m.users_filter_all()} <span class="ptab-count">{fonts.length}</span>
 			</button>
-			{#each groupedFonts as g}
+		{#each groupedFonts as g (g.role)}
 				<button class="ptab" class:active={activeRole === g.role} onclick={() => activeRole = g.role}>
 					{g.label} <span class="ptab-count">{g.fonts.length}</span>
 				</button>
@@ -618,7 +601,6 @@
 						</div>
 
 						<!-- Expand bar — "roleta" -->
-						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<div class="font-expand-bar" role="button" tabindex="0"
 							onclick={() => toggleFont(f.id)}
 							onkeydown={(e) => e.key === 'Enter' && toggleFont(f.id)}
@@ -670,7 +652,7 @@
 											<div class="fi-row fi-row-tags">
 												<span class="fi-label">{m.typo_fi_axes()}</span>
 												<div class="fi-tags">
-													{#each f.variableAxes as ax}
+						{#each f.variableAxes as ax (ax.tag)}
 														<span class="fi-tag" title="{ax.label} {ax.min}–{ax.max}">{ax.tag}</span>
 													{/each}
 												</div>
@@ -680,7 +662,7 @@
 										<div class="fi-row fi-row-tags">
 											<span class="fi-label">{m.typo_fi_weights()}</span>
 											<div class="fi-tags">
-												{#each f.weights as w}
+					{#each f.weights as w (w)}
 													<span class="fi-tag" style="font-weight:{w}">{w}</span>
 												{/each}
 											</div>
@@ -695,7 +677,7 @@
 									<div class="fi-row fi-row-tags">
 										<span class="fi-label">{m.typo_fi_ot()}</span>
 										<div class="fi-tags">
-											{#each OT_FEATURES as feat}
+				{#each OT_FEATURES as feat (feat.tag)}
 												<span class="fi-tag" title={feat.label}>{feat.tag}</span>
 											{/each}
 										</div>
@@ -707,7 +689,7 @@
 									<div class="fi-row fi-row-tags">
 										<span class="fi-label">{m.typo_fi_coverage()}</span>
 										<div class="fi-tags">
-											{#each COVERAGE_GROUPS as group}
+				{#each COVERAGE_GROUPS as group (group.label)}
 												<span class="fi-tag" title={coverageTooltip(group)}>{group.label}</span>
 											{/each}
 										</div>
@@ -728,19 +710,19 @@
 								<span class="section-title">{m.typo_sec_files()}</span>
 								<span class="section-count">{f.files?.length ?? 0}</span>
 								<span class="section-chevron"><IconChevronDown size={11} stroke={2} /></span>
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<label class="action-btn files-upload-btn" class:uploading={uploadingFontId === f.id}
-									onclick={(e) => e.stopPropagation()}>
+								<button type="button" class="action-btn files-upload-btn" class:uploading={uploadingFontId === f.id}
+									onclick={(e) => { e.stopPropagation(); (e.currentTarget.nextElementSibling as HTMLInputElement)?.click(); }}
+									disabled={uploadingFontId !== null}>
 									{#if uploadingFontId === f.id}
 										{m.typo_uploading()}
 									{:else}
 										<IconUpload size={12} stroke={2} />
 										{m.typo_upload()}
 									{/if}
-									<input type="file" accept=".woff2,.woff,.ttf,.otf,.eot" style="display:none"
-										onchange={(e) => uploadFontFile(f.id, e.currentTarget as HTMLInputElement)}
-										disabled={uploadingFontId !== null} />
-								</label>
+								</button>
+								<input type="file" accept=".woff2,.woff,.ttf,.otf,.eot" style="display:none"
+									onchange={(e) => uploadFontFile(f.id, e.currentTarget as HTMLInputElement)}
+									disabled={uploadingFontId !== null} />
 							</summary>
 							<div class="section-body">
 								{#if f.files?.length}
@@ -774,8 +756,7 @@
 								<span class="section-title">{m.typo_sec_styles()}</span>
 								<span class="section-count">{f.styles.length}</span>
 								<span class="section-chevron"><IconChevronDown size={11} stroke={2} /></span>
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<div class="section-actions" onclick={(e) => e.stopPropagation()}>
+								<div class="section-actions">
 									{#if f.styles.length === 0}
 										<button type="button" class="text-btn" onclick={(e) => { e.stopPropagation(); addDefaultStyles(f.id); }} disabled={saving}>{m.typo_add_defaults_btn()}</button>
 									{/if}
@@ -788,8 +769,7 @@
 							</summary>
 							<div class="section-body section-body-no-pt">
 								<!-- Theme tabs -->
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-									<div class="theme-tabs" onclick={(e) => e.stopPropagation()}>
+									<div class="theme-tabs">
 										<button class="theme-tab" class:active={getStyleTab(f.id) === 'all'} onclick={() => setStyleTab(f.id, 'all')}>
 											{m.users_filter_all()} <span class="theme-tab-count">{f.styles.length}</span>
 										</button>
@@ -833,7 +813,7 @@
 												<span class="scale-val">{s.tracking != null ? `${s.tracking}em` : '–'}</span>
 												<span class="style-color-dots">
 													{#if allowedColorsForStyle(s).length > 0}
-														{#each allowedColorsForStyle(s).slice(0, 4) as token}
+					{#each allowedColorsForStyle(s).slice(0, 4) as token (token)}
 															{@const option = colorOption(token)}
 															{#if option}
 																<span class="style-color-dot" title={option.name} style="background:{option.hex}"></span>
@@ -905,9 +885,8 @@
 								<span class="section-title" style="{testerDark[f.id] ? 'color:rgba(255,255,255,0.9)' : ''}">{m.typo_sec_tester()}</span>
 								<span class="section-count">{testerSize}px</span>
 								<span class="section-chevron"><IconChevronDown size={11} stroke={2} /></span>
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<div class="section-actions" onclick={(e) => e.stopPropagation()}>
-									<input type="range" min="8" max="120" bind:value={testerSize} class="tester-slider" />
+								<div class="section-actions">
+									<input type="range" min="8" max="120" bind:value={testerSize} class="tester-slider" onclick={(e) => e.stopPropagation()} />
 								</div>
 							</summary>
 							<div class="section-body tester-section-body">
@@ -962,9 +941,9 @@
 								<!-- OT features row -->
 								<div class="ot-features-row" style="{testerDark[f.id] ? 'border-color:rgba(255,255,255,0.16)' : ''}">
 									<span class="tester-ctrl-label" style="{testerDark[f.id] ? 'color:rgba(255,255,255,0.68)' : ''}">OT</span>
-									{#each OT_FEATURES as feat}
+			{#each OT_FEATURES as feat (feat.tag)}
 										<button class="ot-chip"
-											class:ot-active={(testerFeatures[f.id] ?? new Set()).has(feat.tag)}
+										class:ot-active={(testerFeatures[f.id] ?? new SvelteSet()).has(feat.tag)}
 											onclick={() => toggleOTFeature(f.id, feat.tag)}
 											style="{testerDark[f.id] ? 'background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.22);color:rgba(255,255,255,0.72)' : ''}"
 											title={feat.label}>
@@ -985,10 +964,10 @@
 								<span class="section-title">{m.typo_sec_glyphs()}</span>
 								<span class="section-count">{getGlyphSet(f.id).chars.length}</span>
 								<span class="section-chevron"><IconChevronDown size={11} stroke={2} /></span>
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<div class="section-actions" onclick={(e) => e.stopPropagation()}>
+								<div class="section-actions">
 									<select class="glyph-set-select"
 										value={glyphSetIndex[f.id] ?? 0}
+										onclick={(e) => e.stopPropagation()}
 										onchange={(e) => glyphSetIndex[f.id] = Number((e.target as HTMLSelectElement).value)}>
 										{#each GLYPH_SETS as gs, i (i)}
 											<option value={i}>{gs.label} ({gs.chars.length})</option>
@@ -1060,282 +1039,211 @@
 </div>
 
 <!-- ── Font modal ─────────────────────────────────────────────────────────── -->
-{#if showFontModal}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="modal-backdrop" onclick={() => (showFontModal = false)}>
-		<div class="modal" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-			<div class="modal-header">
-				<h2>{editingFont ? m.typo_font_modal_edit() : m.typo_font_modal_add()}</h2>
-				<button class="modal-close" aria-label="Close" onclick={() => (showFontModal = false)}>
-					<IconX size={16} stroke={1.75} />
-				</button>
+<Modal open={showFontModal} title={editingFont ? m.typo_font_modal_edit() : m.typo_font_modal_add()} size="md" onClose={() => (showFontModal = false)}>
+		<div class="modal-fields">
+			<div class="field">
+				<label for="f-name">{m.typo_font_name_label()} <span class="req">*</span></label>
+				<input id="f-name" type="text" bind:value={fontForm.name} placeholder="Inter, Geist, Lexend…" />
 			</div>
-			<div class="modal-body">
-				<div class="modal-fields">
-					<div class="field">
-						<label for="f-name">{m.typo_font_name_label()} <span class="req">*</span></label>
-						<input id="f-name" type="text" bind:value={fontForm.name} placeholder="Inter, Geist, Lexend…" autofocus />
-					</div>
-					<div class="field-row">
-						<div class="field">
-							<label for="f-foundry">{m.typo_font_foundry_label()}</label>
-							<input id="f-foundry" type="text" bind:value={fontForm.foundry} placeholder="Google, Fontshare…" />
-						</div>
-						<div class="field">
-							<label for="f-license">{m.typo_font_license_label()}</label>
-							<input id="f-license" type="text" bind:value={fontForm.license} placeholder="OFL, Commercial…" />
-						</div>
-					</div>
-					<div class="field">
-						<label for="f-role">{m.typo_font_role_label()}</label>
-						<select id="f-role" bind:value={fontForm.role}>
-							<option value="display">{m.typo_font_role_display()}</option>
-							<option value="body">{m.typo_font_role_body()}</option>
-							<option value="mono">{m.typo_font_role_mono()}</option>
-							<option value="accent">{m.typo_font_role_accent()}</option>
-						</select>
-					</div>
-					<div class="field">
-						<label for="f-url">{m.typo_font_url_label()}</label>
-						<p class="field-hint">{m.typo_font_url_hint()}</p>
-						<input id="f-url" type="text" bind:value={fontForm.sourceUrl} placeholder="https://fonts.googleapis.com/css2?family=Inter…" />
-						{#if fontForm.name && fontForm.weights.length}
-							<button class="text-btn mt-4" onclick={() => { fontForm.sourceUrl = googleFontsUrl(fontForm.name, fontForm.weights); }}>
-								{m.typo_font_autofill()}
-							</button>
-						{/if}
-					</div>
-					<div class="field">
-						<label class="toggle-label">
-							<span>{m.typo_font_variable_label()}</span>
-							<input type="checkbox" class="toggle-check" bind:checked={fontForm.isVariable} />
-							<span class="toggle-track"><span class="toggle-thumb"></span></span>
-						</label>
-						<p class="field-hint">{m.typo_font_variable_hint()}</p>
-					</div>
-					{#if !fontForm.isVariable}
-					<div class="field">
-						<label>{m.typo_font_weights_label()}</label>
-						<div class="weights-grid">
-							{#each ALL_WEIGHTS as w (w)}
-								<button
-									class="weight-chip"
-									class:selected={fontForm.weights.includes(w)}
-									onclick={() => toggleWeight(w)}
-									style="font-weight:{w}"
-								>{w}</button>
-							{/each}
-						</div>
-					</div>
-					{/if}
+			<div class="field-row">
+				<div class="field">
+					<label for="f-foundry">{m.typo_font_foundry_label()}</label>
+					<input id="f-foundry" type="text" bind:value={fontForm.foundry} placeholder="Google, Fontshare…" />
 				</div>
-				{#if error}<div class="modal-error">{error}</div>{/if}
-			</div>
-			<div class="modal-footer">
-				<button class="action-btn" onclick={() => (showFontModal = false)}>{m.users_btn_cancel()}</button>
-				<button class="action-btn action-btn-primary" onclick={saveFont} disabled={saving || !fontForm.name.trim()}>
-					{saving ? '…' : editingFont ? m.users_btn_save() : m.typo_font_modal_add()}
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}
-
-<!-- ── Style modal ────────────────────────────────────────────────────────── -->
-{#if showStyleModal}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="modal-backdrop" onclick={() => (showStyleModal = false)}>
-		<div class="modal modal-sm" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-			<div class="modal-header">
-				<h2>{editingStyle ? m.typo_style_modal_edit() : m.typo_style_modal_add()}</h2>
-				<button class="modal-close" aria-label="Close" onclick={() => (showStyleModal = false)}>
-					<IconX size={16} stroke={1.75} />
-				</button>
-			</div>
-			<div class="modal-body">
-				<div class="modal-fields">
-					<div class="field-row">
-						<div class="field">
-							<label for="s-name">{m.typo_style_name_label()} <span class="req">*</span></label>
-							<input id="s-name" type="text" bind:value={styleForm.name} placeholder="H1, Body, Caption…" autofocus />
-						</div>
-						<div class="field field-sm">
-							<label for="s-tag">{m.typo_style_tag_label()}</label>
-							<input id="s-tag" type="text" bind:value={styleForm.tag} placeholder="h1, p…" />
-						</div>
-					</div>
-					<div class="field">
-						<label for="s-theme">{m.typo_style_theme_label()}</label>
-						<select id="s-theme" bind:value={styleForm.theme}>
-							<option value="universal">{m.typo_style_theme_universal()}</option>
-							<option value="light">{m.typo_style_theme_light_opt()}</option>
-							<option value="dark">{m.typo_style_theme_dark_opt()}</option>
-						</select>
-						{#if styleForm.theme === 'light'}
-							<p class="field-hint">{m.typo_style_theme_hint_light()}</p>
-						{:else if styleForm.theme === 'dark'}
-							<p class="field-hint">{m.typo_style_theme_hint_dark()}</p>
-						{/if}
-					</div>
-					<div class="field-row">
-						<div class="field">
-							<label for="s-size">{m.typo_style_size_label()}</label>
-							<input id="s-size" type="number" bind:value={styleForm.size} min="6" max="200" />
-						</div>
-						<div class="field">
-							<label for="s-weight">{m.typo_col_weight()}</label>
-							<input id="s-weight" type="number" bind:value={styleForm.weight} min="100" max="900" step="100" />
-						</div>
-					</div>
-					<div class="field-row">
-						<div class="field">
-							<label for="s-lh">{m.typo_style_lh_label()}</label>
-							<input id="s-lh" type="number" bind:value={styleForm.lineHeight} min="0.8" max="3" step="0.05" />
-						</div>
-						<div class="field">
-							<label for="s-tr">{m.typo_style_tracking_label()}</label>
-							<input id="s-tr" type="number" bind:value={styleForm.tracking} step="0.01" />
-						</div>
-					</div>
-					<div class="field">
-						<span class="field-label-text">{m.typo_style_colors_label()}</span>
-						<p class="field-hint">{m.typo_style_colors_hint()}</p>
-						<div class="allowed-color-grid">
-							{#each colorOptions() as color}
-								<button
-									type="button"
-									class="allowed-color-option"
-									class:selected={styleForm.allowedColors.includes(color.token)}
-									onclick={() => toggleAllowedColor(color.token)}
-								>
-									<span class="allowed-color-swatch" style="background:{color.hex}"></span>
-									<span class="allowed-color-name">{color.name}</span>
-									<span class="allowed-color-source">{color.source === 'base' ? m.typo_source_base() : m.typo_source_brand()}</span>
-								</button>
-							{/each}
-						</div>
-						{#if styleForm.allowedColors.length > 0}
-							<div class="style-contrast-list">
-								{#each styleForm.allowedColors as token}
-									{@const option = colorOption(token)}
-									{#if option}
-										<div class="style-contrast-row">
-											<span class="style-color-dot" title={option.name} style="background:{option.hex}"></span>
-											<span class="style-contrast-name">{option.name}</span>
-											<span class="contrast-pill" class:fail={checkContrast(option.hex, '#FFFFFF').level === 'Fail'}>{checkContrast(option.hex, '#FFFFFF').ratioDisplay} {m.typo_on_white()}</span>
-											<span class="contrast-pill" class:fail={checkContrast(option.hex, '#000000').level === 'Fail'}>{checkContrast(option.hex, '#000000').ratioDisplay} {m.typo_on_black()}</span>
-										</div>
-									{/if}
-								{/each}
-							</div>
-						{:else}
-							<p class="field-hint">{m.typo_no_color_restriction()}</p>
-						{/if}
-					</div>
+				<div class="field">
+					<label for="f-license">{m.typo_font_license_label()}</label>
+					<input id="f-license" type="text" bind:value={fontForm.license} placeholder="OFL, Commercial…" />
 				</div>
-				{#if error}<div class="modal-error">{error}</div>{/if}
 			</div>
-			<div class="modal-footer">
-				<button class="action-btn" onclick={() => (showStyleModal = false)}>{m.users_btn_cancel()}</button>
-				<button class="action-btn action-btn-primary" onclick={saveStyle} disabled={saving || !styleForm.name.trim()}>
-					{saving ? '…' : editingStyle ? m.users_btn_save() : m.typo_style_modal_add()}
-				</button>
+			<div class="field">
+				<label for="f-role">{m.typo_font_role_label()}</label>
+				<select id="f-role" bind:value={fontForm.role}>
+					<option value="display">{m.typo_font_role_display()}</option>
+					<option value="body">{m.typo_font_role_body()}</option>
+					<option value="mono">{m.typo_font_role_mono()}</option>
+					<option value="accent">{m.typo_font_role_accent()}</option>
+				</select>
 			</div>
-		</div>
-	</div>
-{/if}
-
-<!-- ── Variable axes modal ─────────────────────────────────────────────────── -->
-{#if showAxesModal}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="modal-backdrop" onclick={() => (showAxesModal = false)}>
-		<div class="modal" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-			<div class="modal-header">
-				<h2>{m.typo_axes_modal_title()}</h2>
-				<button class="modal-close" aria-label="Close" onclick={() => (showAxesModal = false)}>
-					<IconX size={16} stroke={1.75} />
-				</button>
+			<div class="field">
+				<label for="f-url">{m.typo_font_url_label()}</label>
+				<p class="field-hint">{m.typo_font_url_hint()}</p>
+				<input id="f-url" type="text" bind:value={fontForm.sourceUrl} placeholder="https://fonts.googleapis.com/css2?family=Inter…" />
+				{#if fontForm.name && fontForm.weights.length}
+					<button class="text-btn mt-4" onclick={() => { fontForm.sourceUrl = googleFontsUrl(fontForm.name, fontForm.weights); }}>
+						{m.typo_font_autofill()}
+					</button>
+				{/if}
 			</div>
-			<div class="modal-body">
-				<p class="axes-hint">{m.typo_axes_hint()}</p>
-				<div class="axes-list">
-					{#each editingAxes as ax, i (i)}
-						<div class="axis-row">
-							<div class="axis-tag-wrap">
-								<input class="axis-input axis-tag" bind:value={ax.tag} placeholder="wght" />
-								<select class="axis-preset" onchange={(e) => applyCommonAxis(i, (e.target as HTMLSelectElement).value)} title="Fill from preset">
-									<option value="">preset…</option>
-									{#each COMMON_AXES as ca}
-										<option value={ca.tag}>{ca.tag} — {ca.label}</option>
-									{/each}
-								</select>
-							</div>
-							<input class="axis-input axis-label" bind:value={ax.label} placeholder="Label" />
-							<input class="axis-input axis-num" type="number" bind:value={ax.min} placeholder="min" />
-							<input class="axis-input axis-num" type="number" bind:value={ax.max} placeholder="max" />
-							<input class="axis-input axis-num" type="number" bind:value={ax.default} placeholder="default" />
-							<button class="icon-btn icon-btn-danger" onclick={() => removeAxis(i)} title="Remove">
-								<IconX size={12} stroke={2} />
-							</button>
-						</div>
+			<div class="field">
+				<label class="toggle-label">
+					<span>{m.typo_font_variable_label()}</span>
+					<input type="checkbox" class="toggle-check" bind:checked={fontForm.isVariable} />
+					<span class="toggle-track"><span class="toggle-thumb"></span></span>
+				</label>
+				<p class="field-hint">{m.typo_font_variable_hint()}</p>
+			</div>
+			{#if !fontForm.isVariable}
+			<div class="field">
+			<span class="field-label-text" id="font-weights-label">{m.typo_font_weights_label()}</span>
+				<div class="weights-grid" aria-labelledby="font-weights-label">
+					{#each ALL_WEIGHTS as w (w)}
+						<button
+							class="weight-chip"
+							class:selected={fontForm.weights.includes(w)}
+							onclick={() => toggleWeight(w)}
+							style="font-weight:{w}"
+						>{w}</button>
 					{/each}
 				</div>
-				<button class="text-btn mt-4" onclick={addAxis}>{m.typo_add_axis()}</button>
 			</div>
-			<div class="modal-footer">
-				<button class="action-btn" onclick={() => (showAxesModal = false)}>{m.users_btn_cancel()}</button>
-				<button class="action-btn action-btn-primary" onclick={saveAxes} disabled={saving}>
-					{saving ? '…' : m.typo_save_axes()}
-				</button>
-			</div>
+			{/if}
 		</div>
-	</div>
-{/if}
+		{#if error}<div class="modal-error">{error}</div>{/if}
+	{#snippet footer()}
+			<button class="action-btn" onclick={() => (showFontModal = false)}>{m.users_btn_cancel()}</button>
+			<button class="action-btn action-btn-primary" onclick={saveFont} disabled={saving || !fontForm.name.trim()}>
+				{saving ? '…' : editingFont ? m.users_btn_save() : m.typo_font_modal_add()}
+			</button>
+	{/snippet}
+</Modal>
 
-<!-- ── Confirm modal ────────────────────────────────────────────────────────── -->
-{#if confirmModal}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="modal-backdrop" onclick={() => (confirmModal = null)}>
-		<div class="modal modal-sm" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-			<div class="modal-header">
-				<h2>{confirmModal.title}</h2>
-				<button class="modal-close" aria-label="Close" onclick={() => (confirmModal = null)}><IconX size={16} stroke={1.75} /></button>
+<!-- ── Style modal ────────────────────────────────────────────────────────── -->
+<Modal open={showStyleModal} title={editingStyle ? m.typo_style_modal_edit() : m.typo_style_modal_add()} size="sm" onClose={() => (showStyleModal = false)}>
+		<div class="modal-fields">
+			<div class="field-row">
+				<div class="field">
+					<label for="s-name">{m.typo_style_name_label()} <span class="req">*</span></label>
+					<input id="s-name" type="text" bind:value={styleForm.name} placeholder="H1, Body, Caption…" />
+				</div>
+				<div class="field field-sm">
+					<label for="s-tag">{m.typo_style_tag_label()}</label>
+					<input id="s-tag" type="text" bind:value={styleForm.tag} placeholder="h1, p…" />
+				</div>
 			</div>
-			<div class="modal-body">
-				<p style="font-size:0.9rem; color:var(--color-muted); line-height:1.5">{confirmModal.message}</p>
+			<div class="field">
+				<label for="s-theme">{m.typo_style_theme_label()}</label>
+				<select id="s-theme" bind:value={styleForm.theme}>
+					<option value="universal">{m.typo_style_theme_universal()}</option>
+					<option value="light">{m.typo_style_theme_light_opt()}</option>
+					<option value="dark">{m.typo_style_theme_dark_opt()}</option>
+				</select>
+				{#if styleForm.theme === 'light'}
+					<p class="field-hint">{m.typo_style_theme_hint_light()}</p>
+				{:else if styleForm.theme === 'dark'}
+					<p class="field-hint">{m.typo_style_theme_hint_dark()}</p>
+				{/if}
 			</div>
-			<div class="modal-footer">
-				<button class="action-btn" onclick={() => (confirmModal = null)}>{m.users_btn_cancel()}</button>
-				<button class="action-btn action-btn-danger" onclick={() => { confirmModal!.onConfirm(); confirmModal = null; }}>{m.users_btn_delete()}</button>
+			<div class="field-row">
+				<div class="field">
+					<label for="s-size">{m.typo_style_size_label()}</label>
+					<input id="s-size" type="number" bind:value={styleForm.size} min="6" max="200" />
+				</div>
+				<div class="field">
+					<label for="s-weight">{m.typo_col_weight()}</label>
+					<input id="s-weight" type="number" bind:value={styleForm.weight} min="100" max="900" step="100" />
+				</div>
+			</div>
+			<div class="field-row">
+				<div class="field">
+					<label for="s-lh">{m.typo_style_lh_label()}</label>
+					<input id="s-lh" type="number" bind:value={styleForm.lineHeight} min="0.8" max="3" step="0.05" />
+				</div>
+				<div class="field">
+					<label for="s-tr">{m.typo_style_tracking_label()}</label>
+					<input id="s-tr" type="number" bind:value={styleForm.tracking} step="0.01" />
+				</div>
+			</div>
+			<div class="field">
+				<span class="field-label-text">{m.typo_style_colors_label()}</span>
+				<p class="field-hint">{m.typo_style_colors_hint()}</p>
+				<div class="allowed-color-grid">
+{#each colorOptions() as color (color.token)}
+						<button
+							type="button"
+							class="allowed-color-option"
+							class:selected={styleForm.allowedColors.includes(color.token)}
+							onclick={() => toggleAllowedColor(color.token)}
+						>
+							<span class="allowed-color-swatch" style="background:{color.hex}"></span>
+							<span class="allowed-color-name">{color.name}</span>
+							<span class="allowed-color-source">{color.source === 'base' ? m.typo_source_base() : m.typo_source_brand()}</span>
+						</button>
+					{/each}
+				</div>
+				{#if styleForm.allowedColors.length > 0}
+					<div class="style-contrast-list">
+	{#each styleForm.allowedColors as token (token)}
+							{@const option = colorOption(token)}
+							{#if option}
+								<div class="style-contrast-row">
+									<span class="style-color-dot" title={option.name} style="background:{option.hex}"></span>
+									<span class="style-contrast-name">{option.name}</span>
+									<span class="contrast-pill" class:fail={checkContrast(option.hex, '#FFFFFF').level === 'Fail'}>{checkContrast(option.hex, '#FFFFFF').ratioDisplay} {m.typo_on_white()}</span>
+									<span class="contrast-pill" class:fail={checkContrast(option.hex, '#000000').level === 'Fail'}>{checkContrast(option.hex, '#000000').ratioDisplay} {m.typo_on_black()}</span>
+								</div>
+							{/if}
+						{/each}
+					</div>
+				{:else}
+					<p class="field-hint">{m.typo_no_color_restriction()}</p>
+				{/if}
 			</div>
 		</div>
-	</div>
-{/if}
+		{#if error}<div class="modal-error">{error}</div>{/if}
+	{#snippet footer()}
+			<button class="action-btn" onclick={() => (showStyleModal = false)}>{m.users_btn_cancel()}</button>
+			<button class="action-btn action-btn-primary" onclick={saveStyle} disabled={saving || !styleForm.name.trim()}>
+				{saving ? '…' : editingStyle ? m.users_btn_save() : m.typo_style_modal_add()}
+			</button>
+	{/snippet}
+</Modal>
+
+<!-- ── Variable axes modal ─────────────────────────────────────────────────── -->
+<Modal open={showAxesModal} title={m.typo_axes_modal_title()} size="md" onClose={() => (showAxesModal = false)}>
+		<p class="axes-hint">{m.typo_axes_hint()}</p>
+		<div class="axes-list">
+			{#each editingAxes as ax, i (i)}
+				<div class="axis-row">
+					<div class="axis-tag-wrap">
+						<input class="axis-input axis-tag" bind:value={ax.tag} placeholder="wght" />
+						<select class="axis-preset" onchange={(e) => applyCommonAxis(i, (e.target as HTMLSelectElement).value)} title="Fill from preset">
+							<option value="">preset…</option>
+	{#each COMMON_AXES as ca (ca.tag)}
+								<option value={ca.tag}>{ca.tag} — {ca.label}</option>
+							{/each}
+						</select>
+					</div>
+					<input class="axis-input axis-label" bind:value={ax.label} placeholder="Label" />
+					<input class="axis-input axis-num" type="number" bind:value={ax.min} placeholder="min" />
+					<input class="axis-input axis-num" type="number" bind:value={ax.max} placeholder="max" />
+					<input class="axis-input axis-num" type="number" bind:value={ax.default} placeholder="default" />
+					<button class="icon-btn icon-btn-danger" onclick={() => removeAxis(i)} title="Remove">
+						<IconX size={12} stroke={2} />
+					</button>
+				</div>
+			{/each}
+		</div>
+		<button class="text-btn mt-4" onclick={addAxis}>{m.typo_add_axis()}</button>
+	{#snippet footer()}
+			<button class="action-btn" onclick={() => (showAxesModal = false)}>{m.users_btn_cancel()}</button>
+			<button class="action-btn action-btn-primary" onclick={saveAxes} disabled={saving}>
+				{saving ? '…' : m.typo_save_axes()}
+			</button>
+	{/snippet}
+</Modal>
 
 <!-- ── Glyph modal ──────────────────────────────────────────────────────────── -->
-{#if glyphModal}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-		<div class="modal-backdrop" onclick={() => (glyphModal = null)}>
-			<div class="glyph-modal" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()}>
-				<div class="glyph-modal-preview" style="font-family:{glyphModal.fontFamily}; font-weight:{glyphModal.weight}; font-style:{glyphModal.italic ? 'italic' : 'normal'}">
-					{glyphModal.char}
-				</div>
-			<div class="glyph-modal-info">
-				<span class="glyph-modal-code">{charCodeStr(glyphModal.char)}</span>
-				<span class="glyph-modal-name">{glyphModal.fontName}</span>
-			</div>
-			<div class="glyph-modal-actions">
-				<button class="action-btn" onclick={() => { navigator.clipboard.writeText(glyphModal!.char); }}>
-					{m.typo_copy_glyph()}
-				</button>
-				<button class="action-btn" onclick={() => { navigator.clipboard.writeText(charCodeStr(glyphModal!.char)); }}>
-					{m.typo_copy_code()}
-				</button>
-				<button class="action-btn" onclick={() => (glyphModal = null)}>{m.users_btn_close()}</button>
-			</div>
+<Modal open={!!glyphModal} title={glyphModal?.fontName ?? ''} description={glyphModal ? charCodeStr(glyphModal.char) : ''} size="sm" onClose={() => (glyphModal = null)}>
+	{#if glyphModal}
+		<div class="glyph-modal-preview" style="font-family:{glyphModal.fontFamily}; font-weight:{glyphModal.weight}; font-style:{glyphModal.italic ? 'italic' : 'normal'}">
+			{glyphModal.char}
 		</div>
-	</div>
-{/if}
+	{/if}
+	{#snippet footer()}
+		<button class="btn btn-secondary" onclick={() => { navigator.clipboard.writeText(glyphModal!.char); toast.success(m.users_magic_copied()); }}>{m.typo_copy_glyph()}</button>
+		<button class="btn btn-secondary" onclick={() => { navigator.clipboard.writeText(charCodeStr(glyphModal!.char)); toast.success(m.users_magic_copied()); }}>{m.typo_copy_code()}</button>
+	{/snippet}
+</Modal>
 
 <style>
 	.page {
@@ -1351,8 +1259,8 @@
 	display: flex; align-items: flex-start; justify-content: space-between;
 	padding: 2rem 2rem 0; margin-bottom: 2rem; gap: 1rem;
 }
-.page-title { font-size: 1.5rem; font-weight: 650; letter-spacing: -0.025em; }
-.page-sub { margin-top: 4px; font-size: 0.875rem; color: var(--color-muted); }
+.page-title { font-size: var(--text-2xl); font-weight: 600; letter-spacing: var(--tracking-tight); }
+.page-sub { margin-top: 4px; font-size: var(--text-base); color: var(--color-muted); }
 .topbar-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 /* ── Empty state ──────────────────────────────────────────────────────────── */
@@ -1361,8 +1269,8 @@
 	gap: 12px; padding: 5rem 2rem; text-align: center;
 }
 .empty-icon { margin-bottom: 4px; }
-.empty-title { font-size: 0.9375rem; font-weight: 600; color: var(--color-text); }
-.empty-sub { font-size: 0.875rem; color: var(--color-muted); max-width: 280px; line-height: 1.5; }
+.empty-title { font-size: var(--text-md); font-weight: 600; color: var(--color-text); }
+.empty-sub { font-size: var(--text-base); color: var(--color-muted); max-width: 280px; line-height: 1.5; }
 
 /* ── Role filter tabs ─────────────────────────────────────────────────────── */
 .role-tab-bar {
@@ -1374,20 +1282,15 @@
 .role-tab-bar::-webkit-scrollbar { display: none; }
 .ptab {
 	display: flex; align-items: center; gap: 6px;
-	padding: 8px 12px; border: none; background: none;
-	color: var(--color-muted); cursor: pointer; font-size: 0.8125rem; font-weight: 500;
+	padding: 10px 0; margin-right: var(--space-5); border: none; background: none;
+	color: var(--color-muted); cursor: pointer; font-size: var(--text-sm); font-weight: 400;
 	border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
 	transition: color 0.1s, border-color 0.1s;
 }
 .ptab:hover { color: var(--color-text); }
-.ptab.active { color: var(--brand); border-bottom-color: var(--brand); }
-.ptab-count {
-	font-size: 0.6875rem; background: var(--color-surface-raised);
-	border: 1px solid var(--color-border);
-	border-radius: 20px; padding: 0 5px; line-height: 17px;
-	color: var(--color-muted); font-weight: 500;
-}
-.ptab.active .ptab-count { background: rgba(74,18,4,.08); border-color: rgba(74,18,4,.15); color: var(--brand); }
+.ptab.active { color: var(--color-text); border-bottom-color: var(--color-accent); font-weight: 500; }
+.ptab-count { font-size: var(--text-xs); color: var(--color-placeholder); font-variant-numeric: tabular-nums; }
+.ptab.active .ptab-count { color: var(--color-muted); }
 
 /* ── Font cards ───────────────────────────────────────────────────────────── */
 	.fonts-list { display: flex; flex-direction: column; gap: 0; padding: 0 2rem 3rem; min-width: 0; }
@@ -1397,31 +1300,30 @@
 .font-role-section:last-child { margin-bottom: 0; }
 .palette-group-header {
 	display: flex; align-items: center; gap: 10px;
-	padding-bottom: 0.625rem; border-bottom: 2px solid var(--color-border);
+	padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-border-strong);
 }
 .palette-group-name {
-	font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.06em;
+	font-size: var(--text-2xs); font-weight: 500; letter-spacing: var(--tracking-eyebrow);
 	text-transform: uppercase; color: var(--color-text);
 }
 .palette-group-count {
-	font-size: 0.6875rem; font-weight: 600; color: var(--brand);
-	background: rgba(74,18,4,.07); border: 1px solid rgba(74,18,4,.15);
-	border-radius: 20px; padding: 0 8px; line-height: 19px;
+	font-size: var(--text-xs); color: var(--color-muted); font-variant-numeric: tabular-nums;
 }
 
 .font-card {
 	border: 1px solid var(--color-border);
-		border-radius: 14px;
+		border-radius: var(--radius-lg);
 		overflow: hidden;
 		background: var(--color-surface);
+		box-shadow: var(--shadow-xs);
 		min-width: 0;
 	}
 
 .font-header-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; min-width: 0; }
 .font-header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
-.font-name { font-size: 0.9375rem; font-weight: 600; }
-.font-meta { font-size: 0.8125rem; color: var(--color-muted); }
+.font-name { font-size: var(--text-md); font-weight: 600; }
+.font-meta { font-size: var(--text-sm); color: var(--color-muted); }
 
 /* ── Specimen ─────────────────────────────────────────────────────────────── */
 .font-specimen {
@@ -1437,18 +1339,18 @@
 	color: var(--color-text);
 }
 .specimen-variable-badge {
-	font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
-	color: #7c3aed; background: #ede9fe; border: 1px solid #c4b5fd;
-	padding: 2px 6px; border-radius: 6px; cursor: pointer;
+	font-size: var(--text-2xs); font-weight: 600; letter-spacing: var(--tracking-eyebrow); text-transform: uppercase;
+	color: var(--color-text); background: var(--color-surface-raised); border: 1px solid var(--color-border-strong);
+	padding: 2px 6px; border-radius: var(--radius); cursor: pointer;
 	white-space: nowrap;
 }
-.specimen-variable-badge:hover { background: #ddd6fe; }
+.specimen-variable-badge:hover { background: var(--color-border-strong); }
 .specimen-right {
 	flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;
 }
 .specimen-abc {
-	font-size: 0.9375rem; color: var(--color-text); line-height: 1.6;
-	letter-spacing: 0.04em;
+	font-size: var(--text-md); color: var(--color-text); line-height: 1.6;
+	letter-spacing: var(--tracking-eyebrow);
 	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	min-width: 0;
 }
@@ -1463,12 +1365,12 @@
 	padding: 1px 0; min-width: 0;
 }
 .weight-strip-num {
-	font-size: 0.6875rem; color: var(--color-muted);
+	font-size: var(--text-2xs); color: var(--color-muted);
 	width: 30px; flex-shrink: 0; font-variant-numeric: tabular-nums;
 	font-family: var(--font-mono);
 }
 .weight-strip-text {
-	font-size: 0.9375rem; color: var(--color-text);
+	font-size: var(--text-md); color: var(--color-text);
 	white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
 
@@ -1485,34 +1387,34 @@
 	.theme-tabs::-webkit-scrollbar { display: none; }
 .theme-tab {
 	display: inline-flex; align-items: center; gap: 5px;
-	height: 28px; padding: 0 10px; border-radius: 7px;
-	border: 1.5px solid transparent; background: none;
-	font-size: 0.8rem; font-weight: 500; cursor: pointer;
+	height: 28px; padding: 0 10px; border-radius: var(--radius);
+	border: 1px solid transparent; background: none;
+	font-size: var(--text-sm); font-weight: 500; cursor: pointer;
 	color: var(--color-muted); transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
-.theme-tab:hover { background: var(--color-surface-raised); color: var(--color-text); }
+.theme-tab:hover { background: var(--color-hover); color: var(--color-text); }
 .theme-tab.active {
-	background: color-mix(in srgb, var(--brand) 10%, transparent);
-	color: var(--brand); border-color: color-mix(in srgb, var(--brand) 30%, transparent);
+	background: var(--color-surface);
+	color: var(--color-text); border-color: var(--color-border-strong); box-shadow: var(--shadow-xs);
 }
-.theme-tab-light.active { background: #fefce8; color: #92400e; border-color: #fde68a; }
-.theme-tab-dark.active  { background: #1e1b4b; color: #c4b5fd; border-color: #4c1d95; }
+.theme-tab-light.active { background: var(--color-warning-subtle); color: var(--color-warning); border-color: var(--color-warning-border); }
+.theme-tab-dark.active  { background: #141414; color: var(--color-border-strong); border-color: var(--color-text); }
 .theme-tab-count {
-	font-size: 0.7rem; color: var(--color-muted);
+	font-size: var(--text-2xs); color: var(--color-muted);
 	min-width: 12px; text-align: center;
 }
-	.theme-tab.active .theme-tab-count { color: var(--brand); opacity: 0.7; }
-	.theme-tab-light.active .theme-tab-count { color: #92400e; }
-	.theme-tab-dark.active .theme-tab-count { color: #c4b5fd; }
+	.theme-tab.active .theme-tab-count { color: var(--color-muted); }
+	.theme-tab-light.active .theme-tab-count { color: var(--color-warning); }
+	.theme-tab-dark.active .theme-tab-count { color: var(--color-border-strong); }
 
 	.theme-badge {
-		font-size: 0.625rem; padding: 1px 5px; border-radius: 4px;
+		font-size: var(--text-2xs); padding: 1px 5px; border-radius: var(--radius-sm);
 		border: 1px solid var(--color-border); line-height: 1.4;
 		white-space: nowrap; flex-shrink: 0;
 	}
 	.theme-badge-universal { background: var(--color-surface-raised); border-color: var(--color-border); color: var(--color-muted); }
-	.theme-badge-light { background: #fefce8; border-color: #fde68a; color: #92400e; }
-	.theme-badge-dark  { background: #ede9fe; border-color: #c4b5fd; color: #4c1d95; }
+	.theme-badge-light { background: var(--color-warning-subtle); border-color: var(--color-warning-border); color: var(--color-warning); }
+	.theme-badge-dark  { background: var(--color-surface-raised); border-color: var(--color-border-strong); color: var(--color-text); }
 
 	/* ── Scale table ──────────────────────────────────────────────────────────── */
 	.scale-table { display: flex; flex-direction: column; gap: 0; margin-bottom: 1rem; min-width: 0; }
@@ -1523,20 +1425,20 @@
 		min-width: 0;
 	}
 .scale-row:last-child { border-bottom: none; }
-.scale-row-header { font-size: 0.6875rem; font-weight: 600; color: var(--color-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.scale-row-header { font-size: var(--text-2xs); font-weight: 600; color: var(--color-muted); letter-spacing: var(--tracking-eyebrow); text-transform: uppercase; }
 	.scale-preview {
 		display: flex; align-items: baseline; gap: 8px;
 		white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 		min-width: 0;
 	}
 .scale-tag {
-	font-size: 0.6875rem; font-weight: 400; color: var(--color-muted);
+	font-size: var(--text-2xs); font-weight: 400; color: var(--color-muted);
 	background: var(--color-surface-raised); padding: 1px 5px;
-	border-radius: 4px; border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm); border: 1px solid var(--color-border);
 	font-family: var(--font-mono); letter-spacing: 0; flex-shrink: 0;
 }
-.scale-val { font-size: 0.8125rem; color: var(--color-muted); font-variant-numeric: tabular-nums; }
-.scale-muted { font-size: 0.75rem; color: var(--color-muted); }
+.scale-val { font-size: var(--text-sm); color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.scale-muted { font-size: var(--text-xs); color: var(--color-muted); }
 .scale-btns { display: flex; gap: 4px; justify-content: flex-end; }
 .style-color-dots { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .style-color-dot {
@@ -1545,7 +1447,7 @@
 	box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
 	flex: 0 0 auto;
 }
-.style-color-more { font-size: 0.6875rem; color: var(--color-muted); }
+.style-color-more { font-size: var(--text-2xs); color: var(--color-muted); }
 
 /* ── DnD ──────────────────────────────────────────────────────────────────── */
 .drag-handle {
@@ -1555,8 +1457,8 @@
 .scale-row:hover .drag-handle { color: var(--color-muted); }
 .drag-handle:active { cursor: grabbing; }
 .scale-row.drag-over {
-	border-top: 2px solid var(--brand);
-	background: color-mix(in srgb, var(--brand) 5%, transparent);
+	border-top: 2px solid var(--color-accent);
+	background: color-mix(in srgb, var(--color-accent) 5%, transparent);
 }
 .scale-row.dragging { opacity: 0.4; }
 
@@ -1566,31 +1468,31 @@
 		gap: 12px; margin: 0 0 8px;
 	}
 	.style-preview-title {
-		font-size: 0.6875rem; font-weight: 700; color: var(--color-muted);
-		text-transform: uppercase; letter-spacing: 0.05em;
+		font-size: var(--text-2xs); font-weight: 600; color: var(--color-muted);
+		text-transform: uppercase; letter-spacing: var(--tracking-eyebrow);
 	}
 	.preview-theme-toggle {
 		display: inline-flex; align-items: center; gap: 2px;
 		padding: 2px; border: 1px solid var(--color-border);
-		border-radius: 8px; background: var(--color-bg);
+		border-radius: var(--radius); background: var(--color-bg);
 	}
 	.preview-theme-btn {
 		display: inline-flex; align-items: center; gap: 5px;
 		height: 26px; padding: 0 9px; border: 1px solid transparent;
-		border-radius: 6px; background: transparent; color: var(--color-muted);
-		font-size: 0.75rem; font-weight: 600; transition: background 0.1s, color 0.1s, border-color 0.1s;
+		border-radius: var(--radius); background: transparent; color: var(--color-muted);
+		font-size: var(--text-xs); font-weight: 500; transition: background 0.1s, color 0.1s, border-color 0.1s;
 	}
-	.preview-theme-btn:hover { color: var(--color-text); background: var(--color-surface-raised); }
+	.preview-theme-btn:hover { color: var(--color-text); background: var(--color-hover); }
 	.preview-theme-btn.active {
-		background: #fefce8; color: #92400e; border-color: #fde68a;
+		background: var(--color-warning-subtle); color: var(--color-warning); border-color: var(--color-warning-border);
 	}
 	.preview-theme-btn-dark.active {
-		background: #1e1b4b; color: #c4b5fd; border-color: #4c1d95;
+		background: #141414; color: var(--color-border-strong); border-color: var(--color-text);
 	}
 	.scale-preview-live {
 		display: flex; flex-direction: column; gap: 0;
 		padding: 1.25rem; background: var(--color-bg);
-		border-radius: 10px; border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg); border: 1px solid var(--color-border);
 		min-width: 0;
 	}
 	.scale-preview-live.preview-dark {
@@ -1605,30 +1507,30 @@
 }
 .preview-row:last-child { border-bottom: none; }
 .preview-label {
-	font-size: 0.6875rem; font-weight: 600; color: var(--color-muted);
-	text-transform: uppercase; letter-spacing: 0.04em;
+	font-size: var(--text-2xs); font-weight: 600; color: var(--color-muted);
+	text-transform: uppercase; letter-spacing: var(--tracking-eyebrow);
 	width: 56px; flex-shrink: 0; font-family: var(--font-mono);
 }
 	.preview-text { color: var(--color-text); min-width: 0; overflow-wrap: anywhere; }
 
-.scale-empty { font-size: 0.875rem; color: var(--color-muted); }
+.scale-empty { font-size: var(--text-base); color: var(--color-muted); }
 .inline-btn {
-	background: none; border: none; cursor: pointer; color: var(--brand);
+	background: none; border: none; cursor: pointer; color: var(--color-accent);
 	font-size: inherit; padding: 0; text-decoration: underline;
 }
 
 /* ── Type tester ──────────────────────────────────────────────────────────── */
-.tester-slider {
-	-webkit-appearance: none; width: 120px; height: 4px;
-	background: var(--color-border); border-radius: 2px; outline: none; cursor: pointer;
+	.tester-slider {
+		-webkit-appearance: none; appearance: none; width: 120px; height: 4px;
+	background: var(--color-border); border-radius: var(--radius-xs); outline: none; cursor: pointer;
 }
 .tester-slider::-webkit-slider-thumb {
 	-webkit-appearance: none; width: 14px; height: 14px;
-	border-radius: 50%; background: var(--brand); cursor: pointer;
+	border-radius: 50%; background: var(--color-accent); cursor: pointer;
 }
 .tester-text {
 	min-height: 1.5em; color: var(--color-text); line-height: 1.2;
-	outline: none; cursor: text; font-weight: 400; letter-spacing: -0.01em;
+	outline: none; cursor: text; font-weight: 400; letter-spacing: var(--tracking-snug);
 	padding: 4px 0;
 }
 .tester-text:empty::before { content: 'Type here…'; color: var(--color-muted); }
@@ -1643,56 +1545,56 @@
 	.glyphs-grid { display: flex; flex-wrap: wrap; gap: 4px; }
 	.glyph {
 		display: flex; align-items: center; justify-content: center;
-		width: 36px; height: 36px; font-size: 1.125rem;
+		width: 36px; height: 36px; font-size: var(--text-xl);
 		font-family: inherit; font-weight: inherit; font-style: inherit;
 		background: var(--color-bg); border: 1px solid var(--color-border);
-		border-radius: 6px; color: var(--color-text);
+		border-radius: var(--radius); color: var(--color-text);
 		transition: background 0.1s;
 }
-.glyph:hover { background: var(--color-surface-raised); }
+.glyph:hover { background: var(--color-hover); }
 
 /* ── Buttons ──────────────────────────────────────────────────────────────── */
 .action-btn {
 	display: inline-flex; align-items: center; gap: 6px;
 	height: 34px; padding: 0 12px;
 	background: var(--color-surface); border: 1px solid var(--color-border);
-	border-radius: 8px; font-size: 0.8125rem; font-weight: 500;
+	border-radius: var(--radius); font-size: var(--text-sm); font-weight: 500;
 	cursor: pointer; color: var(--color-text); white-space: nowrap;
 	transition: background 0.1s, box-shadow 0.1s;
 }
-.action-btn:hover { background: var(--color-surface-raised); box-shadow: var(--shadow-sm); }
+.action-btn:hover { background: var(--color-hover); box-shadow: var(--shadow-sm); }
 .action-btn:disabled { opacity: 0.5; pointer-events: none; }
-.action-btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
-.action-btn-primary:hover { background: var(--brand-light); border-color: var(--brand-light); }
+.action-btn-primary { background: var(--color-accent); color: var(--color-accent-contrast); border-color: var(--color-accent); }
+.action-btn-primary:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
 
 .icon-btn {
 	display: flex; align-items: center; justify-content: center;
-	width: 30px; height: 30px; border-radius: 7px; border: none;
+	width: 30px; height: 30px; border-radius: var(--radius); border: none;
 	background: none; cursor: pointer; color: var(--color-muted);
 	transition: background 0.1s, color 0.1s;
 }
-.icon-btn:hover { background: var(--color-surface-raised); color: var(--color-text); }
+.icon-btn:hover { background: var(--color-hover); color: var(--color-text); }
 .icon-btn-danger:hover { color: var(--color-danger); }
 
 .icon-btn-xs {
 	display: flex; align-items: center; justify-content: center;
-	width: 22px; height: 22px; border-radius: 5px; border: none;
+	width: 22px; height: 22px; border-radius: var(--radius-sm); border: none;
 	background: none; cursor: pointer; color: var(--color-muted);
 	transition: background 0.1s, color 0.1s;
 }
-.icon-btn-xs:hover { background: var(--color-surface-raised); color: var(--color-text); }
+.icon-btn-xs:hover { background: var(--color-hover); color: var(--color-text); }
 .icon-btn-xs-danger:hover { color: var(--color-danger); }
 
 .text-btn {
-	background: none; border: none; cursor: pointer; color: var(--brand);
-	font-size: 0.8125rem; font-weight: 500; padding: 0;
+	background: none; border: none; cursor: pointer; color: var(--color-accent);
+	font-size: var(--text-sm); font-weight: 500; padding: 0;
 }
 .text-btn:hover { text-decoration: underline; }
 .text-btn:disabled { opacity: 0.5; pointer-events: none; }
 .mt-4 { margin-top: 4px; display: block; }
 
 /* ── Card fold ────────────────────────────────────────────────────────────── */
-.font-card.collapsed { border-radius: 10px; }
+.font-card.collapsed { border-radius: var(--radius-lg); }
 /* Header is a container — no hover/click on entire header */
 .font-card-header {
 	background: var(--color-surface);
@@ -1726,7 +1628,7 @@
 	display: flex; align-items: center; justify-content: center;
 	width: 20px; height: 20px; border-radius: 50%;
 	background: var(--color-surface);
-	border: 1.5px solid var(--color-border);
+	border: 1px solid var(--color-border);
 	color: var(--color-muted);
 	transition: transform 0.2s, border-color 0.12s, background 0.12s;
 }
@@ -1751,10 +1653,9 @@ a { cursor: pointer; }
 .font-header-names { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 
 .styles-count, .files-count {
-	font-size: 0.6875rem; color: var(--color-muted);
+	font-size: var(--text-2xs); color: var(--color-muted);
 	background: var(--color-surface-raised);
-	border: 1px solid var(--color-border);
-	padding: 2px 8px; border-radius: 99px;
+	padding: 2px 7px; border-radius: var(--radius-xs); font-variant-numeric: tabular-nums;
 	display: inline-flex; align-items: center; line-height: 1;
 	height: 20px;
 }
@@ -1763,7 +1664,7 @@ a { cursor: pointer; }
 .card-section {
 	border-top: 1px solid var(--color-border);
 }
-.card-section:last-child { border-radius: 0 0 14px 14px; overflow: hidden; }
+.card-section:last-child { border-radius: 0 0 var(--radius-lg) var(--radius-lg); overflow: hidden; }
 
 .section-summary {
 	display: flex; align-items: center; gap: 8px;
@@ -1772,16 +1673,14 @@ a { cursor: pointer; }
 }
 .section-summary::-webkit-details-marker { display: none; }
 .section-summary::marker { display: none; }
-.section-summary:hover { background: color-mix(in srgb, var(--color-surface-raised) 60%, transparent); }
+.section-summary:hover { background: var(--color-hover); }
 
 .section-title {
-	font-size: 0.75rem; font-weight: 600; color: var(--color-muted);
-	letter-spacing: 0.05em; text-transform: uppercase;
+	font-size: var(--text-2xs); font-weight: 500; color: var(--color-muted);
+	letter-spacing: var(--tracking-eyebrow); text-transform: uppercase;
 }
 .section-count {
-	font-size: 0.6875rem; color: var(--color-muted);
-	background: var(--color-surface-raised); border: 1px solid var(--color-border);
-	padding: 1px 6px; border-radius: 99px; font-variant-numeric: tabular-nums;
+	font-size: var(--text-xs); color: var(--color-placeholder); font-variant-numeric: tabular-nums;
 }
 .section-chevron {
 	display: flex; align-items: center; color: var(--color-muted);
@@ -1797,53 +1696,25 @@ details[open] .section-chevron { transform: rotate(180deg); }
 .section-body-no-pt { padding-top: 0; }
 
 /* ── Modals ───────────────────────────────────────────────────────────────── */
-.modal-backdrop {
-	position: fixed; inset: 0; background: rgba(0,0,0,.45);
-	display: flex; align-items: center; justify-content: center;
-	z-index: 100; padding: 1rem;
-}
-.modal {
-	background: var(--color-surface); border-radius: 14px;
-	width: 100%; max-width: 520px; max-height: 90vh;
-	display: flex; flex-direction: column;
-	box-shadow: 0 24px 64px rgba(0,0,0,.2);
-}
-.modal-sm { max-width: 420px; }
-.modal-header {
-	display: flex; align-items: center; justify-content: space-between;
-	padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-border);
-}
-.modal-header h2 { font-size: 1rem; font-weight: 600; }
-.modal-close {
-	display: flex; align-items: center; justify-content: center;
-	width: 28px; height: 28px; border: none; background: none;
-	cursor: pointer; color: var(--color-muted); border-radius: 6px;
-}
-.modal-close:hover { background: var(--color-surface-raised); }
-.modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
-.modal-footer {
-	display: flex; gap: 8px; justify-content: flex-end;
-	padding: 1rem 1.5rem; border-top: 1px solid var(--color-border);
-}
 .modal-fields { display: flex; flex-direction: column; gap: 1rem; }
-.modal-error { padding: 8px 12px; background: var(--color-danger-subtle); color: var(--color-danger); border-radius: 7px; font-size: 0.875rem; margin-top: 8px; }
+.modal-error { padding: 8px 12px; background: var(--color-danger-subtle); color: var(--color-danger); border-radius: var(--radius); font-size: var(--text-base); margin-top: 8px; }
 
 /* ── Form fields ──────────────────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field label,
-.field-label-text { font-size: 0.8125rem; font-weight: 500; color: var(--color-text); }
-.field-hint { font-size: 0.75rem; color: var(--color-muted); margin-top: 2px; }
+.field-label-text { font-size: var(--text-sm); font-weight: 500; color: var(--color-text); }
+.field-hint { font-size: var(--text-xs); color: var(--color-muted); margin-top: 2px; }
 .req { color: var(--color-danger); }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .field-sm { max-width: 100px; }
 .field input, .field select {
 	height: 36px; padding: 0 10px;
-	border: 1.5px solid var(--color-border); border-radius: 8px;
+	border: 1px solid var(--color-border); border-radius: var(--radius);
 	background: var(--color-surface); color: var(--color-text);
-	font-size: 0.875rem; outline: none;
+	font-size: var(--text-base); outline: none;
 	transition: border-color 0.15s;
 }
-.field input:focus, .field select:focus { border-color: var(--brand); }
+.field input:focus, .field select:focus { border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
 
 .allowed-color-grid {
 	display: grid;
@@ -1854,14 +1725,14 @@ details[open] .section-chevron { transform: rotate(180deg); }
 	display: grid; grid-template-columns: 18px minmax(0, 1fr) auto;
 	align-items: center; gap: 7px; min-width: 0;
 	min-height: 34px; padding: 6px 8px;
-	border: 1.5px solid var(--color-border); border-radius: 8px;
+	border: 1px solid var(--color-border); border-radius: var(--radius);
 	background: var(--color-surface); color: var(--color-text);
-	font-size: 0.8125rem; text-align: left;
+	font-size: var(--text-sm); text-align: left;
 }
-.allowed-color-option:hover { border-color: color-mix(in srgb, var(--brand) 35%, var(--color-border)); background: var(--color-surface-raised); }
+.allowed-color-option:hover { border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border)); background: var(--color-hover); }
 .allowed-color-option.selected {
-	border-color: var(--brand);
-	background: color-mix(in srgb, var(--brand) 8%, transparent);
+	border-color: var(--color-accent);
+	background: color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
 .allowed-color-swatch {
 	width: 16px; height: 16px; border-radius: 50%;
@@ -1873,8 +1744,8 @@ details[open] .section-chevron { transform: rotate(180deg); }
 	font-weight: 500;
 }
 .allowed-color-source {
-	font-size: 0.625rem; color: var(--color-muted);
-	text-transform: uppercase; letter-spacing: 0.04em;
+	font-size: var(--text-2xs); color: var(--color-muted);
+	text-transform: uppercase; letter-spacing: var(--tracking-eyebrow);
 }
 .style-contrast-list {
 	display: flex; flex-direction: column; gap: 5px;
@@ -1883,30 +1754,30 @@ details[open] .section-chevron { transform: rotate(180deg); }
 .style-contrast-row {
 	display: grid; grid-template-columns: 14px minmax(0, 1fr) auto auto;
 	align-items: center; gap: 6px;
-	min-width: 0; font-size: 0.75rem;
+	min-width: 0; font-size: var(--text-xs);
 }
 .style-contrast-name {
 	min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	color: var(--color-text);
 }
 .contrast-pill {
-	padding: 2px 6px; border-radius: 999px;
-	background: #ecfdf5; color: #047857;
+	padding: 2px 6px; border-radius: var(--radius-sm);
+	background: var(--color-success-subtle); color: var(--color-success);
 	font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.contrast-pill.fail { background: #fef2f2; color: #b91c1c; }
+.contrast-pill.fail { background: var(--color-danger-subtle); color: var(--color-danger); }
 
 /* ── Weights grid ─────────────────────────────────────────────────────────── */
 .weights-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 .weight-chip {
-	height: 32px; padding: 0 12px; border-radius: 8px;
-	border: 1.5px solid var(--color-border); background: none;
-	font-size: 0.8125rem; cursor: pointer; color: var(--color-text);
+	height: 32px; padding: 0 12px; border-radius: var(--radius);
+	border: 1px solid var(--color-border); background: none;
+	font-size: var(--text-sm); cursor: pointer; color: var(--color-text);
 	transition: border-color 0.1s, background 0.1s, color 0.1s;
 }
 .weight-chip.selected {
-	border-color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, transparent);
-	color: var(--brand);
+	border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+	color: var(--color-accent);
 }
 
 /* ── Specimen layout ──────────────────────────────────────────────────────── */
@@ -1915,12 +1786,12 @@ details[open] .section-chevron { transform: rotate(180deg); }
 /* ── Variable badge ───────────────────────────────────────────────────────── */
 .variable-badge {
 	display: inline-flex; align-items: center;
-	font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em;
-	text-transform: uppercase; color: #6366f1;
-	background: color-mix(in srgb, #6366f1 12%, transparent);
-	padding: 2px 7px; border-radius: 99px; white-space: nowrap;
+	font-size: var(--text-2xs); font-weight: 600; letter-spacing: var(--tracking-eyebrow);
+	text-transform: uppercase; color: var(--color-text);
+	background: color-mix(in srgb, var(--color-text) 12%, transparent);
+	padding: 2px 7px; border-radius: var(--radius-sm); white-space: nowrap;
 }
-.variable-badge-sm { font-size: 0.625rem; padding: 1px 6px; }
+.variable-badge-sm { font-size: var(--text-2xs); padding: 1px 6px; }
 
 /* ── Font files ───────────────────────────────────────────────────────────── */
 .files-section { padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border); }
@@ -1929,24 +1800,22 @@ details[open] .section-chevron { transform: rotate(180deg); }
 .files-list { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
 .file-row {
 	display: flex; align-items: center; gap: 10px;
-	padding: 7px 10px; border-radius: 8px;
+	padding: 7px 10px; border-radius: var(--radius);
 	background: var(--color-bg); border: 1px solid var(--color-border);
 }
 .file-format {
-	font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em;
+	font-size: var(--text-2xs); font-weight: 600; letter-spacing: var(--tracking-eyebrow);
 	color: var(--color-muted); background: var(--color-surface-raised);
-	padding: 2px 7px; border-radius: 5px; border: 1px solid var(--color-border);
+	padding: 2px 7px; border-radius: var(--radius-sm); border: 1px solid var(--color-border);
 	flex-shrink: 0; width: 52px; text-align: center;
 }
-.file-name { font-size: 0.875rem; color: var(--color-text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-size { font-size: 0.8125rem; color: var(--color-muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.file-name { font-size: var(--text-base); color: var(--color-text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { font-size: var(--text-sm); color: var(--color-muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .file-actions { display: flex; gap: 4px; flex-shrink: 0; }
-.files-empty { font-size: 0.8125rem; color: var(--color-muted); margin-top: 8px; }
-.files-empty code { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--color-text); }
+.files-empty { font-size: var(--text-sm); color: var(--color-muted); margin-top: 8px; }
 
 /* ── Variable axes modal ──────────────────────────────────────────────────── */
-.axes-hint { font-size: 0.8125rem; color: var(--color-muted); margin-bottom: 1rem; line-height: 1.5; }
-.axes-hint code { font-family: var(--font-mono); font-size: 0.8125rem; }
+.axes-hint { font-size: var(--text-sm); color: var(--color-muted); margin-bottom: 1rem; line-height: 1.5; }
 .axes-list { display: flex; flex-direction: column; gap: 8px; }
 .axis-row {
 	display: grid; grid-template-columns: 1fr 1fr 64px 64px 72px 30px;
@@ -1955,33 +1824,33 @@ details[open] .section-chevron { transform: rotate(180deg); }
 .axis-tag-wrap { display: flex; gap: 4px; }
 .axis-input {
 	height: 32px; padding: 0 8px;
-	border: 1.5px solid var(--color-border); border-radius: 7px;
+	border: 1px solid var(--color-border); border-radius: var(--radius);
 	background: var(--color-surface); color: var(--color-text);
-	font-size: 0.8125rem; outline: none; width: 100%;
+	font-size: var(--text-sm); outline: none; width: 100%;
 }
-.axis-input:focus { border-color: var(--brand); }
+.axis-input:focus { border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
 .axis-tag { font-family: var(--font-mono); }
 .axis-num { text-align: right; }
 .axis-preset {
 	height: 32px; padding: 0 4px;
-	border: 1.5px solid var(--color-border); border-radius: 7px;
+	border: 1px solid var(--color-border); border-radius: var(--radius);
 	background: var(--color-surface); color: var(--color-muted);
-	font-size: 0.75rem; cursor: pointer; outline: none; flex-shrink: 0;
+	font-size: var(--text-xs); cursor: pointer; outline: none; flex-shrink: 0;
 }
 
 /* ── Toggle ───────────────────────────────────────────────────────────────── */
 .toggle-label {
 	display: flex; align-items: center; gap: 10px; cursor: pointer;
-	font-size: 0.8125rem; font-weight: 500; color: var(--color-text);
+	font-size: var(--text-sm); font-weight: 500; color: var(--color-text);
 	user-select: none;
 }
 .toggle-check { display: none; }
 .toggle-track {
-	width: 36px; height: 20px; border-radius: 99px;
+	width: 36px; height: 20px; border-radius: var(--radius-full);
 	background: var(--color-border); transition: background 0.2s;
 	position: relative; flex-shrink: 0;
 }
-.toggle-check:checked ~ .toggle-track { background: var(--brand); }
+.toggle-check:checked ~ .toggle-track { background: var(--color-accent); }
 .toggle-thumb {
 	position: absolute; top: 3px; left: 3px;
 	width: 14px; height: 14px; border-radius: 50%;
@@ -1999,31 +1868,31 @@ details[open] .section-chevron { transform: rotate(180deg); }
 .tester-controls-row:empty { display: none; }
 .tester-control { display: flex; align-items: center; gap: 8px; }
 .tester-ctrl-label {
-	font-size: 0.75rem; font-weight: 600; color: var(--color-muted);
-	text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0;
+	font-size: var(--text-xs); font-weight: 600; color: var(--color-muted);
+	text-transform: uppercase; letter-spacing: var(--tracking-eyebrow); flex-shrink: 0;
 }
 .tester-ctrl-val {
-	font-size: 0.8125rem; color: var(--color-muted);
+	font-size: var(--text-sm); color: var(--color-muted);
 	font-variant-numeric: tabular-nums; width: 32px;
 }
 .tester-slider-wide { width: 160px; }
 .tester-toggle-ctrl { cursor: pointer; }
 .tester-weight-chips { display: flex; gap: 4px; flex-wrap: wrap; }
 .weight-chip-sm {
-	height: 26px; padding: 0 8px; border-radius: 6px;
-	border: 1.5px solid var(--color-border); background: none;
-	font-size: 0.75rem; cursor: pointer; color: var(--color-text);
+	height: 26px; padding: 0 8px; border-radius: var(--radius);
+	border: 1px solid var(--color-border); background: none;
+	font-size: var(--text-xs); cursor: pointer; color: var(--color-text);
 	transition: border-color 0.1s, background 0.1s;
 }
 	.weight-chip-sm.selected {
-		border-color: var(--brand);
-		background: color-mix(in srgb, var(--brand) 10%, transparent);
-		color: var(--brand);
+		border-color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+		color: var(--color-accent);
 	}
 	.tester-dark .weight-chip-sm.selected {
-		border-color: #7c3aed !important;
+		border-color: var(--color-text) !important;
 		background: rgba(124, 58, 237, 0.24) !important;
-		color: #f5f3ff !important;
+		color: var(--color-surface-raised) !important;
 	}
 
 /* ── OT features ──────────────────────────────────────────────────────────── */
@@ -2033,26 +1902,26 @@ details[open] .section-chevron { transform: rotate(180deg); }
 	border-bottom: 1px solid var(--color-border);
 }
 .ot-chip {
-	height: 24px; padding: 0 8px; border-radius: 5px;
-	border: 1.5px solid var(--color-border); background: none;
-	font-size: 0.7rem; font-family: var(--font-mono); font-weight: 500;
+	height: 24px; padding: 0 8px; border-radius: var(--radius-sm);
+	border: 1px solid var(--color-border); background: none;
+	font-size: var(--text-2xs); font-family: var(--font-mono); font-weight: 500;
 	cursor: pointer; color: var(--color-muted);
 	transition: border-color 0.1s, background 0.1s, color 0.1s;
 }
 .ot-chip:hover { border-color: var(--color-text); color: var(--color-text); }
 	.ot-chip.ot-active {
-		border-color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, transparent);
-		color: var(--brand);
+		border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+		color: var(--color-accent);
 	}
 	.tester-dark .ot-chip.ot-active {
-		border-color: #7c3aed !important;
+		border-color: var(--color-text) !important;
 		background: rgba(124, 58, 237, 0.24) !important;
-		color: #f5f3ff !important;
+		color: var(--color-surface-raised) !important;
 	}
 
 /* Dark tester toggle */
 .toggle-track-dark { background: #374151; }
-.toggle-check:checked ~ .toggle-track-dark { background: #4c1d95; }
+.toggle-check:checked ~ .toggle-track-dark { background: var(--color-text); }
 
 /* Tester body dark mode transition */
 .tester-section-body { transition: background 0.2s; }
@@ -2060,24 +1929,24 @@ details[open] .section-chevron { transform: rotate(180deg); }
 /* ── Glyph set select ─────────────────────────────────────────────────────── */
 .glyph-set-select {
 	height: 28px; padding: 0 8px;
-	border: 1.5px solid var(--color-border); border-radius: 7px;
+	border: 1px solid var(--color-border); border-radius: var(--radius);
 	background: var(--color-surface); color: var(--color-text);
-	font-size: 0.75rem; cursor: pointer; outline: none;
+	font-size: var(--text-xs); cursor: pointer; outline: none;
 }
-.glyph-set-select:focus { border-color: var(--brand); }
+.glyph-set-select:focus { border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
 
 /* ── Glyphs as buttons ────────────────────────────────────────────────────── */
 	.glyph {
 		display: flex; align-items: center; justify-content: center;
-		width: 36px; height: 36px; font-size: 1.125rem;
+		width: 36px; height: 36px; font-size: var(--text-xl);
 		font-family: inherit; font-weight: inherit; font-style: inherit;
 		background: var(--color-bg); border: 1px solid var(--color-border);
-		border-radius: 6px; color: var(--color-text); cursor: pointer;
+		border-radius: var(--radius); color: var(--color-text); cursor: pointer;
 		transition: background 0.1s, border-color 0.1s, transform 0.1s;
 }
 .glyph:hover {
-	background: var(--color-surface-raised);
-	border-color: var(--brand);
+	background: var(--color-hover);
+	border-color: var(--color-border-strong);
 	transform: scale(1.1);
 }
 
@@ -2100,20 +1969,20 @@ details[open] .section-chevron { transform: rotate(180deg); }
 .fi-row:last-child { border-bottom: none; }
 .fi-row-tags { align-items: center; }
 .fi-label {
-	font-size: 0.75rem; font-weight: 600; color: var(--color-muted);
-	text-transform: uppercase; letter-spacing: 0.05em;
+	font-size: var(--text-xs); font-weight: 600; color: var(--color-muted);
+	text-transform: uppercase; letter-spacing: var(--tracking-eyebrow);
 	width: 80px; flex-shrink: 0; font-family: var(--font-mono);
 }
-.fi-value { font-size: 0.875rem; color: var(--color-text); }
+.fi-value { font-size: var(--text-base); color: var(--color-text); }
 .fi-link {
-	font-size: 0.8125rem; color: var(--brand); text-decoration: none;
+	font-size: var(--text-sm); color: var(--color-accent); text-decoration: none;
 	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	max-width: 400px;
 }
 .fi-link:hover { text-decoration: underline; }
 .fi-tags { display: flex; gap: 4px; flex-wrap: wrap; }
 .fi-tag {
-	font-size: 0.75rem; padding: 2px 8px; border-radius: 6px;
+	font-size: var(--text-xs); padding: 2px 8px; border-radius: var(--radius);
 	background: var(--color-surface-raised); border: 1px solid var(--color-border);
 	color: var(--color-text); font-family: var(--font-mono);
 }
@@ -2122,30 +1991,9 @@ details[open] .section-chevron { transform: rotate(180deg); }
 .icon-btn-xs:disabled { opacity: 0.25; pointer-events: none; }
 
 /* ── Glyph modal ──────────────────────────────────────────────────────────── */
-.glyph-modal {
-	background: var(--color-surface); border-radius: 16px;
-	padding: 2.5rem 2rem 1.75rem;
-	display: flex; flex-direction: column; align-items: center; gap: 1rem;
-	box-shadow: 0 24px 64px rgba(0,0,0,.25);
-	min-width: 240px;
-}
 .glyph-modal-preview {
 	font-size: 8rem; line-height: 1; color: var(--color-text);
 	user-select: all; text-align: center;
-}
-.glyph-modal-info {
-	display: flex; flex-direction: column; align-items: center; gap: 4px;
-}
-.glyph-modal-code {
-	font-family: var(--font-mono); font-size: 0.875rem;
-	color: var(--brand); font-weight: 600;
-}
-.glyph-modal-name {
-	font-size: 0.8125rem; color: var(--color-muted);
-}
-.glyph-modal-actions {
-	display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
-	margin-top: 0.5rem;
 }
 
 	/* ── Responsive ───────────────────────────────────────────────────────────── */
@@ -2159,7 +2007,7 @@ details[open] .section-chevron { transform: rotate(180deg); }
 		.topbar-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
 		.role-tab-bar { padding: 0 1rem; margin-bottom: 1rem; }
 		.fonts-list { padding: 0 1rem 2rem; gap: 1rem; }
-		.font-card { border-radius: 10px; }
+		.font-card { border-radius: var(--radius-lg); }
 		.font-card-toprow {
 			align-items: flex-start;
 			gap: 10px;
@@ -2184,7 +2032,7 @@ details[open] .section-chevron { transform: rotate(180deg); }
 			text-overflow: clip;
 			overflow-wrap: anywhere;
 		}
-		.weight-strip-text { font-size: 0.875rem; }
+		.weight-strip-text { font-size: var(--text-base); }
 		.section-summary {
 			padding: 10px 1rem;
 			flex-wrap: wrap;
@@ -2198,7 +2046,7 @@ details[open] .section-chevron { transform: rotate(180deg); }
 			min-height: 32px;
 			padding: 6px 9px;
 			border: 1px solid var(--color-border);
-			border-radius: 7px;
+			border-radius: var(--radius);
 			background: var(--color-surface);
 		}
 		.section-body { padding: 1rem; }
@@ -2227,7 +2075,7 @@ details[open] .section-chevron { transform: rotate(180deg); }
 		.scale-row::after {
 			content: attr(data-meta);
 			grid-column: 2 / 4; grid-row: 2;
-			font-size: 0.6875rem; color: var(--color-muted);
+			font-size: var(--text-2xs); color: var(--color-muted);
 			font-family: var(--font-mono); padding-bottom: 4px;
 			overflow-wrap: anywhere;
 		}
@@ -2245,7 +2093,7 @@ details[open] .section-chevron { transform: rotate(180deg); }
 		}
 		.preview-label {
 			width: auto;
-			font-size: 0.625rem;
+			font-size: var(--text-2xs);
 		}
 		.files-section,
 		.section-body { min-width: 0; }

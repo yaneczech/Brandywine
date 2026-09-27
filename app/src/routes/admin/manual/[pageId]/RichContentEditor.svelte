@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 	import { untrack } from 'svelte';
 	import {
 		IconAlertCircle,
@@ -41,11 +42,17 @@
 		});
 	});
 
-	// Svelte action: set innerHTML once on mount, never on update.
-	// contenteditable manages its own DOM — reactive {@html} would reset the cursor on every keystroke.
+	// Svelte action: contenteditable manages its own DOM — reactive {@html} would
+	// reset the caret on every keystroke. So the DOM is written on mount and then
+	// only when the value changes from outside (e.g. the block's config arrives
+	// after first render) while the field is not being edited.
 	function initContent(node: HTMLElement, html: string) {
 		node.innerHTML = html;
-		return { update(_: string) {} };
+		return {
+			update(next: string) {
+				if (document.activeElement !== node && node.innerHTML !== next) node.innerHTML = next;
+			}
+		};
 	}
 
 	function stripIds(list: RichItem[]) {
@@ -133,7 +140,7 @@
 		const item: RichItem = {
 			id: `${type}-${Date.now()}`,
 			type,
-			html: type === 'text' ? '<p></p>' : '<p>Text upozornění...</p>'
+			html: '<p></p>'
 		};
 		items = [...items.slice(0, index + 1), item, ...items.slice(index + 1)];
 		activeIndex = index + 1;
@@ -161,15 +168,15 @@
 </script>
 
 <div class="rich-editor" bind:this={editorRoot}>
-	<div class="rich-toolbar" aria-label="Formátování textu">
-		<button type="button" title="Tučně" onclick={() => runCommand('bold')}><IconBold size={15} /></button>
-		<button type="button" title="Kurzíva" onclick={() => runCommand('italic')}><IconItalic size={15} /></button>
-		<button type="button" title="Odrážkový seznam" onclick={() => runCommand('insertUnorderedList')}><IconList size={15} /></button>
-		<button type="button" title="Číslovaný seznam" onclick={() => runCommand('insertOrderedList')}><IconListNumbers size={15} /></button>
+	<div class="rich-toolbar" aria-label={m.rich_toolbar()}>
+		<button type="button" title={m.rich_bold()} aria-label={m.rich_bold()} onclick={() => runCommand('bold')}><IconBold size={15} /></button>
+		<button type="button" title={m.rich_italic()} aria-label={m.rich_italic()} onclick={() => runCommand('italic')}><IconItalic size={15} /></button>
+		<button type="button" title={m.rich_bullets()} aria-label={m.rich_bullets()} onclick={() => runCommand('insertUnorderedList')}><IconList size={15} /></button>
+		<button type="button" title={m.rich_numbers()} aria-label={m.rich_numbers()} onclick={() => runCommand('insertOrderedList')}><IconListNumbers size={15} /></button>
 		<span class="toolbar-sep"></span>
-		<button type="button" title="Přidat text" onclick={() => insertItem('text')}><IconPlus size={15} /> Text</button>
-		<button type="button" title="Vložit attention box" onclick={() => insertItem('attention')}><IconExclamationCircle size={15} /> Attention</button>
-		<button type="button" title="Vložit alert box" onclick={() => insertItem('alert')}><IconCancel size={15} /> Alert</button>
+		<button type="button" title={m.rich_add_text()} onclick={() => insertItem('text')}><IconPlus size={15} /> {m.rich_text()}</button>
+		<button type="button" title={m.rich_add_attention()} onclick={() => insertItem('attention')}><IconExclamationCircle size={15} /> {m.rich_attention()}</button>
+		<button type="button" title={m.rich_add_alert()} onclick={() => insertItem('alert')}><IconCancel size={15} /> {m.rich_alert()}</button>
 	</div>
 
 	<div class="rich-items">
@@ -179,10 +186,10 @@
 					<div class="callout-head">
 						{#if item.type === 'alert'}
 							<IconCancel size={16} stroke={1.9} />
-							<span>Alert box</span>
+							<span>{m.rich_alert()}</span>
 						{:else}
 							<IconAlertCircle size={16} stroke={1.9} />
-							<span>Attention box</span>
+							<span>{m.rich_attention()}</span>
 						{/if}
 					</div>
 				{/if}
@@ -199,7 +206,7 @@
 					onpaste={handlePaste}
 					use:initContent={item.html}
 				></div>
-				<button type="button" class="remove-item" title="Smazat část" onclick={() => removeItem(index)}>
+				<button type="button" class="remove-item" title={m.rich_remove_part()} aria-label={m.rich_remove_part()} onclick={() => removeItem(index)}>
 					<IconTrash size={14} />
 				</button>
 			</div>
@@ -223,7 +230,7 @@
 		flex-wrap: wrap;
 		padding: .45rem;
 		border: 1px solid var(--color-border);
-		border-radius: 8px;
+		border-radius: var(--radius);
 		background: color-mix(in srgb, var(--color-surface) 92%, transparent);
 	}
 	.rich-toolbar button {
@@ -233,15 +240,15 @@
 		min-height: 30px;
 		padding: .3rem .5rem;
 		border: 1px solid transparent;
-		border-radius: 6px;
+		border-radius: var(--radius);
 		background: transparent;
 		color: var(--color-text);
 		font: inherit;
-		font-size: .78rem;
+		font-size: var(--text-xs);
 		cursor: pointer;
 	}
 	.rich-toolbar button:hover {
-		background: var(--color-surface-raised);
+		background: var(--color-hover);
 		border-color: var(--color-border);
 	}
 	.toolbar-sep {
@@ -259,20 +266,22 @@
 		display: flex;
 		flex-direction: column;
 		border: 1px solid var(--color-border);
-		border-radius: 8px;
-		background: var(--color-surface-raised);
+		border-radius: var(--radius);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-xs);
+		transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 	}
-	.rich-item.active {
-		border-color: var(--brand);
-		box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 10%, transparent);
+	.rich-item:focus-within {
+		border-color: var(--color-border-focus);
+		box-shadow: var(--focus-ring);
 	}
 	.rich-item.callout {
-		background: color-mix(in srgb, var(--brand) 6%, var(--color-surface-raised));
-		border-color: color-mix(in srgb, var(--brand) 25%, var(--color-border));
+		background: color-mix(in srgb, var(--color-accent) 4%, var(--color-surface));
+		border-color: color-mix(in srgb, var(--color-accent) 25%, var(--color-border));
 	}
 	.rich-item.callout.alert {
-		background: color-mix(in srgb, #ef4444 7%, var(--color-surface-raised));
-		border-color: color-mix(in srgb, #ef4444 28%, var(--color-border));
+		background: var(--color-danger-subtle);
+		border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
 	}
 	.callout-head {
 		display: flex;
@@ -280,22 +289,22 @@
 		gap: .4rem;
 		width: 100%;
 		padding: .55rem .7rem 0;
-		color: var(--brand);
-		font-size: .72rem;
-		font-weight: 760;
+		color: var(--color-accent);
+		font-size: var(--text-2xs);
+		font-weight: 500;
 		text-transform: uppercase;
-		letter-spacing: .04em;
+		letter-spacing: var(--tracking-eyebrow);
 		white-space: nowrap;
 	}
 	.rich-item.alert .callout-head {
-		color: #b91c1c;
+		color: var(--color-danger);
 	}
 	.editable {
 		min-height: 96px;
 		padding: .7rem .8rem;
 		outline: none;
 		color: var(--color-text);
-		font-size: .9rem;
+		font-size: var(--text-base);
 		line-height: 1.6;
 		direction: ltr;
 		unicode-bidi: embed;
@@ -327,13 +336,13 @@
 		width: 26px;
 		height: 26px;
 		border: 0;
-		border-radius: 6px;
+		border-radius: var(--radius);
 		background: transparent;
 		color: var(--color-muted);
 		cursor: pointer;
 	}
 	.remove-item:hover {
-		background: color-mix(in srgb, #ef4444 10%, transparent);
-		color: #dc2626;
+		background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+		color: var(--color-danger);
 	}
 </style>

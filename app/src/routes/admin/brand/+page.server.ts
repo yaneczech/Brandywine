@@ -11,6 +11,7 @@ import {
 	typographyStyles
 } from '$db/schema';
 import { count, eq, asc } from 'drizzle-orm';
+import { withoutManualPassword } from '$server/brand-settings';
 
 const DEFAULTS = {
 	systemName: 'Brandywine',
@@ -59,8 +60,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		db.select({ id: colorPalettes.id, name: colorPalettes.name }).from(colorPalettes).orderBy(asc(colorPalettes.order))
 	]);
 
+	const resolvedSettings = settings ?? DEFAULTS;
+
 	return {
-		settings: settings ?? DEFAULTS,
+		settings: {
+			...withoutManualPassword(resolvedSettings),
+			accessPasswordConfigured: Boolean(resolvedSettings.accessPassword)
+		},
 		health: { colorCount, fontCount, styleCount, assetCount, manualPageCount, publishedPageCount },
 		brandColors,
 		brandPalettes

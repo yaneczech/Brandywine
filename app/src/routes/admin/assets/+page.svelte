@@ -1,34 +1,37 @@
 <script lang="ts">
+	import { toast } from '$lib/ui/toast.svelte';
+	import Modal from '$lib/components/ui/Modal.svelte';
 	import type { PageData } from './$types';
 	import type { FolderWithCount } from './+page.server';
 	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
+	import { focusTrap } from '$lib/actions/focus-trap';
 	import * as m from '$lib/paraglide/messages';
 	import Breadcrumbs, { type BreadcrumbItem } from '$lib/components/admin/Breadcrumbs.svelte';
 	import FolderPicker from '$lib/components/admin/FolderPicker.svelte';
 	import AssetThumb from '$lib/components/admin/AssetThumb.svelte';
 	import {
-		IconUpload, IconSearch, IconTrash, IconDownload, IconFolder, IconFolderOpen,
+		IconUpload, IconSearch, IconTrash, IconDownload, IconFolder,
 		IconFolderPlus, IconFile, IconFileText, IconVideo, IconX, IconPlus, IconCheck,
 		IconAlertTriangle, IconChevronRight, IconTag, IconDotsVertical, IconEdit,
-		IconArrowRight, IconRefresh, IconLayoutGrid, IconLayoutList, IconSortAscending,
-		IconPhoto, IconFileTypePdf, IconBrandAdobe, IconFileTypeDoc, IconFileZip,
-		IconLetterA, IconTypography, IconPackage, IconEye, IconArrowsDiff, IconGripVertical
+		IconArrowRight, IconLayoutGrid, IconLayoutList,
+		IconPhoto, IconFileTypePdf, IconBrandAdobe, IconFileZip,
+		IconTypography, IconEye, IconArrowsDiff, IconGripVertical
 	} from '@tabler/icons-svelte';
 
 	const { data }: { data: PageData } = $props();
 	type Asset = (typeof data.assets)[0];
 
 	// ── State ─────────────────────────────────────────────────────────────────
-	let assets       = $state(data.assets);
-	let folderTree   = $state(data.folderTree);
-	let folderList   = $state(data.folderList);
-	let allTags      = $state(data.tags);
+	let assets       = $derived(data.assets);
+	let folderTree   = $derived(data.folderTree);
+	let folderList   = $derived(data.folderList);
+	let allTags      = $derived(data.tags);
 
 	// Sync with server data after invalidateAll() re-runs the load function.
 	// Without this, manual `assets = data.assets` ran before props updated.
 	$effect(() => {
-		assets    = data.assets;
 		// If the detail drawer is open, refresh it from the updated list
 		const currentDetail = untrack(() => detailAsset);
 		if (currentDetail) {
@@ -36,30 +39,25 @@
 			if (fresh && fresh !== currentDetail) detailAsset = fresh;
 		}
 	});
-	$effect(() => { folderTree = data.folderTree; });
-	$effect(() => { folderList = data.folderList; });
-	$effect(() => { allTags   = data.tags; });
-
 	let activeFolderId = $state<string | null>(null); // null = all
 	let activeTag      = $state<string | null>(null);
 	let search         = $state('');
 	let typeFilter     = $state('all');
 	let sortKey        = $state<'date' | 'name' | 'size'>('date');
 	let viewMode       = $state<'grid' | 'list'>('grid');
-	let expandedFolders = $state<Set<string>>(new Set());
+	const expandedFolders = new SvelteSet<string>();
 
-	let selected      = $state<Set<string>>(new Set());
+	const selected      = new SvelteSet<string>();
 	let dragOver      = $state(false);
 	let detailAsset   = $state<Asset | null>(null);
 	let confirmDel    = $state<Asset | 'bulk' | null>(null);
 	let newFolderParent = $state<string | null>(null);
 	let newFolderName   = $state('');
-	let newFolderColor  = $state('#6366f1');
+	let newFolderColor  = $state('#6f6a62');
 	let showNewFolder   = $state(false);
 	let editTagsAsset   = $state<Asset | null>(null);
 	let tagInput        = $state('');
 	let moveFolderAsset = $state<Asset | 'bulk' | null>(null);
-	let convertAsset    = $state<Asset | null>(null);
 	let convertStatus   = $state<Record<string, 'queued' | 'exists' | 'error'>>({});
 	let showMobileSidebar = $state(false);
 
@@ -112,7 +110,7 @@
 		if (res.ok) await invalidateAll();
 		else {
 			const body = await res.json().catch(() => ({}));
-			folderActionError = body.message ?? 'Move failed';
+			folderActionError = body.message ?? m.assets_err_move();
 		}
 	}
 
@@ -127,6 +125,10 @@
 	let renamingFolderValue = $state('');
 	let confirmDelFolder    = $state<string | null>(null);
 	let folderActionError   = $state<string | null>(null);
+	let assetActionError    = $state<string | null>(null);
+	// Action errors surface as toasts, not inline bars
+	$effect(() => { if (assetActionError) { toast.error(assetActionError); assetActionError = null; } });
+	$effect(() => { if (folderActionError) { toast.error(folderActionError); folderActionError = null; } });
 	let activeFolderMenu    = $state<string | null>(null);
 	let sidebarWidth        = $state(240);
 	let resizingSidebar     = $state(false);
@@ -165,7 +167,7 @@
 		{ key: 'other',    label: m.assets_type_other() },
 	]);
 
-	const FOLDER_COLORS = ['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ef4444','#64748b'];
+	const FOLDER_COLORS = ['#141414','#6f6a62','#8a6f55','#9a5b4b','#5f6f5a','#4f6470','#6b5f7a','#a08a5c'];
 	const SIDEBAR_MIN_WIDTH = 220;
 	const SIDEBAR_MAX_WIDTH = 420;
 
@@ -265,21 +267,30 @@
 	function fontFaceStyles(list: Asset[]) {
 		const rules = list
 			.filter(a => a.mime.startsWith('font/'))
-			.map(a => `@font-face{font-family:'card-font-${a.id}';src:url('/uploads/${a.storagePath.replace(/\\/g, '/')}');font-display:swap}`);
+			.map((a) => {
+				const family = a.id.replace(/[^a-zA-Z0-9_-]/g, '');
+				const path = a.storagePath
+					.replace(/\\/g, '/')
+					.split('/')
+					.map(encodeURIComponent)
+					.join('/');
+				return `@font-face{font-family:'card-font-${family}';src:url('/uploads/${path}');font-display:swap}`;
+			});
 
 		return rules.length ? `<style>${rules.join('')}</style>` : '';
 	}
 
 	function toggleFolder(id: string) {
-		const n = new Set(expandedFolders);
-		n.has(id) ? n.delete(id) : n.add(id);
-		expandedFolders = n;
+		expandedFolders.has(id) ? expandedFolders.delete(id) : expandedFolders.add(id);
 	}
 
 	function toggleSelect(id: string) {
-		const n = new Set(selected);
-		n.has(id) ? n.delete(id) : n.add(id);
-		selected = n;
+		selected.has(id) ? selected.delete(id) : selected.add(id);
+	}
+
+	function replaceSelection(ids: Iterable<string>) {
+		selected.clear();
+		for (const id of ids) selected.add(id);
 	}
 
 	function getFolderById(id: string | null): FolderWithCount | null {
@@ -293,7 +304,7 @@
 
 		const byId = new Map(folderList.map(f => [f.id, f]));
 		const stack: BreadcrumbItem[] = [];
-		const seen = new Set<string>();
+		const seen = new SvelteSet<string>();
 		let current = byId.get(id);
 
 		while (current && !seen.has(current.id)) {
@@ -407,22 +418,34 @@
 
 	// ── Delete ────────────────────────────────────────────────────────────────
 	async function deleteAsset(id: string) {
-		await fetch(`/api/assets/${id}`, { method: 'DELETE' });
+		assetActionError = null;
+		const response = await fetch(`/api/assets/${id}`, { method: 'DELETE' });
+		if (!response.ok) {
+			const body = await response.json().catch(() => ({}));
+			assetActionError = body.message ?? m.assets_err_delete();
+			return;
+		}
 		assets = assets.filter(a => a.id !== id);
-		selected.delete(id); selected = new Set(selected);
+		selected.delete(id);
 		if (detailAsset?.id === id) detailAsset = null;
 		confirmDel = null;
 	}
 
 	async function deleteSelected() {
+		assetActionError = null;
 		const ids = [...selected];
-		await Promise.all(ids.map(id => fetch(`/api/assets/${id}`, { method: 'DELETE' })));
-		assets = assets.filter(a => !ids.includes(a.id));
-		selected = new Set(); confirmDel = null;
+		const results = await Promise.all(ids.map(async (id) => ({ id, response: await fetch(`/api/assets/${id}`, { method: 'DELETE' }) })));
+		const deletedIds = results.filter(({ response }) => response.ok).map(({ id }) => id);
+		const failedIds = results.filter(({ response }) => !response.ok).map(({ id }) => id);
+		assets = assets.filter(a => !deletedIds.includes(a.id));
+		replaceSelection(failedIds);
+		confirmDel = null;
+		if (failedIds.length) assetActionError = m.assets_err_delete_many({ count: String(failedIds.length) });
 	}
 
 	// ── Tags ──────────────────────────────────────────────────────────────────
 	async function saveTags(a: Asset, tags: string[]) {
+		assetActionError = null;
 		const res = await fetch(`/api/assets/${a.id}`, {
 			method: 'PATCH', headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ tags }),
@@ -434,8 +457,11 @@
 			if (detailAsset?.id === a.id) detailAsset = updated;
 			// Refresh tag counts
 			await invalidateAll();
+			editTagsAsset = null;
+		} else {
+			const body = await res.json().catch(() => ({}));
+			assetActionError = body.message ?? m.assets_err_tags();
 		}
-		editTagsAsset = null;
 	}
 
 	function addTag(a: Asset, tag: string) {
@@ -451,14 +477,16 @@
 
 	// ── Move to folder ────────────────────────────────────────────────────────
 	async function moveToFolder(targetFolderId: string | null) {
+		assetActionError = null;
 		if (moveFolderAsset === 'bulk') {
 			const ids = [...selected];
-			await Promise.all(ids.map(id =>
-				fetch(`/api/assets/${id}`, {
+			const results = await Promise.all(ids.map(async (id) => ({ id, response: await fetch(`/api/assets/${id}`, {
 					method: 'PATCH', headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ folderId: targetFolderId }),
-				})
-			));
+				}) })));
+			const failedIds = results.filter(({ response }) => !response.ok).map(({ id }) => id);
+			replaceSelection(failedIds);
+			if (failedIds.length) assetActionError = m.assets_err_move_many({ count: String(failedIds.length) });
 			await invalidateAll();
 		} else if (moveFolderAsset && typeof moveFolderAsset === 'object') {
 			const target = moveFolderAsset as Asset;
@@ -471,6 +499,9 @@
 				const idx = assets.findIndex(x => x.id === target.id);
 				if (idx >= 0) assets[idx] = updated;
 				if (detailAsset?.id === target.id) detailAsset = updated;
+			} else {
+				const body = await res.json().catch(() => ({}));
+				assetActionError = body.message ?? m.assets_err_move();
 			}
 		}
 		moveFolderAsset = null;
@@ -514,7 +545,7 @@
 		});
 		if (!res.ok) {
 			const body = await res.json().catch(() => ({}));
-			folderActionError = body.message ?? 'Folder could not be deleted.';
+			folderActionError = body.message ?? m.assets_err_folder_delete();
 			return;
 		}
 		await invalidateAll();
@@ -532,7 +563,7 @@
 		});
 		if (!res.ok) {
 			const body = await res.json().catch(() => ({}));
-			folderActionError = body.message ?? 'Folder could not be renamed.';
+			folderActionError = body.message ?? m.assets_err_folder_rename();
 			return;
 		}
 		await invalidateAll();
@@ -547,10 +578,11 @@
 		if (showMobileSidebar) { showMobileSidebar = false; return; }
 		if (activeFolderMenu) { activeFolderMenu = null; return; }
 		if (renamingFolderId) { renamingFolderId = null; return; }
-		if (confirmDelFolder) { confirmDelFolder = null; return; }
-		confirmDel = null; detailAsset = null; moveFolderAsset = null;
-		convertAsset = null; editTagsAsset = null; showNewFolder = false;
-		selected = new Set();
+		if (confirmDelFolder) return;
+		// Dialogs close themselves; Escape here only unwinds page state
+		if (confirmDel || moveFolderAsset || editTagsAsset || showNewFolder || showUploadModal) return;
+		if (detailAsset) { detailAsset = null; return; }
+		selected.clear();
 	}
 }} />
 
@@ -590,7 +622,7 @@
 
 		<!-- Folder tree -->
 		{#snippet folderNode(nodes: FolderWithCount[], depth: number)}
-			{#each nodes as f}
+			{#each nodes as f (f.id)}
 				<div class="folder-item" style="--depth:{depth}"
 					draggable={renamingFolderId !== f.id}
 					ondragstart={(e) => startFolderDrag(e, f)}
@@ -606,7 +638,7 @@
 						<!-- Inline rename input -->
 						<div class="folder-row rename-row">
 							<span class="chevron-spacer"></span>
-							<span class="folder-dot" style="background:{f.color ?? '#94a3b8'}"></span>
+							<span class="folder-dot" style="background:{f.color ?? '#a9a8a3'}"></span>
 							<!-- svelte-ignore a11y_autofocus -->
 							<input class="rename-input" autofocus bind:value={renamingFolderValue}
 								onkeydown={(e) => {
@@ -640,7 +672,7 @@
 							{/if}
 							<button type="button" class="folder-main"
 								onclick={() => { activeFolderId = f.id; activeTag = null; }}>
-								<span class="folder-dot" style="background:{f.color ?? '#94a3b8'}"></span>
+								<span class="folder-dot" style="background:{f.color ?? '#a9a8a3'}"></span>
 								<span class="folder-name">{f.name}</span>
 								<span class="folder-count">{f.assetCount}</span>
 							</button>
@@ -671,9 +703,6 @@
 			{/each}
 		{/snippet}
 		{@render folderNode(folderTree, 0)}
-		{#if folderActionError}
-			<div class="folder-action-error">{folderActionError}</div>
-		{/if}
 
 		<button
 			type="button"
@@ -691,7 +720,7 @@
 		{#if allTags.length > 0}
 			<div class="sidebar-section-title">{m.assets_tags_title()}</div>
 			<div class="tag-list">
-				{#each allTags as t}
+				{#each allTags as t (t.tag)}
 					<button class="tag-chip" class:active={activeTag === t.tag}
 						onclick={() => { activeTag = activeTag === t.tag ? null : t.tag; activeFolderId = null; }}>
 						<IconTag size={10} stroke={2} />
@@ -722,7 +751,7 @@
 					{#if activeFolderId}
 						{@const folder = getFolderById(activeFolderId)}
 						<span class="context-meta">
-							<span class="folder-dot lg" style="background:{folder?.color ?? '#94a3b8'}"></span>
+							<span class="folder-dot lg" style="background:{folder?.color ?? '#a9a8a3'}"></span>
 							{folder?.path ?? folder?.name ?? 'Folder'}
 						</span>
 					{:else if activeTag}
@@ -744,7 +773,7 @@
 					<button class="btn-sm danger" onclick={() => (confirmDel = 'bulk')}>
 						<IconTrash size={13} stroke={2} /> {m.assets_detail_delete()} {selected.size}
 					</button>
-					<button class="btn-sm ghost" onclick={() => (selected = new Set())}>
+					<button class="btn-sm ghost" onclick={() => selected.clear()}>
 						<IconX size={13} stroke={2} /> {m.assets_clear_selection()}
 					</button>
 				{/if}
@@ -754,7 +783,7 @@
 				<button class="icon-btn" class:active={viewMode === 'list'} title={m.assets_list_view()} onclick={() => (viewMode = 'list')}>
 					<IconLayoutList size={16} stroke={1.75} />
 				</button>
-				<label class="btn-primary">
+				<label class="btn btn-primary">
 					<IconUpload size={14} stroke={2} /> {m.assets_upload()}
 					<input type="file" multiple
 						onchange={(e) => { const t = e.target as HTMLInputElement; if (t.files) { openUploadModal(t.files); t.value = ''; } }}
@@ -766,7 +795,7 @@
 		<!-- Filter bar -->
 		<div class="filter-bar">
 			<div class="type-tabs">
-				{#each TYPE_TABS as tab}
+				{#each TYPE_TABS as tab (tab.key)}
 					{@const c = typeCounts()}
 					<button class="type-tab" class:active={typeFilter === tab.key}
 						onclick={() => (typeFilter = tab.key)}>
@@ -798,9 +827,10 @@
 		{/if}
 
 		<!-- Upload toasts -->
+
 		{#if uploadProgress.length}
 			<div class="upload-toasts">
-				{#each uploadProgress as p}
+				{#each uploadProgress as p, i (`${p.name}-${i}`)}
 					<div class="upload-toast" class:ok={p.done && !p.err} class:err={!!p.err}>
 						{#if p.err}<IconAlertTriangle size={13} stroke={2} />
 						{:else if p.done}<IconCheck size={13} stroke={2} />
@@ -824,7 +854,7 @@
 							: m.assets_no_assets_sub()}
 					</p>
 					{#if !search && typeFilter === 'all' && !activeTag}
-						<label class="btn-primary mt">
+						<label class="btn btn-primary mt">
 							<IconPlus size={14} stroke={2} /> {m.assets_add_first()}
 							<input type="file" multiple
 								onchange={(e) => { const t = e.target as HTMLInputElement; if (t.files) { openUploadModal(t.files); t.value = ''; } }}
@@ -835,6 +865,7 @@
 
 				{:else if viewMode === 'grid'}
 					<!-- Inject @font-face for all visible font assets so card previews render the actual typeface -->
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -- fontFaceStyles() allowlists the family and URL-encodes the storage path. -->
 					{@html fontFaceStyles(visibleAssets())}
 					<div class="asset-grid">
 					{#each visibleAssets() as a (a.id)}
@@ -885,7 +916,7 @@
 								<p class="card-info">{fmtSize(Number(a.size))}</p>
 								{#if (a.tags ?? []).length > 0}
 									<div class="card-tags">
-										{#each (a.tags ?? []).slice(0, 3) as tag}
+								{#each (a.tags ?? []).slice(0, 3) as tag (tag)}
 											<span class="mini-tag">#{tag}</span>
 										{/each}
 										{#if (a.tags ?? []).length > 3}
@@ -937,7 +968,7 @@
 							<span class="lr-folder">{getFolderById(a.folderId ?? null)?.name ?? '—'}</span>
 							<span class="lr-date">{fmtDate(a.createdAt)}</span>
 							<span class="lr-tags">
-								{#each (a.tags ?? []).slice(0, 2) as tag}
+							{#each (a.tags ?? []).slice(0, 2) as tag (tag)}
 									<span class="mini-tag">#{tag}</span>
 								{/each}
 							</span>
@@ -1003,7 +1034,7 @@
 			<!-- Multi-page strip -->
 			{#if pageThumbs.length > 1}
 				<div class="page-strip">
-					{#each pageThumbs as pt, i}
+					{#each pageThumbs as pt, i (pt)}
 						<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 						<div class="page-thumb" class:active={activeDrawerPage === i}
 							onclick={() => (activeDrawerPage = i)}>
@@ -1042,7 +1073,7 @@
 					</div>
 					{#if (a.tags ?? []).length > 0}
 						<div class="drawer-tags">
-							{#each (a.tags ?? []) as tag}
+							{#each (a.tags ?? []) as tag (tag)}
 								<span class="mini-tag"># {tag}</span>
 							{/each}
 						</div>
@@ -1070,7 +1101,7 @@
 					<div class="drawer-section">
 						<div class="drawer-section-head"><span>{m.assets_detail_convert()}</span></div>
 						<div class="convert-row">
-							{#each ['webp', 'avif'] as fmt}
+							{#each ['webp', 'avif'] as fmt (fmt)}
 								{@const key = `${a.id}-${fmt}`}
 								{@const existing = (a.convertedPaths ?? {})[fmt as 'webp' | 'avif']}
 								{@const status = convertStatus[key]}
@@ -1123,11 +1154,11 @@
 					<span>{m.assets_all_assets()}</span>
 					<span class="folder-count">{data.total}</span>
 				</button>
-				{#each folderList as f}
+				{#each folderList as f (f.id)}
 					<button class="folder-row" class:active={activeFolderId === f.id}
 						style="padding-left:{16 + f.path.split('/').length * 12}px"
 						onclick={() => { activeFolderId = f.id; activeTag = null; showMobileSidebar = false; }}>
-						<span class="folder-dot" style="background:{f.color ?? '#94a3b8'}"></span>
+						<span class="folder-dot" style="background:{f.color ?? '#a9a8a3'}"></span>
 						<span class="folder-name">{f.name}</span>
 						<span class="folder-count">{f.assetCount}</span>
 					</button>
@@ -1135,7 +1166,7 @@
 				{#if allTags.length > 0}
 					<div class="sidebar-section-title" style="margin-top:8px">{m.assets_tags_title()}</div>
 					<div class="tag-list">
-						{#each allTags as t}
+						{#each allTags as t (t.tag)}
 							<button class="tag-chip" class:active={activeTag === t.tag}
 								onclick={() => { activeTag = activeTag === t.tag ? null : t.tag; activeFolderId = null; showMobileSidebar = false; }}>
 								<IconTag size={10} stroke={2} />{t.tag}
@@ -1154,248 +1185,186 @@
 <!-- ── Modals ─────────────────────────────────────────────────────────────── -->
 
 <!-- Delete confirm -->
-{#if confirmDel}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="modal-backdrop" onclick={() => (confirmDel = null)}>
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-		<div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
-			<div class="modal-head">
-				<h2>{m.assets_delete_confirm_title()} {confirmDel === 'bulk' ? `${selected.size} ${m.assets_stat_many()}` : m.assets_stat_one()}?</h2>
-				<button class="icon-btn" aria-label="Close" onclick={() => (confirmDel = null)}><IconX size={16} stroke={1.75} /></button>
-			</div>
-			<div class="modal-body">
-				{#if confirmDel === 'bulk'}
-					<p>Permanently delete <strong>{selected.size} {selected.size === 1 ? m.assets_stat_one() : m.assets_stat_many()}</strong>? This cannot be undone.</p>
-				{:else}
-					<p><strong>{confirmDel.filename}</strong> will be permanently deleted.</p>
-				{/if}
-			</div>
-			<div class="modal-foot">
-				<button class="btn-cancel" onclick={() => (confirmDel = null)}>{m.users_btn_cancel()}</button>
-				<button class="btn-delete" onclick={() => { if (confirmDel === 'bulk') deleteSelected(); else if (confirmDel) deleteAsset(confirmDel.id); }}>
-					<IconTrash size={13} stroke={2} /> {m.assets_detail_delete()}
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}
+<Modal open={!!confirmDel} title={`${m.assets_delete_confirm_title()} ${confirmDel === 'bulk' ? `${selected.size} ${m.assets_stat_many()}` : m.assets_stat_one()}?`} size="md" onClose={() => (confirmDel = null)}>
+		{#if confirmDel === 'bulk'}
+			<p>{m.assets_delete_bulk_body({ count: String(selected.size) })}</p>
+		{:else if confirmDel}
+			<p>{m.assets_delete_one_body({ name: confirmDel.filename })}</p>
+		{/if}
+	{#snippet footer()}
+			<button class="btn btn-secondary" onclick={() => (confirmDel = null)}>{m.users_btn_cancel()}</button>
+			<button class="btn btn-danger" onclick={() => { if (confirmDel === 'bulk') deleteSelected(); else if (confirmDel) deleteAsset(confirmDel.id); }}>
+				<IconTrash size={13} stroke={2} /> {m.assets_detail_delete()}
+			</button>
+	{/snippet}
+</Modal>
 
 <!-- Move to folder -->
-{#if moveFolderAsset}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="modal-backdrop" onclick={() => (moveFolderAsset = null)}>
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-		<div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
-			<div class="modal-head">
-				<h2>{m.assets_move_title()}</h2>
-				<button class="icon-btn" aria-label="Close" onclick={() => (moveFolderAsset = null)}><IconX size={16} stroke={1.75} /></button>
-			</div>
-			<div class="modal-body folder-picker">
-				<FolderPicker
-					folders={folderList}
-					selectedId={moveDialogSelectedFolder()}
-					rootLabel={m.assets_root_no_folder()}
-					showCounts={true}
-					onPick={moveToFolder}
-				/>
-			</div>
-		</div>
-	</div>
-{/if}
+<Modal open={!!moveFolderAsset} title={m.assets_move_title()} size="md" onClose={() => (moveFolderAsset = null)}>
+<div class="folder-picker">
+			<FolderPicker
+				folders={folderList}
+				selectedId={moveDialogSelectedFolder()}
+				rootLabel={m.assets_root_no_folder()}
+				showCounts={true}
+				onPick={moveToFolder}
+			/>
+</div>
+</Modal>
 
 <!-- Edit tags modal -->
 {#if editTagsAsset}
 	{@const a = editTagsAsset}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="modal-backdrop" onclick={() => (editTagsAsset = null)}>
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-		<div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
-			<div class="modal-head">
-				<h2>{m.assets_edit_tags_title()} — {a.filename}</h2>
-				<button class="icon-btn" aria-label="Close" onclick={() => (editTagsAsset = null)}><IconX size={16} stroke={1.75} /></button>
+	<Modal open={true} title={`${m.assets_edit_tags_title()} — ${a.filename}`} size="md" onClose={() => (editTagsAsset = null)}>
+			<div class="tag-editor">
+				{#each (a.tags ?? []) as tag (tag)}
+					<span class="tag-pill">
+						#{tag}
+						<button onclick={() => removeTag(a, tag)}><IconX size={10} stroke={2.5} /></button>
+					</span>
+				{/each}
 			</div>
-			<div class="modal-body">
-				<div class="tag-editor">
-					{#each (a.tags ?? []) as tag}
-						<span class="tag-pill">
-							#{tag}
-							<button onclick={() => removeTag(a, tag)}><IconX size={10} stroke={2.5} /></button>
-						</span>
-					{/each}
-				</div>
-				<div class="tag-input-row">
-					<IconTag size={14} stroke={1.75} />
-					<input class="tag-text-input" placeholder="Add tag…" bind:value={tagInput}
-						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(a, tagInput); } }} />
-					<button class="btn-sm primary" onclick={() => addTag(a, tagInput)}>Add</button>
-				</div>
-				<p class="tag-hint">{m.assets_tags_hint()}</p>
+			<div class="tag-input-row">
+				<IconTag size={14} stroke={1.75} />
+				<input class="tag-text-input" placeholder="Add tag…" bind:value={tagInput}
+					onkeydown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(a, tagInput); } }} />
+				<button class="btn-sm primary" onclick={() => addTag(a, tagInput)}>Add</button>
 			</div>
-		</div>
-	</div>
+			<p class="tag-hint">{m.assets_tags_hint()}</p>
+	</Modal>
 {/if}
 
 <!-- Folder delete confirm -->
 {#if confirmDelFolder}
 	{@const fol = folderList.find(f => f.id === confirmDelFolder)}
 	{@const childCount = directChildCount(confirmDelFolder)}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="modal-backdrop" onclick={() => (confirmDelFolder = null)}>
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-		<div class="modal sm" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
-			<div class="modal-head">
-				<h2>{m.assets_delete_folder_title()}</h2>
-				<button class="icon-btn" aria-label="Close" onclick={() => (confirmDelFolder = null)}><IconX size={16} stroke={1.75} /></button>
-			</div>
-			<div class="modal-body">
-				<p>Delete <strong>{fol?.name ?? 'this folder'}</strong>?</p>
-				<div class="delete-impact">
-					<div>
-						<strong>{fol?.assetCount ?? 0}</strong>
-						<span>asset{(fol?.assetCount ?? 0) === 1 ? '' : 's'} will move to root</span>
-					</div>
-					<div>
-						<strong>{childCount}</strong>
-						<span>subfolder{childCount === 1 ? '' : 's'} will move to root</span>
-					</div>
+	<!-- sm -->
+	<Modal open={true} title={m.assets_delete_folder_title()} size="sm" onClose={() => (confirmDelFolder = null)}>
+			<p>Delete <strong>{fol?.name ?? 'this folder'}</strong>?</p>
+			<div class="delete-impact">
+				<div>
+					<strong>{fol?.assetCount ?? 0}</strong>
+					<span>asset{(fol?.assetCount ?? 0) === 1 ? '' : 's'} will move to root</span>
 				</div>
-				<p class="modal-warning">This cannot be undone.</p>
-				{#if folderActionError}
-					<p class="modal-error">{folderActionError}</p>
-				{/if}
+				<div>
+					<strong>{childCount}</strong>
+					<span>subfolder{childCount === 1 ? '' : 's'} will move to root</span>
+				</div>
 			</div>
-			<div class="modal-foot">
-				<button class="btn-cancel" onclick={() => (confirmDelFolder = null)}>{m.users_btn_cancel()}</button>
-				<button class="btn-delete" onclick={() => confirmDelFolder && deleteFolder(confirmDelFolder)}>
+			<p class="modal-warning">{m.common_irreversible()}</p>
+			{#if folderActionError}
+				<p class="modal-error">{folderActionError}</p>
+			{/if}
+		{#snippet footer()}
+				<button class="btn btn-secondary" onclick={() => (confirmDelFolder = null)}>{m.users_btn_cancel()}</button>
+				<button class="btn btn-danger" onclick={() => confirmDelFolder && deleteFolder(confirmDelFolder)}>
 					<IconTrash size={13} stroke={2} /> {m.assets_detail_delete()}
 				</button>
-			</div>
-		</div>
-	</div>
+		{/snippet}
+	</Modal>
 {/if}
 
 <!-- New folder modal -->
-{#if showNewFolder}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="modal-backdrop" onclick={() => (showNewFolder = false)}>
-		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-		<div class="modal sm" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
-			<div class="modal-head">
-				<h2>{m.assets_new_folder_title()}</h2>
-				<button class="icon-btn" aria-label="Close" onclick={() => (showNewFolder = false)}><IconX size={16} stroke={1.75} /></button>
-			</div>
-			<div class="modal-body">
-				<label class="field-label" for="nf-name">{m.assets_folder_name_label()}</label>
-				<input id="nf-name" class="field-input" placeholder={m.assets_folder_name_ph()} bind:value={newFolderName}
-					onkeydown={(e) => e.key === 'Enter' && createFolder()} />
-				<label class="field-label mt" for="nf-parent">{m.assets_folder_parent_label()}</label>
-				<select id="nf-parent" class="field-input" bind:value={newFolderParent}>
-					<option value={null}>{m.assets_folder_root_opt()}</option>
-					{#each folderList as f}
-						<option value={f.id}>{f.path}</option>
-					{/each}
-				</select>
-				<label class="field-label mt" for="nf-color">{m.assets_folder_color_label()}</label>
-				<div id="nf-color" class="color-swatches">
-					{#each FOLDER_COLORS as c}
-						<button class="swatch" class:active={newFolderColor === c}
-							style="background:{c}" aria-label={c} onclick={() => (newFolderColor = c)}></button>
-					{/each}
-				</div>
-			</div>
-			<div class="modal-foot">
-				<button class="btn-cancel" onclick={() => (showNewFolder = false)}>{m.users_btn_cancel()}</button>
-				<button class="btn-primary" onclick={createFolder} disabled={!newFolderName.trim()}>
-					<IconFolderPlus size={14} stroke={2} /> {m.assets_create_btn()}
-				</button>
-			</div>
+<!-- sm -->
+<Modal open={showNewFolder} title={m.assets_new_folder_title()} size="sm" onClose={() => (showNewFolder = false)}>
+		<label class="field-label" for="nf-name">{m.assets_folder_name_label()}</label>
+		<input id="nf-name" class="field-input" placeholder={m.assets_folder_name_ph()} bind:value={newFolderName}
+			onkeydown={(e) => e.key === 'Enter' && createFolder()} />
+		<label class="field-label mt" for="nf-parent">{m.assets_folder_parent_label()}</label>
+		<select id="nf-parent" class="field-input" bind:value={newFolderParent}>
+			<option value={null}>{m.assets_folder_root_opt()}</option>
+			{#each folderList as f (f.id)}
+				<option value={f.id}>{f.path}</option>
+			{/each}
+		</select>
+		<label class="field-label mt" for="nf-color">{m.assets_folder_color_label()}</label>
+		<div id="nf-color" class="color-swatches">
+			{#each FOLDER_COLORS as c (c)}
+				<button class="swatch" class:active={newFolderColor === c}
+					style="background:{c}" aria-label={c} onclick={() => (newFolderColor = c)}></button>
+			{/each}
 		</div>
-	</div>
-{/if}
+	{#snippet footer()}
+			<button class="btn btn-secondary" onclick={() => (showNewFolder = false)}>{m.users_btn_cancel()}</button>
+			<button class="btn btn-primary" onclick={createFolder} disabled={!newFolderName.trim()}>
+				<IconFolderPlus size={14} stroke={2} /> {m.assets_create_btn()}
+			</button>
+	{/snippet}
+</Modal>
 
 <!-- ── Upload modal ──────────────────────────────────────────────────────────── -->
-{#if showUploadModal}
-	<div class="modal-backdrop" role="presentation" onclick={cancelUpload}>
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div class="modal upload-modal" role="dialog" tabindex="-1" onclick={e => e.stopPropagation()}>
-			<div class="modal-head">
-				<h2>Nahrát soubory</h2>
-				<button class="icon-btn" aria-label="Zavřít" onclick={cancelUpload}><IconX size={16} stroke={1.75} /></button>
+<!-- upload-modal -->
+<Modal open={showUploadModal} title={m.assets_upload_title()} size="md" onClose={cancelUpload}>
+<div class="upload-modal-body">
+			<!-- File list -->
+			<div class="upload-file-list">
+				{#each pendingFiles as f (`${f.name}-${f.size}-${f.lastModified}`)}
+					<div class="upload-file-row">
+						<span class="upload-file-name">{f.name}</span>
+						<span class="upload-file-size">{(f.size / 1024).toFixed(0)} kB</span>
+					</div>
+				{/each}
 			</div>
 
-			<div class="modal-body upload-modal-body">
-				<!-- File list -->
-				<div class="upload-file-list">
-					{#each pendingFiles as f}
-						<div class="upload-file-row">
-							<span class="upload-file-name">{f.name}</span>
-							<span class="upload-file-size">{(f.size / 1024).toFixed(0)} kB</span>
-						</div>
-					{/each}
-				</div>
-
-				<!-- Folder picker -->
-				<div class="upload-section">
-					<div class="upload-section-label">Uložit do složky</div>
-					<button
-						type="button"
-						class="folder-select-btn"
-						onclick={() => uploadFolderOpen = !uploadFolderOpen}
-					>
-						<IconFolder size={15} />
-						<span>{uploadFolderId ? (folderList.find(f => f.id === uploadFolderId)?.name ?? uploadFolderId) : 'Root (bez složky)'}</span>
-						<IconChevronRight size={13} style="flex-shrink:0;color:var(--color-muted);transition:transform .15s;{uploadFolderOpen ? 'transform:rotate(90deg)' : ''}" />
-					</button>
-					{#if uploadFolderOpen}
-						<div class="folder-picker-wrap">
-							<FolderPicker
-								folders={folderList}
-								selectedId={uploadFolderId}
-								includeRoot={true}
-								rootLabel="Root (bez složky)"
-								showCounts={true}
-								onPick={(id) => { uploadFolderId = id; uploadFolderOpen = false; }}
-							/>
-						</div>
-					{/if}
-				</div>
-
-				<!-- Tags -->
-				<div class="upload-section">
-					<label class="upload-section-label" for="upload-tags">Tagy <span class="muted">(volitelné, čárkou)</span></label>
-					<input
-						id="upload-tags"
-						type="text"
-						class="upload-tags-input"
-						bind:value={uploadTagsInput}
-						placeholder="logo, vector, print…"
-						onkeydown={e => e.key === 'Enter' && confirmUpload()}
-					/>
-					{#if allTags.length > 0}
-						<div class="tag-suggestions">
-							{#each allTags.filter(t => !uploadTagsInput.split(',').map(x => x.trim()).includes(t.tag)).slice(0, 12) as t}
-								<button type="button" class="tag-pill"
-									onclick={() => {
-										const existing = uploadTagsInput.split(',').map(x => x.trim()).filter(Boolean);
-										uploadTagsInput = [...existing, t.tag].join(', ');
-									}}
-								>{t.tag}</button>
-							{/each}
-						</div>
-					{/if}
-				</div>
-			</div>
-
-			<div class="modal-foot">
-				<button class="btn-cancel" onclick={cancelUpload}>Zrušit</button>
-				<button class="btn-upload-confirm" onclick={confirmUpload}>
-					<IconUpload size={14} stroke={2} />
-					Nahrát {pendingFiles.length === 1 ? '1 soubor' : `${pendingFiles.length} soubory`}
+			<!-- Folder picker -->
+			<div class="upload-section">
+				<div class="upload-section-label">{m.assets_upload_folder()}</div>
+				<button
+					type="button"
+					class="folder-select-btn"
+					onclick={() => uploadFolderOpen = !uploadFolderOpen}
+				>
+					<IconFolder size={15} />
+					<span>{uploadFolderId ? (folderList.find(f => f.id === uploadFolderId)?.name ?? uploadFolderId) : m.assets_root_folder()}</span>
+					<IconChevronRight size={13} style="flex-shrink:0;color:var(--color-muted);transition:transform .15s;{uploadFolderOpen ? 'transform:rotate(90deg)' : ''}" />
 				</button>
+				{#if uploadFolderOpen}
+					<div class="folder-picker-wrap">
+						<FolderPicker
+							folders={folderList}
+							selectedId={uploadFolderId}
+							includeRoot={true}
+							rootLabel={m.assets_root_folder()}
+							showCounts={true}
+							onPick={(id) => { uploadFolderId = id; uploadFolderOpen = false; }}
+						/>
+					</div>
+				{/if}
 			</div>
-		</div>
-	</div>
-{/if}
+
+			<!-- Tags -->
+			<div class="upload-section">
+				<label class="upload-section-label" for="upload-tags">{m.assets_upload_tags()} <span class="muted">{m.assets_upload_tags_hint()}</span></label>
+				<input
+					id="upload-tags"
+					type="text"
+					class="upload-tags-input"
+					bind:value={uploadTagsInput}
+					placeholder="logo, vector, print…"
+					onkeydown={e => e.key === 'Enter' && confirmUpload()}
+				/>
+				{#if allTags.length > 0}
+					<div class="tag-suggestions">
+						{#each allTags.filter(t => !uploadTagsInput.split(',').map(x => x.trim()).includes(t.tag)).slice(0, 12) as t (t.tag)}
+							<button type="button" class="tag-pill"
+								onclick={() => {
+									const existing = uploadTagsInput.split(',').map(x => x.trim()).filter(Boolean);
+									uploadTagsInput = [...existing, t.tag].join(', ');
+								}}
+							>{t.tag}</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
+</div>
+	{#snippet footer()}
+			<button class="btn btn-secondary" onclick={cancelUpload}>{m.common_cancel()}</button>
+			<button class="btn btn-primary" onclick={confirmUpload}>
+				<IconUpload size={14} stroke={2} />
+				{pendingFiles.length === 1 ? m.assets_upload_confirm_one() : m.assets_upload_confirm({ count: String(pendingFiles.length) })}
+			</button>
+	{/snippet}
+</Modal>
 
 <style>
 /* ── Shell & Layout ──────────────────────────────────────────────────────── */
@@ -1406,16 +1375,16 @@
 /* Drop overlay */
 .drop-overlay {
 	position:fixed; inset:0; z-index:200;
-	background:color-mix(in srgb,var(--brand) 6%,transparent);
-	border:3px dashed var(--brand); pointer-events:none;
+	background:color-mix(in srgb,var(--color-accent) 6%,transparent);
+	border:1px dashed var(--color-accent); pointer-events:none;
 	display:flex; flex-direction:column; align-items:center; justify-content:center;
-	gap:14px; font-size:1.25rem; font-weight:650; color:var(--brand);
+	gap:14px; font-size: var(--text-xl); font-weight: 500; letter-spacing: var(--tracking-tight); color:var(--color-accent);
 }
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 .asset-sidebar {
 	width:var(--assets-sidebar-width, 240px); flex-shrink:0; border-right:1px solid var(--color-border);
-	background:var(--color-surface); overflow-y:auto; padding:1rem 0 2rem;
+	background:var(--color-bg); overflow-y:auto; padding:var(--space-5) 0 var(--space-8);
 	display:flex; flex-direction:column; gap:2px; position:relative;
 }
 .sidebar-resizer {
@@ -1429,33 +1398,33 @@
 }
 .sidebar-resizer:hover::after,
 .sidebar-resizer:focus-visible::after {
-	width:3px; background:color-mix(in srgb,var(--brand) 55%,transparent);
+	width:3px; background:color-mix(in srgb,var(--color-accent) 55%,transparent);
 }
 .sidebar-head {
 	display:flex; align-items:center; justify-content:space-between;
-	padding:0 12px 8px; font-size:0.6875rem; font-weight:700;
-	text-transform:uppercase; letter-spacing:0.08em; color:var(--color-muted);
+	padding:0 12px 8px 20px; font-size: var(--text-2xs); font-weight: 500;
+	text-transform:uppercase; letter-spacing:var(--tracking-eyebrow); color:var(--color-muted);
 }
 .sidebar-section-title {
-	padding:12px 12px 4px;
-	font-size:0.6875rem; font-weight:700; text-transform:uppercase;
-	letter-spacing:0.08em; color:var(--color-muted);
+	padding:var(--space-6) 12px var(--space-2) 20px;
+	font-size: var(--text-2xs); font-weight: 500; text-transform:uppercase;
+	letter-spacing:var(--tracking-eyebrow); color:var(--color-muted);
 }
 .root-row { padding-left:12px !important; }
 .folder-row {
 	display:flex; align-items:center; gap:6px; width:100%;
 	padding:5px 12px 5px calc(12px + var(--depth, 0) * 14px);
-	font-size:0.8125rem; color:var(--color-text); background:none; border:none;
+	font-size: var(--text-sm); color:var(--color-text); background:none; border:none;
 	cursor:pointer; border-radius:0; text-align:left; transition:background 0.1s;
 }
-.folder-row:hover  { background:var(--color-surface-raised); }
-.folder-row.active { background:color-mix(in srgb,var(--brand) 8%,transparent); color:var(--brand); font-weight:600; }
+.folder-row:hover  { background:var(--color-hover); }
+.folder-row.active { background:var(--color-surface); color:var(--color-text); font-weight: 500; box-shadow: inset 2px 0 0 var(--color-accent); }
 .folder-row-actionable {
 	padding:0 8px 0 calc(8px + min(var(--depth, 0), 6) * 14px);
 	gap:2px;
 	cursor:default;
 }
-.folder-row-actionable:hover { background:var(--color-surface-raised); }
+.folder-row-actionable:hover { background:var(--color-hover); }
 .folder-main {
 	display:flex; align-items:center; gap:6px; flex:1; min-width:0;
 	height:30px; padding:0 4px; border:0; background:none;
@@ -1464,9 +1433,9 @@
 .folder-main:focus-visible,
 .chevron-btn:focus-visible,
 .folder-actions .icon-btn:focus-visible {
-	outline:2px solid color-mix(in srgb,var(--brand) 45%,transparent);
+	outline:2px solid color-mix(in srgb,var(--color-accent) 45%,transparent);
 	outline-offset:1px;
-	border-radius:6px;
+	border-radius: var(--radius);
 }
 /* ── Folder DnD ─────────────────────────────────────────────────────────── */
 .folder-item {
@@ -1477,11 +1446,11 @@
 .dnd-dragging { opacity:0.4; pointer-events:none; }
 
 /* Before = top border highlight */
-.dnd-over-before { box-shadow:inset 0 2px 0 0 var(--brand); }
+.dnd-over-before { box-shadow:inset 0 2px 0 0 var(--color-accent); }
 /* After = bottom border highlight */
-.dnd-over-after  { box-shadow:inset 0 -2px 0 0 var(--brand); }
+.dnd-over-after  { box-shadow:inset 0 -2px 0 0 var(--color-accent); }
 /* Inside = brand-tinted background */
-.dnd-over-inside { background:color-mix(in srgb,var(--brand) 8%,transparent); border-radius:5px; }
+.dnd-over-inside { background:color-mix(in srgb,var(--color-accent) 8%,transparent); border-radius: var(--radius-sm); }
 
 /* Drag handle — hidden until hover, always visible on touch */
 .drag-handle {
@@ -1503,8 +1472,7 @@
 .folder-dot.lg { width:11px; height:11px; }
 .folder-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .folder-count {
-	font-size:0.6875rem; background:var(--color-surface-raised); border:1px solid var(--color-border);
-	border-radius:20px; padding:0 5px; line-height:17px; color:var(--color-muted); flex-shrink:0;
+	font-size: var(--text-xs); font-variant-numeric: tabular-nums; color:var(--color-muted); flex-shrink:0;
 }
 
 /* Folder actions (rename / delete) */
@@ -1520,28 +1488,21 @@
 .folder-menu {
 	position:absolute; top:28px; right:0; z-index:30;
 	min-width:132px; padding:5px;
-	border:1px solid var(--color-border); border-radius:8px;
+	border:1px solid var(--color-border); border-radius: var(--radius);
 	background:var(--color-surface); box-shadow:var(--shadow-lg);
 	display:flex; flex-direction:column; gap:2px;
 }
 .folder-menu button {
 	display:flex; align-items:center; gap:8px; width:100%;
-	height:30px; padding:0 9px; border:0; border-radius:6px;
-	background:none; color:var(--color-text); font-size:0.8125rem;
+	height:30px; padding:0 9px; border:0; border-radius: var(--radius);
+	background:none; color:var(--color-text); font-size: var(--text-sm);
 	text-align:left; cursor:pointer;
 }
-.folder-menu button:hover { background:var(--color-surface-raised); }
+.folder-menu button:hover { background:var(--color-hover); }
 .folder-menu button.danger { color:var(--color-danger); }
-.folder-action-error {
-	margin:8px 12px 2px; padding:7px 9px; border-radius:7px;
-	background:#fef2f2; border:1px solid #fecaca; color:var(--color-danger);
-	font-size:0.75rem; line-height:1.35;
-}
 
 /* xs icon button variant */
 .icon-btn.xs { width:20px; height:20px; padding:0; }
-.icon-btn.xs.danger { color:var(--color-danger, #ef4444); }
-.icon-btn.xs.danger:hover { background:color-mix(in srgb,#ef4444 10%,transparent); }
 
 /* Inline rename row */
 .rename-row {
@@ -1550,180 +1511,170 @@
 	background:var(--color-surface-raised);
 }
 .rename-input {
-	flex:1; min-width:0; font-size:0.8125rem; padding:2px 6px;
-	border:1px solid var(--brand); border-radius:5px;
+	flex:1; min-width:0; font-size: var(--text-sm); padding:2px 6px;
+	border:1px solid var(--color-accent); border-radius: var(--radius-sm);
 	background:var(--color-surface); color:var(--color-text); outline:none;
 }
 
 /* Tags in sidebar */
 .tag-list { display:flex; flex-wrap:wrap; gap:4px; padding:4px 12px; }
 .tag-chip {
-	display:inline-flex; align-items:center; gap:4px; padding:3px 8px;
-	font-size:0.75rem; border-radius:20px; background:var(--color-surface-raised);
-	border:1px solid var(--color-border); cursor:pointer; color:var(--color-muted);
-	transition:all 0.1s;
+	display:inline-flex; align-items:center; gap:4px; height:22px; padding:0 7px;
+	font-size: var(--text-xs); border-radius: var(--radius-sm); background:var(--color-surface);
+	border:1px solid var(--color-border); cursor:pointer; color:var(--color-text-secondary);
+	transition:border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.tag-chip:hover { border-color:var(--brand); color:var(--brand); }
-.tag-chip.active { background:color-mix(in srgb,var(--brand) 10%,transparent); border-color:var(--brand); color:var(--brand); font-weight:600; }
-.tag-count { font-size:0.6875rem; }
+.tag-chip:hover { border-color:var(--color-border-strong); color:var(--color-text); }
+.tag-chip.active { background:var(--color-accent-subtle); border-color:var(--color-accent); color:var(--color-accent); font-weight: 500; }
+.tag-count { font-size: var(--text-2xs); color: var(--color-muted); font-variant-numeric: tabular-nums; }
 
 /* ── Main area ───────────────────────────────────────────────────────────── */
 .main { flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
 
 .topbar {
 	display:flex; align-items:center; justify-content:space-between;
-	padding:1.25rem 1.5rem 0; gap:1rem; flex-wrap:wrap; flex-shrink:0;
+	padding:var(--space-8) var(--space-8) 0; gap:var(--space-4); flex-wrap:wrap; flex-shrink:0;
 }
 .topbar-left  { display:flex; align-items:center; gap:10px; min-width:0; }
 .topbar-right { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .page-context { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .page-title {
-	font-size:1.5rem; font-weight:650; letter-spacing:-0.025em;
+	font-size: var(--text-2xl); font-weight: 600; letter-spacing: var(--tracking-tight); line-height: var(--leading-tight);
 	display:flex; align-items:center; gap:7px;
 }
 .context-meta {
 	display:flex; align-items:center; gap:6px; min-width:0;
-	font-size:0.75rem; color:var(--color-muted);
+	font-size: var(--text-xs); color:var(--color-muted);
 	overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
-.page-count { font-size:0.8125rem; color:var(--color-muted); }
+.page-count { font-size: var(--text-sm); color:var(--color-muted); }
 .sr-only {
 	position:absolute; width:1px; height:1px; padding:0; margin:-1px;
 	overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
 }
 
 /* Buttons */
-.btn-primary {
-	display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 14px;
-	border-radius:8px; background:var(--brand); color:#fff; border:none;
-	font-size:0.8125rem; font-weight:600; cursor:pointer; transition:background 0.15s;
-}
-.btn-primary:hover { background:color-mix(in srgb,var(--brand) 85%,black); }
-.btn-primary:disabled { opacity:0.45; cursor:not-allowed; }
+
+
+
 .btn-sm {
 	display:inline-flex; align-items:center; gap:5px; height:32px; padding:0 11px;
-	border-radius:7px; font-size:0.8125rem; font-weight:500; cursor:pointer; border:1.5px solid var(--color-border); background:none; color:var(--color-text);
+	border-radius: var(--radius); font-size: var(--text-sm); font-weight: 500; cursor:pointer; border:1px solid var(--color-border); background:none; color:var(--color-text);
 }
-.btn-sm.ghost  { }
-.btn-sm.ghost:hover { background:var(--color-surface-raised); }
-.btn-sm.danger { color:var(--color-danger); border-color:#fecaca; background:#fef2f2; }
-.btn-sm.danger:hover { background:#fee2e2; }
-.btn-sm.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
-.btn-sm.primary:hover { background:color-mix(in srgb,var(--brand) 85%,black); }
+.btn-sm.ghost:hover { background:var(--color-hover); border-color: var(--color-border-strong); }
+.btn-sm.danger { color:var(--color-danger); border-color:var(--color-danger-border); background:var(--color-danger-subtle); }
+.btn-sm.danger:hover { background:var(--color-danger-border); }
+.btn-sm.primary { background:var(--color-accent); color: var(--color-accent-contrast); border-color:var(--color-accent); }
+.btn-sm.primary:hover { background:var(--color-accent-hover); }
 .icon-btn {
 	display:flex; align-items:center; justify-content:center; width:32px; height:32px;
-	border-radius:7px; border:1.5px solid var(--color-border); background:none;
-	color:var(--color-muted); cursor:pointer; transition:all 0.1s;
+	border-radius: var(--radius); border:1px solid var(--color-border); background:none;
+	color:var(--color-muted); cursor:pointer; transition:all var(--dur-fast) var(--ease);
 }
-.icon-btn:hover, .icon-btn.active { background:var(--color-surface-raised); color:var(--color-text); border-color:var(--color-text); }
-.icon-btn.xs { width:26px; height:26px; border-radius:6px; }
+.icon-btn:hover { background:var(--color-surface); color:var(--color-text); border-color:var(--color-border-strong); }
+.icon-btn.active { background:var(--color-surface); color:var(--color-text); border-color:var(--color-border-strong); box-shadow: var(--shadow-xs); }
+.icon-btn.xs { width:26px; height:26px; border-radius: var(--radius); }
 
 /* Filter bar */
 .filter-bar {
 	display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
-	padding:0 1.5rem; border-bottom:1px solid var(--color-border); margin-top:1rem; gap:1rem;
+	padding:0 var(--space-8); border-bottom:1px solid var(--color-border); margin-top:var(--space-6); gap:var(--space-4);
 }
 .type-tabs { display:flex; gap:0; overflow-x:auto; scrollbar-width:none; }
 .type-tabs::-webkit-scrollbar { display:none; }
 .type-tab {
-	display:inline-flex; align-items:center; gap:5px; padding:8px 11px;
-	font-size:0.8125rem; font-weight:500; color:var(--color-muted); white-space:nowrap;
+	display:inline-flex; align-items:center; gap:6px; padding:10px 0; margin-right: var(--space-5);
+	font-size: var(--text-sm); font-weight: 400; color:var(--color-muted); white-space:nowrap;
 	border:none; background:none; border-bottom:2px solid transparent; margin-bottom:-1px;
 	cursor:pointer; transition:color 0.15s, border-color 0.15s;
 }
 .type-tab:hover { color:var(--color-text); }
-.type-tab.active { color:var(--brand); border-bottom-color:var(--brand); font-weight:600; }
-.tab-count {
-	font-size:0.6875rem; background:var(--color-surface-raised); border:1px solid var(--color-border);
-	border-radius:20px; padding:0 5px; line-height:17px;
-}
-.type-tab.active .tab-count { background:color-mix(in srgb,var(--brand) 10%,transparent); border-color:color-mix(in srgb,var(--brand) 25%,transparent); color:var(--brand); }
+.type-tab.active { color:var(--color-text); border-bottom-color:var(--color-accent); font-weight: 500; }
+.tab-count { font-size: var(--text-xs); color: var(--color-placeholder); font-variant-numeric: tabular-nums; }
+.type-tab.active .tab-count { color: var(--color-muted); }
 
 .filter-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
 .sort-select {
-	height:30px; padding:0 8px; border-radius:7px; border:1.5px solid var(--color-border);
-	background:var(--color-surface); font-size:0.8125rem; color:var(--color-text); cursor:pointer; outline:none;
+	height:30px; padding:0 8px; border-radius: var(--radius); border:1px solid var(--color-border);
+	background:var(--color-surface); font-size: var(--text-sm); color:var(--color-text); cursor:pointer; outline:none; box-shadow: var(--shadow-xs);
 }
 .search-wrap { position:relative; display:flex; align-items:center; }
 .search-wrap :global(svg) { position:absolute; left:8px; color:var(--color-muted); pointer-events:none; }
 .search-input {
-	height:30px; padding:0 28px; border:1.5px solid var(--color-border); border-radius:7px;
-	font-size:0.8125rem; background:var(--color-surface); color:var(--color-text); width:180px; outline:none;
+	height:30px; padding:0 28px; border:1px solid var(--color-border); border-radius: var(--radius);
+	font-size: var(--text-sm); background:var(--color-surface); color:var(--color-text); width:180px; outline:none;
 }
-.search-input:focus { border-color:var(--brand); }
+.search-input:focus { border-color:var(--color-border-focus); box-shadow: var(--focus-ring); }
 .search-clear { position:absolute; right:6px; display:flex; border:none; background:none; cursor:pointer; color:var(--color-muted); }
 
 .active-filter-bar {
 	display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
-	padding:6px 1.5rem; background:color-mix(in srgb,var(--brand) 6%,transparent);
-	border-bottom:1px solid color-mix(in srgb,var(--brand) 15%,transparent);
-	font-size:0.8125rem; color:var(--color-muted);
+	padding:8px var(--space-8); background:var(--color-accent-subtle);
+	border-bottom:1px solid var(--color-border);
+	font-size: var(--text-sm); color:var(--color-muted);
 }
 .active-filter-bar button { display:flex; align-items:center; border:none; background:none; cursor:pointer; color:var(--color-muted); }
 
 /* Upload toasts */
 .upload-toasts {
-	position:fixed; bottom:1.25rem; right:1.25rem; z-index:90;
-	display:flex; flex-direction:column; gap:5px; max-width:300px;
+	position:fixed; bottom:var(--space-5); left:calc(var(--sidebar-width) + var(--space-5)); z-index:90;
+	display:flex; flex-direction:column; gap:var(--space-2); width:min(340px, calc(100vw - 2rem));
 }
 .upload-toast {
-	display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:8px;
-	font-size:0.8125rem; background:var(--color-surface); border:1px solid var(--color-border);
-	box-shadow:var(--shadow-lg); color:var(--color-muted);
+	display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:var(--radius-lg);
+	font-size:var(--text-sm); background:#1c1c1b; color:#f4f4f2; box-shadow:var(--shadow-lg);
 }
-.upload-toast.ok  { color:var(--color-success); border-color:#bbf7d0; background:#f0fdf4; }
-.upload-toast.err { color:var(--color-danger);  border-color:#fecaca; background:#fef2f2; }
-.toast-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
-.toast-err  { font-size:0.725rem; opacity:0.8; }
+.upload-toast .spinner { border-color: rgba(255,255,255,.2); border-top-color: #fff; }
+.upload-toast.ok :global(svg) { color:#7fd1a3; }
+.upload-toast.err :global(svg) { color:#f2998f; }
+.toast-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.toast-err  { font-size: var(--text-xs); color: rgba(244,244,242,.6); }
 
 /* ── Content ─────────────────────────────────────────────────────────────── */
-.content-area { flex:1; overflow-y:auto; padding:1.25rem 1.5rem 2rem; }
+.content-area { flex:1; overflow-y:auto; padding:var(--space-6) var(--space-8) var(--space-12); }
 
 /* Empty state */
 .empty-state { display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; padding:5rem 2rem; }
 .empty-icon  { margin-bottom:8px; opacity:0.3; color:var(--color-muted); }
-.empty-title { font-size:1rem; font-weight:600; }
-.empty-sub   { font-size:0.875rem; color:var(--color-muted); max-width:260px; line-height:1.5; }
+.empty-title { font-size: var(--text-lg); font-weight: 500; letter-spacing: var(--tracking-snug); }
+.empty-sub   { font-size: var(--text-base); color:var(--color-muted); max-width:260px; line-height:1.5; }
 .mt { margin-top:8px; }
 
 /* Grid */
 .asset-grid {
-	display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:12px;
+	display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:var(--space-5) var(--space-4);
 }
 .asset-card {
-	border:1.5px solid var(--color-border); border-radius:12px; overflow:hidden;
+	border:1px solid var(--color-border); border-radius: var(--radius-lg); overflow:hidden;
 	background:var(--color-surface); cursor:pointer; position:relative;
-	transition:border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+	box-shadow: var(--shadow-xs);
+	transition:border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
-.asset-card:hover { border-color:var(--brand); box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 7%,transparent); transform:translateY(-1px); }
-.asset-card.sel  { border-color:var(--brand); box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 12%,transparent); }
+.asset-card:hover { border-color:var(--color-border-strong); box-shadow: var(--shadow); }
+.asset-card.sel  { border-color:var(--color-accent); box-shadow:0 0 0 1px var(--color-accent), var(--shadow); }
 
 .card-check {
 	position:absolute; top:8px; left:8px; z-index:5; width:20px; height:20px;
-	border-radius:6px; border:2px solid rgba(255,255,255,.65); background:rgba(255,255,255,.15);
+	border-radius: var(--radius); border:2px solid rgba(255,255,255,.65); background:rgba(255,255,255,.15);
 	backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center;
-	opacity:0; transition:opacity 0.1s; color:var(--brand); cursor:pointer;
+	opacity:0; transition:opacity 0.1s; color:var(--color-accent); cursor:pointer;
 }
-.card-check.sm { width:17px; height:17px; border-radius:5px; position:static; opacity:1; }
+.card-check.sm { width:17px; height:17px; border-radius: var(--radius-sm); position:static; opacity:1; }
 .card-check.visible, .asset-card:hover .card-check { opacity:1; }
-.asset-card.sel .card-check { background:var(--brand); border-color:var(--brand); color:#fff; }
+.asset-card.sel .card-check { background:var(--color-accent); border-color:var(--color-accent); color: var(--color-accent-contrast); }
 
 .card-thumb {
 	width:100%; aspect-ratio:4/3; overflow:hidden; background:var(--color-surface-raised);
+	border-bottom: 1px solid var(--color-border);
 	position:relative; display:flex; align-items:center; justify-content:center;
 }
-.thumb-img { width:100%; height:100%; object-fit:cover; display:block; }
-.thumb-img.thumb-contain { object-fit:contain; padding:.5rem; box-sizing:border-box; }
-.thumb-icon { display:flex; align-items:center; justify-content:center; color:var(--color-muted); }
-.font-preview { font-size:2rem; font-weight:700; color:var(--color-muted); letter-spacing:-0.04em; line-height:1; }
-
 .format-badge {
-	position:absolute; bottom:6px; left:6px; font-size:0.625rem; font-weight:700;
-	text-transform:uppercase; letter-spacing:0.06em;
-	background:rgba(0,0,0,.55); color:#fff; border-radius:4px; padding:2px 5px;
-	backdrop-filter:blur(4px);
+	position:absolute; top:8px; right:8px; font-family: var(--font-mono); font-size: var(--text-2xs); font-weight: 500;
+	text-transform:uppercase; letter-spacing: var(--tracking-eyebrow);
+	background:rgba(255,255,255,.9); color:var(--color-text-secondary); border-radius: var(--radius-xs); padding:2px 5px;
+	box-shadow: 0 0 0 1px rgba(20,20,20,.06);
 }
-.format-badge.sm { position:static; font-size:0.6875rem; background:var(--color-surface-raised); color:var(--color-muted); border:1px solid var(--color-border); }
+.format-badge.sm { position:static; font-size: var(--text-2xs); background:var(--color-surface-raised); color:var(--color-muted); border:1px solid var(--color-border); }
 
 .card-actions {
 	position:absolute; bottom:0; left:0; right:0; display:flex; justify-content:flex-end;
@@ -1734,53 +1685,50 @@
 .asset-card:hover .card-actions { opacity:1; }
 .card-action {
 	display:flex; align-items:center; justify-content:center; width:26px; height:26px;
-	border-radius:6px; background:rgba(255,255,255,.88); backdrop-filter:blur(4px);
+	border-radius: var(--radius); background:rgba(255,255,255,.88); backdrop-filter:blur(4px);
 	color:#111; cursor:pointer; border:none; transition:background 0.1s;
 }
 .card-action:hover { background:#fff; }
 .card-action.del:hover { color:var(--color-danger); }
 
-.card-meta { padding:7px 9px 9px; }
-.card-name  { font-size:0.8rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:2px; }
-.card-info  { font-size:0.725rem; color:var(--color-muted); }
+.card-meta { padding:10px 12px 12px; }
+.card-name  { font-size: var(--text-sm); font-weight: 500; letter-spacing: var(--tracking-snug); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:2px; }
+.card-info  { font-size: var(--text-xs); color:var(--color-muted); font-variant-numeric: tabular-nums; }
 .card-tags  { display:flex; flex-wrap:wrap; gap:3px; margin-top:5px; }
 
 /* List view */
 .asset-list { display:flex; flex-direction:column; gap:0; }
 .list-head {
 	display:grid; grid-template-columns:28px 1fr 80px 70px 100px 90px 120px 60px;
-	gap:0; padding:6px 8px; font-size:0.725rem; font-weight:600; color:var(--color-muted);
-	text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid var(--color-border);
+	gap:0; padding:8px 8px; font-size: var(--text-2xs); font-weight: 500; color:var(--color-muted);
+	text-transform:uppercase; letter-spacing:var(--tracking-eyebrow); border-bottom:1px solid var(--color-border-strong);
 }
 .list-row {
 	display:grid; grid-template-columns:28px 1fr 80px 70px 100px 90px 120px 60px;
-	gap:0; padding:8px 8px; font-size:0.8125rem; cursor:pointer;
+	gap:0; padding:8px 8px; font-size: var(--text-sm); cursor:pointer;
 	border-bottom:1px solid var(--color-border); align-items:center;
 	transition:background 0.1s;
 }
-.list-row:hover { background:var(--color-surface-raised); }
-.list-row.sel { background:color-mix(in srgb,var(--brand) 5%,transparent); }
+.list-row:hover { background:var(--color-surface); }
+.list-row.sel { background:var(--color-accent-subtle); }
 .lr-check { display:flex; align-items:center; }
 .lr-name  { display:flex; align-items:center; gap:8px; overflow:hidden; }
-.lr-thumb { width:28px; height:28px; border-radius:5px; overflow:hidden; background:var(--color-surface-raised); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--color-muted); }
+.lr-thumb { width:28px; height:28px; border-radius: var(--radius-sm); overflow:hidden; background:var(--color-surface-raised); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--color-muted); }
 .lr-img   { width:100%; height:100%; object-fit:cover; }
-.lr-type, .lr-size, .lr-folder, .lr-date { color:var(--color-muted); font-size:0.8rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lr-type, .lr-size, .lr-folder, .lr-date { color:var(--color-muted); font-size: var(--text-sm); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .lr-tags  { display:flex; flex-wrap:wrap; gap:3px; }
 .lr-actions { display:flex; align-items:center; gap:4px; justify-content:flex-end; }
-.lh-check,.lh-actions { }
-
 /* Tags */
 .mini-tag {
-	display:inline-block; font-size:0.6875rem; padding:1px 6px; border-radius:20px;
-	background:color-mix(in srgb,var(--brand) 8%,transparent);
-	border:1px solid color-mix(in srgb,var(--brand) 20%,transparent);
-	color:var(--brand); white-space:nowrap;
+	display:inline-block; font-size: var(--text-2xs); padding:1px 6px; border-radius: var(--radius-xs);
+	background:var(--color-surface-raised);
+	color:var(--color-text-secondary); white-space:nowrap;
 }
 
 /* Spinner */
 .spinner {
 	width:12px; height:12px; border:2px solid var(--color-border);
-	border-top-color:var(--brand); border-radius:50%;
+	border-top-color:var(--color-accent); border-radius:50%;
 	animation:spin 0.6s linear infinite; flex-shrink:0;
 }
 .spinner.xs { width:10px; height:10px; }
@@ -1791,140 +1739,120 @@
 	position:fixed; inset:0; z-index:50; background:transparent; /* click to close */
 }
 .drawer {
-	position:fixed; top:0; right:0; bottom:0; width:320px; z-index:60;
+	position:fixed; top:0; right:0; bottom:0; width:360px; z-index:60;
 	background:var(--color-surface); border-left:1px solid var(--color-border);
-	display:flex; flex-direction:column; box-shadow:-8px 0 32px rgba(0,0,0,.08);
+	display:flex; flex-direction:column; box-shadow:var(--shadow-lg);
 	overflow:hidden;
 }
 .drawer-head {
 	display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem;
 	border-bottom:1px solid var(--color-border); flex-shrink:0;
 }
-.drawer-title { font-size:0.875rem; font-weight:650; }
+.drawer-title { font-size: var(--text-2xs); font-weight: 500; text-transform: uppercase; letter-spacing: var(--tracking-eyebrow); color: var(--color-muted); }
 .drawer-preview {
 	background:var(--color-surface-raised); border-bottom:1px solid var(--color-border);
 	display:flex; align-items:center; justify-content:center; flex-shrink:0;
 	min-height:180px; max-height:240px; overflow:hidden;
 }
 .drawer-img { max-width:100%; max-height:240px; object-fit:contain; display:block; }
-.drawer-icon-preview { display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--color-muted); font-size:0.8125rem; font-weight:500; padding:2rem; }
+.drawer-icon-preview { display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--color-muted); font-size: var(--text-sm); font-weight: 500; padding:2rem; }
 
 /* Font file preview */
 .drawer-font-preview {
 	width:100%; padding:1.25rem 1rem 1rem;
 	display:flex; flex-direction:column; gap:6px; overflow:hidden;
 }
-.dfp-hero { font-size:4rem; line-height:1; letter-spacing:-0.02em; }
-.dfp-alpha { font-size:0.75rem; color:var(--color-muted); letter-spacing:0.05em; word-break:break-all; line-height:1.6; }
-.dfp-nums  { font-size:0.875rem; color:var(--color-muted); letter-spacing:0.1em; }
-.dfp-sample { font-size:0.9375rem; line-height:1.5; color:var(--color-text); margin-top:4px; }
+.dfp-hero { font-size:4rem; line-height:1; letter-spacing: var(--tracking-tight); }
+.dfp-alpha { font-size: var(--text-xs); color:var(--color-muted); letter-spacing: var(--tracking-eyebrow); word-break:break-all; line-height:1.6; }
+.dfp-nums  { font-size: var(--text-base); color:var(--color-muted); letter-spacing:0.1em; }
+.dfp-sample { font-size: var(--text-md); line-height:1.5; color:var(--color-text); margin-top:4px; }
 .drawer-body { flex:1; overflow-y:auto; padding:1rem 1.25rem; display:flex; flex-direction:column; gap:1rem; }
-.drawer-filename { font-size:0.875rem; font-weight:600; word-break:break-all; }
-.drawer-meta-grid { display:grid; grid-template-columns:80px 1fr; gap:4px 8px; font-size:0.8125rem; }
-.dmg-label { color:var(--color-muted); font-weight:500; }
+.drawer-filename { font-size: var(--text-lg); font-weight: 500; letter-spacing: var(--tracking-snug); line-height: var(--leading-snug); word-break:break-all; }
+.drawer-meta-grid { display:grid; grid-template-columns:88px 1fr; gap:6px 12px; font-size: var(--text-sm); font-variant-numeric: tabular-nums; padding-block: var(--space-3); border-block: 1px solid var(--color-border); }
+.dmg-label { color:var(--color-muted); font-weight: 400; }
 .drawer-section { display:flex; flex-direction:column; gap:6px; }
-.drawer-section-head { display:flex; align-items:center; justify-content:space-between; font-size:0.8125rem; font-weight:600; }
+.drawer-section-head { display:flex; align-items:center; justify-content:space-between; font-size: var(--text-2xs); font-weight: 500; text-transform: uppercase; letter-spacing: var(--tracking-eyebrow); color: var(--color-muted); }
 .drawer-tags { display:flex; flex-wrap:wrap; gap:4px; }
-.drawer-empty-note { font-size:0.8rem; color:var(--color-muted); font-style:italic; }
-.drawer-location { display:flex; align-items:center; gap:5px; min-width:0; font-size:0.8125rem; color:var(--color-muted); }
+.drawer-empty-note { font-size: var(--text-sm); color:var(--color-placeholder); }
+.drawer-location { display:flex; align-items:center; gap:5px; min-width:0; font-size: var(--text-sm); color:var(--color-muted); }
 .drawer-location :global(.breadcrumbs) { flex:1; min-width:0; }
 .link-btn {
-	display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:500;
-	color:var(--brand); background:none; border:none; cursor:pointer; padding:2px 4px; border-radius:4px;
+	display:inline-flex; align-items:center; gap:4px; font-size: var(--text-xs); font-weight: 500;
+	color:var(--color-accent); background:none; border:none; cursor:pointer; padding:2px 4px; border-radius: var(--radius-sm);
 }
-.link-btn:hover { background:color-mix(in srgb,var(--brand) 8%,transparent); }
+.link-btn:hover { background:var(--color-accent-subtle); }
 
 /* Convert */
 .convert-row { display:flex; gap:6px; flex-wrap:wrap; }
 .convert-btn {
 	display:inline-flex; align-items:center; gap:5px; height:30px; padding:0 12px;
-	border-radius:7px; font-size:0.8125rem; font-weight:500; cursor:pointer;
-	border:1.5px solid var(--color-border); background:none; color:var(--color-text);
+	border-radius: var(--radius); font-size: var(--text-sm); font-weight: 500; cursor:pointer;
+	border:1px solid var(--color-border); background:none; color:var(--color-text);
 	transition:all 0.15s; text-decoration:none;
 }
-.convert-btn:hover { border-color:var(--brand); color:var(--brand); }
-.convert-btn.done { background:#f0fdf4; border-color:#bbf7d0; color:var(--color-success); }
+.convert-btn:hover { border-color:var(--color-border-strong); color:var(--color-text); background: var(--color-surface); }
+.convert-btn.done { background:var(--color-success-subtle); border-color:var(--color-success-border); color:var(--color-success); }
 .convert-btn.queued { opacity:0.6; cursor:default; }
 
 .drawer-actions { display:flex; gap:8px; flex-direction:column; margin-top:auto; }
 .btn-full {
 	display:flex; align-items:center; justify-content:center; gap:7px;
-	height:38px; border-radius:9px; font-size:0.875rem; font-weight:600; cursor:pointer; border:none;
+	height:var(--control-h); border-radius: var(--radius); font-size: var(--text-sm); font-weight: 500; cursor:pointer; border:none;
 }
-.btn-full.secondary { background:var(--color-surface-raised); color:var(--color-text); border:1.5px solid var(--color-border); }
-.btn-full.secondary:hover { border-color:var(--color-text); }
-.btn-full.danger { background:#fef2f2; color:var(--color-danger); border:1.5px solid #fecaca; }
-.btn-full.danger:hover { background:#fee2e2; }
+.btn-full.secondary { background:var(--color-surface); color:var(--color-text); border:1px solid var(--color-border); box-shadow: var(--shadow-xs); }
+.btn-full.secondary:hover { border-color:var(--color-border-strong); }
+.btn-full.danger { background:var(--color-danger-subtle); color:var(--color-danger); border:1px solid var(--color-danger-border); }
+.btn-full.danger:hover { background:var(--color-danger-border); }
 
 /* ── Modals ──────────────────────────────────────────────────────────────── */
-.modal-backdrop {
-	position:fixed; inset:0; background:rgba(0,0,0,.4); display:flex;
-	align-items:center; justify-content:center; z-index:100; backdrop-filter:blur(3px);
-}
-.modal {
-	background:var(--color-surface); border-radius:14px; width:100%; max-width:480px;
-	box-shadow:var(--shadow-lg); border:1px solid var(--color-border); overflow:hidden;
-}
-.modal.sm { max-width:360px; }
-.modal-head {
-	display:flex; align-items:center; justify-content:space-between;
-	padding:1.125rem 1.5rem; border-bottom:1px solid var(--color-border);
-}
-.modal-head h2 { font-size:0.9375rem; font-weight:650; letter-spacing:-0.02em; }
-.modal-body { padding:1.5rem; font-size:0.9rem; color:var(--color-muted); line-height:1.5; }
 .modal-error {
-	margin:10px 0 0; padding:8px 10px; border-radius:7px;
-	background:#fef2f2; border:1px solid #fecaca; color:var(--color-danger);
-	font-size:0.8125rem;
+	margin:10px 0 0; padding:8px 10px; border-radius: var(--radius);
+	background:var(--color-danger-subtle); border:1px solid var(--color-danger-border); color:var(--color-danger);
+	font-size: var(--text-sm);
 }
-.modal-warning { margin-top:10px; font-size:0.8125rem; color:var(--color-danger); }
+.modal-warning { margin-top:10px; font-size: var(--text-sm); color:var(--color-danger); }
 .delete-impact {
 	display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;
 }
 .delete-impact div {
 	display:flex; flex-direction:column; gap:2px; padding:10px;
-	border:1px solid var(--color-border); border-radius:9px;
+	border:1px solid var(--color-border); border-radius: var(--radius-lg);
 	background:var(--color-surface-raised);
 }
-.delete-impact strong { font-size:1.125rem; color:var(--color-text); line-height:1; }
-.delete-impact span { font-size:0.75rem; color:var(--color-muted); line-height:1.3; }
-.modal-foot {
-	display:flex; justify-content:flex-end; gap:8px;
-	padding:1rem 1.5rem; border-top:1px solid var(--color-border);
-}
-.btn-cancel { height:36px; padding:0 16px; border-radius:8px; border:1.5px solid var(--color-border); background:none; font-size:0.875rem; font-weight:500; cursor:pointer; }
-.btn-cancel:hover { background:var(--color-surface-raised); }
-.btn-delete { display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 16px; border-radius:8px; border:none; background:var(--color-danger); color:#fff; font-size:0.875rem; font-weight:600; cursor:pointer; }
-.btn-delete:hover { opacity:0.88; }
+.delete-impact strong { font-size: var(--text-xl); color:var(--color-text); line-height:1; }
+.delete-impact span { font-size: var(--text-xs); color:var(--color-muted); line-height:1.3; }
+
+
+
+
 
 /* Folder picker modal */
-.modal-body.folder-picker { padding:1rem 0; }
 
 /* Tag editor */
 .tag-editor { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; min-height:32px; }
 .tag-pill {
 	display:inline-flex; align-items:center; gap:4px; padding:3px 8px;
-	background:color-mix(in srgb,var(--brand) 8%,transparent);
-	border:1px solid color-mix(in srgb,var(--brand) 20%,transparent);
-	border-radius:20px; font-size:0.8rem; color:var(--brand);
+	background:color-mix(in srgb,var(--color-accent) 8%,transparent);
+	border:1px solid color-mix(in srgb,var(--color-accent) 20%,transparent);
+	border-radius: var(--radius-sm); font-size: var(--text-sm); color:var(--color-accent);
 }
 .tag-pill button { display:flex; align-items:center; background:none; border:none; cursor:pointer; color:inherit; padding:0; }
 .tag-input-row {
 	display:flex; align-items:center; gap:8px; padding:8px 10px;
-	border:1.5px solid var(--color-border); border-radius:8px; margin-bottom:8px;
+	border:1px solid var(--color-border); border-radius: var(--radius); margin-bottom:8px;
 }
 .tag-input-row :global(svg) { flex-shrink:0; color:var(--color-muted); }
-.tag-text-input { flex:1; border:none; background:none; outline:none; font-size:0.875rem; color:var(--color-text); }
-.tag-hint { font-size:0.75rem; color:var(--color-muted); }
+.tag-text-input { flex:1; border:none; background:none; outline:none; font-size: var(--text-base); color:var(--color-text); }
+.tag-hint { font-size: var(--text-xs); color:var(--color-muted); }
 
 /* Form fields */
-.field-label { display:block; font-size:0.8125rem; font-weight:500; margin-bottom:4px; color:var(--color-text); }
+.field-label { display:block; font-size: var(--text-sm); font-weight: 500; margin-bottom:4px; color:var(--color-text); }
 .field-label.mt { margin-top:12px; }
 .field-input {
-	width:100%; height:36px; padding:0 10px; border:1.5px solid var(--color-border);
-	border-radius:8px; font-size:0.875rem; background:var(--color-surface); color:var(--color-text); outline:none;
+	width:100%; height:36px; padding:0 10px; border:1px solid var(--color-border);
+	border-radius: var(--radius); font-size: var(--text-base); background:var(--color-surface); color:var(--color-text); outline:none;
 }
-.field-input:focus { border-color:var(--brand); }
+.field-input:focus { border-color:var(--color-border-focus); box-shadow: var(--focus-ring); }
 
 .color-swatches { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
 .swatch {
@@ -1939,11 +1867,11 @@
 .mobile-nav-btn { display:none; }
 
 /* Page count warn */
-.page-count-warn { font-size:0.75rem; color:var(--color-muted); opacity:0.7; }
+.page-count-warn { font-size: var(--text-xs); color:var(--color-muted); opacity:0.7; }
 
 /* Mobile sidebar sheet */
 .mobile-sidebar-backdrop {
-	position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:70;
+	position:fixed; inset:0; background:rgba(20,20,20,.32); z-index:70;
 	backdrop-filter:blur(2px);
 }
 .mobile-sidebar-sheet {
@@ -1954,7 +1882,7 @@
 .mobile-sheet-head {
 	display:flex; align-items:center; justify-content:space-between;
 	padding:1rem 1rem 0.75rem; border-bottom:1px solid var(--color-border);
-	font-size:0.875rem; font-weight:650;
+	font-size: var(--text-base); font-weight: 600;
 }
 .mobile-sheet-body { flex:1; overflow-y:auto; padding:0.5rem 0 2rem; }
 
@@ -1975,9 +1903,9 @@
 
 /* ── Multi-page PDF ──────────────────────────────────────────────────────── */
 .page-count-badge {
-	position:absolute; bottom:6px; right:6px; font-size:0.625rem; font-weight:700;
-	background:rgba(0,0,0,.55); color:#fff; border-radius:4px; padding:2px 5px;
-	backdrop-filter:blur(4px); letter-spacing:0.04em;
+	position:absolute; bottom:6px; right:6px; font-size: var(--text-2xs); font-weight: 600;
+	background:rgba(0,0,0,.55); color:#fff; border-radius: var(--radius-sm); padding:2px 5px;
+	backdrop-filter:blur(4px); letter-spacing: var(--tracking-eyebrow);
 }
 
 .page-strip {
@@ -1986,67 +1914,63 @@
 	flex-shrink:0;
 }
 .page-strip::-webkit-scrollbar { height:4px; }
-.page-strip::-webkit-scrollbar-thumb { background:var(--color-border); border-radius:2px; }
+.page-strip::-webkit-scrollbar-thumb { background:var(--color-border); border-radius: var(--radius-xs); }
 
 .page-thumb {
-	position:relative; flex-shrink:0; width:52px; border-radius:5px; overflow:hidden;
+	position:relative; flex-shrink:0; width:52px; border-radius: var(--radius-sm); overflow:hidden;
 	border:2px solid transparent; cursor:pointer; transition:border-color 0.12s;
 	background:var(--color-surface);
 }
 .page-thumb img { width:100%; display:block; aspect-ratio:3/4; object-fit:cover; }
-.page-thumb.active { border-color:var(--brand); }
-.page-thumb:hover:not(.active) { border-color:color-mix(in srgb,var(--brand) 50%,transparent); }
+.page-thumb.active { border-color:var(--color-accent); }
+.page-thumb:hover:not(.active) { border-color:color-mix(in srgb,var(--color-accent) 50%,transparent); }
 .page-num {
 	position:absolute; bottom:0; left:0; right:0; text-align:center;
-	font-size:0.5625rem; font-weight:700; background:rgba(0,0,0,.45); color:#fff;
+	font-size: var(--text-2xs); font-weight: 500; background:rgba(20,20,20,.55); color:#fff; font-variant-numeric: tabular-nums;
 	padding:1px 0;
 }
 
 /* ── Upload modal ────────────────────────────────────────────────────────── */
-.upload-modal { max-width:520px; }
-.upload-modal-body { padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:1.25rem; color:var(--color-text); }
+.upload-modal-body { display:flex; flex-direction:column; gap:var(--space-5); color:var(--color-text); }
+.folder-picker { margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-6)); }
 .upload-file-list {
 	display:flex; flex-direction:column; gap:2px;
 	max-height:140px; overflow-y:auto;
-	border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface-raised);
+	border:1px solid var(--color-border); border-radius: var(--radius); background:var(--color-surface-raised);
 	padding:.25rem 0;
 }
 .upload-file-row {
 	display:flex; align-items:center; justify-content:space-between;
-	padding:.3rem .75rem; font-size:.8125rem;
+	padding:.3rem .75rem; font-size: var(--text-sm);
 }
 .upload-file-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.upload-file-size { flex-shrink:0; color:var(--color-muted); font-size:.75rem; margin-left:.75rem; }
+.upload-file-size { flex-shrink:0; color:var(--color-muted); font-size: var(--text-xs); margin-left:.75rem; }
 .upload-section { display:flex; flex-direction:column; gap:.4rem; }
-.upload-section-label { font-size:.8125rem; font-weight:500; color:var(--color-text); }
-.upload-section-label .muted { font-weight:400; color:var(--color-muted); }
+.upload-section-label { font-size: var(--text-sm); font-weight: 500; color:var(--color-text); }
+.upload-section-label .muted { font-weight: 400; color:var(--color-muted); }
 .folder-select-btn {
 	display:flex; align-items:center; gap:.5rem;
-	padding:.45rem .75rem; border:1.5px solid var(--color-border); border-radius:8px;
-	background:var(--color-surface); color:var(--color-text); font-size:.875rem;
+	padding:.45rem .75rem; border:1px solid var(--color-border); border-radius: var(--radius);
+	background:var(--color-surface); color:var(--color-text); font-size: var(--text-base);
 	cursor:pointer; text-align:left; width:100%;
 }
-.folder-select-btn:hover { border-color:var(--brand); }
+.folder-select-btn:hover { border-color:var(--color-border-strong); }
 .folder-select-btn span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .folder-select-btn :global(.folder-chevron) { flex-shrink:0; color:var(--color-muted); transition:transform .15s; }
 .folder-select-btn :global(.folder-chevron.open) { transform:rotate(90deg); }
-.folder-picker-wrap { border:1px solid var(--color-border); border-radius:8px; overflow:hidden; background:var(--color-surface); padding:.35rem 0; }
+.folder-picker-wrap { border:1px solid var(--color-border); border-radius: var(--radius); overflow:hidden; background:var(--color-surface); padding:.35rem 0; }
 .upload-tags-input {
-	height:38px; padding:0 12px; border:1.5px solid var(--color-border); border-radius:8px;
-	font-size:.875rem; background:var(--color-surface); color:var(--color-text); outline:none; width:100%; box-sizing:border-box;
+	height:38px; padding:0 12px; border:1px solid var(--color-border); border-radius: var(--radius);
+	font-size: var(--text-base); background:var(--color-surface); color:var(--color-text); outline:none; width:100%; box-sizing:border-box;
 }
-.upload-tags-input:focus { border-color:var(--brand); }
+.upload-tags-input:focus { border-color:var(--color-border-focus); box-shadow: var(--focus-ring); }
 .tag-suggestions { display:flex; flex-wrap:wrap; gap:5px; margin-top:.25rem; }
 .tag-suggestions .tag-pill {
 	background:var(--color-surface-raised); border:1px solid var(--color-border);
-	border-radius:20px; padding:2px 9px; font-size:.78rem; color:var(--color-muted);
+	border-radius: var(--radius-sm); padding:2px 9px; font-size: var(--text-xs); color:var(--color-muted);
 	cursor:pointer;
 }
-.tag-suggestions .tag-pill:hover { border-color:var(--brand); color:var(--brand); }
-.btn-upload-confirm {
-	display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 18px;
-	border-radius:8px; border:none; background:var(--brand); color:#fff;
-	font-size:.875rem; font-weight:600; cursor:pointer;
-}
-.btn-upload-confirm:hover { filter:brightness(1.1); }
+.tag-suggestions .tag-pill:hover { border-color:var(--color-border-strong); color:var(--color-text); }
+
+
 </style>

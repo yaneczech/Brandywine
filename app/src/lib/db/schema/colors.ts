@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb, boolean, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, jsonb, index } from 'drizzle-orm/pg-core';
 import { createId } from '../id';
 
 export type ColorProductionRef = {

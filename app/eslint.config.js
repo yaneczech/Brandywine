@@ -29,15 +29,22 @@ export default [
 	...svelte.configs['flat/recommended'],
 	{
 		files: ['**/*.svelte'],
+		plugins: { '@typescript-eslint': ts },
 		languageOptions: {
 			parserOptions: { parser: tsParser }
 		},
 		rules: {
+			'no-unused-vars': 'off',
+			'@typescript-eslint/no-unused-vars': ['error', {
+				argsIgnorePattern: '^_',
+				varsIgnorePattern: '^_',
+				caughtErrorsIgnorePattern: '^_'
+			}],
 			// Paraglide i18n link rule — disable until Paraglide is fully wired up
 			'svelte/no-navigation-without-resolve': 'off'
 		}
 	},
 	{
-		ignores: ['.svelte-kit/', 'build/', 'node_modules/', 'src/paraglide/']
+		ignores: ['.svelte-kit/', 'build/', 'node_modules/', 'src/lib/paraglide/']
 	}
 ];

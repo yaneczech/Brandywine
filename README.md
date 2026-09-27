@@ -44,8 +44,8 @@ Create a public-facing manual that feels like a real product, not a document dum
 - Custom brand identity, logo, primary color, footer, and access rules
 - Manual pages with hierarchy, slugs, sorting, and editable content blocks
 - Dedicated sections for colors, typography, logos, and brand assets
-- Language routing for Czech and English out of the box
-- Public access modes for open, password-protected, invite-style, or token-based manuals
+- Czech and English system UI with a configurable default manual language
+- Public, password-protected, and e-mail allowlisted manuals
 
 ### Color governance designers can trust
 
@@ -121,24 +121,53 @@ flowchart LR
 ## Quick start
 
 ```bash
-cp .env.example .env
-# Edit .env and set POSTGRES_PASSWORD and SESSION_SECRET
-docker compose up --build
+./brandywine install brand.example.com
 ```
 
-Open the manual:
+The installer creates `.env` with cryptographically random secrets, validates
+Docker and Compose, builds the application, runs database migrations, waits for
+PostgreSQL and Redis, and reports when the application is ready. Use `localhost`
+instead of a domain for a local installation.
 
-```text
-http://localhost:3000/en/manual
+The production stack is the default: application, compiled media worker,
+PostgreSQL, Redis and Caddy start together, migrations run automatically, and
+services restart after a reboot. Development is opt-in:
+
+```bash
+docker compose -f docker-compose.yml -f compose.dev.yml up --build
 ```
 
-Open the admin:
+When ports 80 or 443 are already occupied locally, set `HTTP_PORT=8080`,
+`HTTPS_PORT=8443`, `APP_URL=http://localhost:8080`, and
+`CADDYFILE=./Caddyfile.local` in `.env`. The local Caddy configuration serves
+HTTP without requiring a locally trusted certificate; production keeps HTTPS
+and automatic redirects.
+
+Open the manual and admin:
 
 ```text
-http://localhost:3000/admin
+https://brand.example.com/
+https://brand.example.com/admin
 ```
 
 On a fresh install, Brandywine will guide you through creating the first admin account.
+
+### Operations
+
+The same utility covers routine self-hosting without knowledge of Docker internals:
+
+```bash
+./brandywine doctor
+./brandywine backup
+./brandywine update
+./brandywine restore backups/20260821T120000Z
+./brandywine logs
+```
+
+Backups contain a PostgreSQL custom-format dump, all uploaded files, a manifest,
+and SHA-256 checksums. Restore first creates an automatic safety backup and
+requires explicit confirmation. Keep the `backups/` directory outside the server
+or copy it to separate storage for disaster recovery.
 
 ## Development
 
@@ -168,6 +197,13 @@ npm run dev
 ## Project status
 
 Brandywine is under active development. The core product direction is clear: a beautiful, self-hosted brand CMS for designers, brand teams, and agencies. Expect rapid iteration around manual page building, asset workflows, typography, permissions, and polish.
+
+See the [professional product and self-hosting roadmap](./PRODUCT_ROADMAP.md) for
+the release milestones, DAM workflows, governance, integrations, and the next
+steps beyond the included WordPress-like install/update/backup experience.
+
+The [product audit](./PRODUCT_AUDIT.md) records what is fully usable today,
+what is only partial, and which release gates should precede a `1.0` label.
 
 ## License
 

@@ -4,11 +4,19 @@ services:
       context: ./app
       dockerfile: Dockerfile
     restart: unless-stopped
+    init: true
     environment:
       DATABASE_URL: postgresql://brandywine:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/brandywine
       REDIS_URL: redis://redis:6379
       UPLOAD_DIR: /uploads
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      APP_URL: ${APP_URL:-}
+      ORIGIN: ${APP_URL:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
       NODE_ENV: production
     volumes:
       - uploads:/uploads
@@ -16,16 +24,20 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
-    labels:
-      caddy: ${APP_DOMAIN:-localhost}
-      caddy.reverse_proxy: "{{upstreams 3000}}"
-
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
   worker:
     build:
       context: ./worker
       dockerfile: Dockerfile
     restart: unless-stopped
+    init: true
     environment:
       DATABASE_URL: postgresql://brandywine:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/brandywine
       REDIS_URL: redis://redis:6379
@@ -36,7 +48,8 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+        restart: true
 
   db:
     image: postgres:16-alpine
@@ -59,19 +72,29 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   proxy:
     image: caddy:2-alpine
     restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+      APP_URL: ${APP_URL:-https://localhost}
     ports:
-      - "80:80"
-      - "443:443"
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${CADDYFILE:-./Caddyfile}:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - app
+      app:
+        condition: service_healthy
+        restart: true
 
 volumes:
   uploads:

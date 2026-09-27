@@ -2,7 +2,7 @@ import { canEdit } from '$server/permissions';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/db';
 import { colorGradients } from '$lib/db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { asc } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {

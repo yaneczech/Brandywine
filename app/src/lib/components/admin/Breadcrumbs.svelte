@@ -20,7 +20,7 @@
 
 <nav class="breadcrumbs" aria-label="Breadcrumb">
 	<ol>
-		{#each items as item, i}
+		{#each items as item, i (`${item.value ?? item.label}-${i}`)}
 			{@const isLast = i === items.length - 1}
 			<li>
 				{#if i > 0}
@@ -84,11 +84,11 @@
 		cursor: pointer;
 	}
 	button:hover {
-		color: var(--brand);
+		color: var(--color-text);
 	}
 	.current {
 		color: var(--color-text);
-		font-weight: 650;
+		font-weight: 600;
 	}
 	.separator {
 		display: inline-flex;

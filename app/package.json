@@ -44,7 +44,7 @@
 		"vitest": "^4.1.8"
 	},
 	"dependencies": {
-		"@inlang/paraglide-sveltekit": "^0.16.1",
+		"@inlang/paraglide-js": "^2.24.1",
 		"@tabler/icons-svelte": "^3.44.0",
 		"@types/nodemailer": "^8.0.0",
 		"@types/pg": "^8.20.0",
@@ -52,9 +52,9 @@
 		"bullmq": "^5.78.0",
 		"drizzle-orm": "^0.45.2",
 		"ioredis": "^5.11.1",
-		"nodemailer": "^8.0.10",
+		"nodemailer": "^9.0.5",
 		"postgres": "^3.4.9",
-		"sharp": "^0.34.5"
+		"sharp": "^0.35.3"
 	},
 	"engines": {
 		"node": ">=22.0.0"
