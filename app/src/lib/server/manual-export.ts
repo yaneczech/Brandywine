@@ -1,5 +1,6 @@
 import { colorsForSource } from '$lib/manual/color-source';
 import { getBlockDefinition } from '$lib/blocks';
+import { manualPagePath } from '$lib/manual/paths';
 /**
  * Plain-text / Markdown view of the whole manual for AI tools (AI export,
  * llms.txt and the read-only MCP server). Everything here is derived from the
@@ -114,13 +115,7 @@ function richContent(c: Record<string, unknown>): string {
 }
 
 export function pagePath(page: Page, pages: Page[]): string {
-	const parts: string[] = [];
-	let cur: Page | undefined = page;
-	for (let depth = 0; cur && !cur.isLanding && depth < 32; depth++) {
-		parts.unshift(cur.slug);
-		cur = pages.find((p) => p.id === cur!.parentId);
-	}
-	return `/${parts.join('/')}`;
+	return manualPagePath(page, pages);
 }
 
 function hexToCmyk(hex: string) {

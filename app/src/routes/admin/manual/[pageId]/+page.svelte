@@ -323,7 +323,7 @@
 				<h1>{page.title}</h1>
 				<span class="page-slug muted">/manual/{page.slug}</span>
 			</div>
-			<a href="/manual/{page.slug}" target="_blank" rel="noopener" class="btn-ghost preview-btn" title={m.editor_view_in_manual()}>
+			<a href={data.publicPath} target="_blank" rel="noopener" class="btn-ghost preview-btn" title={m.editor_view_in_manual()}>
 				<IconExternalLink size={15} stroke={1.5} /> {m.common_view()}
 			</a>
 			<button class="btn-ghost settings-btn" class:active={showPageSettings}
