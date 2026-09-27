@@ -2,23 +2,23 @@ import { pgTable, text, timestamp, pgEnum, unique, index } from 'drizzle-orm/pg-
 import { createId } from '../id';
 import { users } from './users';
 
-// Role uživatele uvnitř týmu
+// A user's role within a team
 export const teamRoleEnum = pgEnum('team_role', ['owner', 'member']);
 
-// Akce, které lze na zdroj přiřadit
+// Actions a permission can grant on a resource
 export const permissionActionEnum = pgEnum('permission_action', [
-	'read',      // prohlížení
-	'download',  // stažení assetů
+	'read',      // view
+	'download',  // download assets
 	'write',     // editace obsahu / metadat
-	'upload',    // nahrávání souborů
-	'share'      // tvorba sdílených odkazů
+	'upload',    // upload files
+	'share'      // create share links
 ]);
 
-// Typ zdroje, ke kterému se váže oprávnění
+// Kind of resource a permission applies to
 export const resourceTypeEnum = pgEnum('resource_type', [
-	'section',    // sekce brand manuálu (colors, logos, typography…)
-	'folder',     // složka v asset manageru
-	'collection'  // kurátorská kolekce
+	'section',    // brand manual section (colors, logos, typography…)
+	'folder',     // asset folder
+	'collection'  // curated collection
 ]);
 
 export const teams = pgTable('teams', {
@@ -48,8 +48,8 @@ export const teamMembers = pgTable(
 	]
 );
 
-// Jedno oprávnění = tým + typ zdroje + konkrétní resource_id + seznam akcí
-// actions je PostgreSQL enum[] — DB vynucuje povolené hodnoty
+// One permission = team + resource type + resource_id + allowed actions
+// actions is a PostgreSQL enum[], so the database enforces valid values
 export const teamPermissions = pgTable(
 	'team_permissions',
 	{
@@ -67,7 +67,7 @@ export const teamPermissions = pgTable(
 	]
 );
 
-// Pozvánky pro uživatele bez účtu — přijdou přes email
+// Invitations for people without an account, sent by email
 export const teamInvitations = pgTable('team_invitations', {
 	id: text('id').primaryKey().$defaultFn(createId),
 	teamId: text('team_id')

@@ -54,7 +54,7 @@
 		dark: { paper: '#101010', surface: '#171717', ink: '#F4F4F4', muted: '#A3A3A3' }
 	};
 	// The accent marks UI (active item, focus, sliders), so it must stay
-	// visible on the paper it sits on — ≥ 3:1, same hue (DESIGN.md › Přístupnost)
+	// visible on the paper it sits on — ≥ 3:1, same hue (DESIGN.md › Accessibility)
 	const paperLight = $derived(brand?.manualBackgroundColor || themeDefaults.light.paper);
 	const paperDark  = $derived(brand?.manualBackgroundColorDark || themeDefaults.dark.paper);
 	const uiAccentLight = $derived(ensureContrast(manualAccentLight, paperLight));

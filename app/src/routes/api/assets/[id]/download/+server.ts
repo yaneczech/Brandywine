@@ -21,19 +21,19 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		await can(locals.user, 'download', 'folder', asset.folderId ?? '__root__');
 	if (!allowed) error(403, 'Forbidden');
 
-	// Ověř, že storagePath neuniká z UPLOAD_DIR
+	// Make sure storagePath does not escape UPLOAD_DIR
 	const resolvedUploadDir = resolve(UPLOAD_DIR);
 	const resolvedPath = resolve(join(UPLOAD_DIR, asset.storagePath));
 	if (!resolvedPath.startsWith(resolvedUploadDir + '/')) error(400, 'Invalid path');
 
-	// Ověř existenci souboru na disku před odesláním — jinak browser dostane nekompletní stream
+	// Check the file exists before streaming — otherwise the browser gets a truncated download
 	let stat: ReturnType<typeof statSync>;
 	try { stat = statSync(resolvedPath); } catch {
 		error(404, `File not found on disk. UPLOAD_DIR may have been cleared (${UPLOAD_DIR} is volatile). Re-upload the file.`);
 	}
 	if (!stat!.isFile()) error(400, 'Not a file');
 
-	// Sanitize filename pro Content-Disposition — žádné \r\n ani uvozovky
+	// Sanitize the filename for Content-Disposition — no \r\n or quotes
 	const safeFilename = asset.filename.replace(/["\\]/g, '').replace(/[\r\n]/g, '');
 
 	const stream = createReadStream(resolvedPath);
