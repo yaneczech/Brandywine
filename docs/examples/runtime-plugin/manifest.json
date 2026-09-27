@@ -1,0 +1,50 @@
+{
+	"id": "hello",
+	"name": "Hello — runtime plugin example",
+	"version": "1.0.0",
+	"description": "A banner block with a generated editor, an interactive counter block and an admin statistics page.",
+	"brandywine": ">=0.1",
+	"blocks": [
+		{
+			"type": "hello_banner",
+			"label": { "en": "Banner (Hello plugin)", "cs": "Banner (plugin Hello)" },
+			"description": { "en": "Headline and text on a tinted strip", "cs": "Titulek a text na podbarveném pruhu" },
+			"group": "text",
+			"order": 90,
+			"icon": "IconInfoCircle",
+			"fields": [
+				{ "key": "title", "type": "text", "label": { "en": "Title", "cs": "Titulek" }, "required": true },
+				{ "key": "body", "type": "textarea", "label": { "en": "Text", "cs": "Text" } },
+				{ "key": "tone", "type": "select", "label": { "en": "Tone", "cs": "Tón" }, "default": "brand",
+					"options": [
+						{ "value": "brand", "label": { "en": "Brand", "cs": "Značka" } },
+						{ "value": "muted", "label": { "en": "Muted", "cs": "Tlumený" } }
+					] }
+			],
+			"template": "<div class=\"hello-banner hello-banner--{{tone}}\"><strong>{{title}}</strong><p>{{body}}</p></div>"
+		},
+		{
+			"type": "hello_counter",
+			"label": { "en": "Counter (Hello plugin)", "cs": "Počítadlo (plugin Hello)" },
+			"group": "advanced",
+			"order": 90,
+			"icon": "IconPlus",
+			"fields": [
+				{ "key": "label", "type": "text", "label": { "en": "Button label", "cs": "Popisek tlačítka" }, "default": "Clicks" },
+				{ "key": "start", "type": "number", "label": { "en": "Start at", "cs": "Začít od" }, "default": 0 }
+			],
+			"element": "hello-counter"
+		}
+	],
+	"modules": [
+		{
+			"id": "stats",
+			"label": { "en": "Hello stats", "cs": "Statistiky Hello" },
+			"icon": "IconChartPie",
+			"group": "admin",
+			"order": 95,
+			"minRole": "admin",
+			"element": "hello-stats"
+		}
+	]
+}

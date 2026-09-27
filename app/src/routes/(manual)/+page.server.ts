@@ -4,6 +4,7 @@ import { manualPages, manualBlocks, colors, colorPalettes, typographyFonts, typo
 import { eq, asc, and } from 'drizzle-orm';
 import { isLandingBlockVisible } from '$lib/blocks';
 import { pagePreviews } from '$server/page-previews';
+import { renderRuntimeBlocks } from '$server/runtime-plugins';
 
 export const load: PageServerLoad = async () => {
 	// Landing page lookup and the page tree are independent — run in parallel
@@ -45,7 +46,7 @@ export const load: PageServerLoad = async () => {
 	const needsAssets = blocks.some(b => ['image_gallery', 'carousel', 'icons', 'asset_gallery', 'download'].includes(b.type));
 
 	const [colorRows, paletteRows, fontRows, styleRows, fontFileRows, assetRows] = await Promise.all([
-		needsColors ? db.select().from(colors).orderBy(asc(colors.order)) : Promise.resolve([]),
+		needsColors ? db.select().from(colors).orderBy(asc(colors.order), asc(colors.name)) : Promise.resolve([]),
 		needsColors ? db.select().from(colorPalettes).orderBy(asc(colorPalettes.order)) : Promise.resolve([]),
 		needsTypo   ? db.select().from(typographyFonts).orderBy(asc(typographyFonts.order)) : Promise.resolve([]),
 		needsTypo   ? db.select().from(typographyStyles).orderBy(asc(typographyStyles.order)) : Promise.resolve([]),
@@ -60,5 +61,7 @@ export const load: PageServerLoad = async () => {
 	const topLevelIds = pages.filter(p => !p.isLanding && !p.parentId).map(p => p.id);
 	const previews = await pagePreviews(topLevelIds);
 
-	return { landing: landing ?? null, blocks, pages, previews, colorRows, paletteRows, fontRows, styleRows, fontFileRows, assetRows };
+	// HTML of blocks from runtime plugins, rendered by the plugins on the server
+	const runtimeHtml = await renderRuntimeBlocks(blocks);
+	return { landing: landing ?? null, blocks, pages, previews, colorRows, paletteRows, fontRows, styleRows, fontFileRows, assetRows, runtimeHtml };
 };

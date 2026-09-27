@@ -42,6 +42,7 @@ export const actions: Actions = {
 			maxAge: 60 * 60 * 24 * 30
 		});
 
-		redirect(302, '/admin');
+		// Continue with the welcome wizard (brand, access, example manual)
+		redirect(302, '/admin/welcome');
 	}
 };

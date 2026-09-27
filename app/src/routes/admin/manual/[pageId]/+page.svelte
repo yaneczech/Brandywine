@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
-	import { BLOCK_GROUPS, blockDefinitions, getBlockDefinition, type BlockGroup } from '$lib/blocks';
+	import { BLOCK_GROUPS, allBlockDefinitions, getBlockDefinition, type BlockGroup } from '$lib/blocks';
 	import { blockLabel, blockDesc } from '$lib/blocks/labels';
 	import type { PageData } from './$types';
 	import {
@@ -132,7 +132,7 @@
 	let confirmDeleteId = $state<string | null>(null);
 
 	// ── Block types (from the registry in src/lib/blocks) ────────────────────────
-	const BLOCK_LABELS: Record<string, string> = Object.fromEntries(blockDefinitions.map((d) => [d.type, blockLabel(d.type)]));
+	const BLOCK_LABELS: Record<string, string> = Object.fromEntries(allBlockDefinitions().map((d) => [d.type, blockLabel(d.type)]));
 	const GROUP_LABELS: Record<BlockGroup, () => string> = {
 		text: m.picker_group_text,
 		media: m.picker_group_media,
@@ -142,7 +142,7 @@
 		advanced: m.picker_group_advanced,
 	};
 	const PICKER_GROUPS = BLOCK_GROUPS
-		.map((group) => ({ label: GROUP_LABELS[group](), types: blockDefinitions.filter((d) => d.group === group).map((d) => d.type) }))
+		.map((group) => ({ label: GROUP_LABELS[group](), types: allBlockDefinitions().filter((d) => d.group === group).map((d) => d.type) }))
 		.filter((group) => group.types.length);
 
 	let pickerQuery = $state('');

@@ -19,6 +19,7 @@
 		fontFileRows = [],
 		assetRows    = [],
 		sectionNumber = null,
+		html,
 	}: {
 		block: Block;
 		colorRows?: ColorRow[];
@@ -29,6 +30,8 @@
 		assetRows?: AssetRow[];
 		/** Chapter number for this block's heading (e.g. 1.2.3), when numbering is on */
 		sectionNumber?: string | null;
+		/** Server-rendered HTML, for blocks of runtime plugins */
+		html?: string;
 	} = $props();
 
 	const definition = $derived(getBlockDefinition(block.type));
@@ -39,11 +42,11 @@
 {#if !block.enabled}
 	<!-- hidden -->
 {:else if definition && definition.shell === false}
-	<definition.Render {block} {data} {anchorId} />
+	<definition.Render {block} {data} {anchorId} {html} />
 {:else}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config} number={sectionNumber}>
 		{#if definition}
-			<definition.Render {block} {data} />
+			<definition.Render {block} {data} {html} />
 		{:else}
 			<!-- Unknown type, e.g. a block from a removed plugin -->
 			<div class="muted-block">

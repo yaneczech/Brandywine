@@ -44,6 +44,7 @@ export { default as IconDotsVertical } from './glyphs/IconDotsVertical.svelte';
 export { default as IconDownload } from './glyphs/IconDownload.svelte';
 export { default as IconEdit } from './glyphs/IconEdit.svelte';
 export { default as IconExclamationCircle } from './glyphs/IconExclamationCircle.svelte';
+export { default as IconExtension } from './glyphs/IconExtension.svelte';
 export { default as IconExternalLink } from './glyphs/IconExternalLink.svelte';
 export { default as IconEye } from './glyphs/IconEye.svelte';
 export { default as IconEyeOff } from './glyphs/IconEyeOff.svelte';

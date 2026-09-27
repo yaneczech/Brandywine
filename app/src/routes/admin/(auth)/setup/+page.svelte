@@ -64,7 +64,7 @@
 						id="email"
 						type="email"
 						name="email"
-						placeholder="jan@studio.cz"
+						placeholder="you@example.com"
 						required
 						autocomplete="email"
 					/>

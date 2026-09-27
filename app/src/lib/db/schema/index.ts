@@ -8,3 +8,4 @@ export * from './assets';
 export * from './shareLinks';
 export * from './analytics';
 export * from './webhooks';
+export * from './plugins';

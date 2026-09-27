@@ -1,6 +1,13 @@
 {
   "name": "brandywine-worker",
+  "description": "Brandywine media worker — thumbnails, conversions, logo exports",
   "version": "0.0.1",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yaneczech/Brandywine.git",
+    "directory": "worker"
+  },
   "type": "module",
   "private": true,
   "scripts": {

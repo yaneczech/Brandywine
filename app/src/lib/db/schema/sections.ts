@@ -1,4 +1,5 @@
-import { pgTable, text, boolean, integer, jsonb, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, boolean, integer, jsonb, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { createId } from '../id';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
@@ -23,7 +24,10 @@ export const manualPages = pgTable('manual_pages', {
 }, (t) => [
 	index('idx_manual_pages_slug').on(t.slug),
 	index('idx_manual_pages_parent').on(t.parentId),
-	index('idx_manual_pages_landing').on(t.isLanding),
+	index('idx_manual_pages_landing').on(t.isLanding).where(sql`${t.isLanding} = true`),
+	index('manual_pages_parent_order').on(t.parentId, t.sortOrder),
+	// Slugs are unique among siblings; top-level pages share the '' parent
+	uniqueIndex('manual_pages_parent_slug').on(sql`COALESCE(${t.parentId}, '')`, t.slug),
 ]);
 
 // ── Blocks ─────────────────────────────────────────────────────────────────────

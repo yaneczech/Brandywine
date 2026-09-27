@@ -44,6 +44,7 @@ export const typographyFontFiles = pgTable('typography_font_files', {
 	assetId: text('asset_id'),  // FK added via migration (avoids circular import)
 }, (t) => [
 	index('idx_typography_files_font').on(t.fontId),
+	index('typography_font_files_asset_id_idx').on(t.assetId),
 ]);
 
 export const typographyStyles = pgTable('typography_styles', {

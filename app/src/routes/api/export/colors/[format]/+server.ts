@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		.select({ color: colors, palette: { name: colorPalettes.name } })
 		.from(colors)
 		.leftJoin(colorPalettes, eq(colors.paletteId, colorPalettes.id))
-		.orderBy(asc(colorPalettes.order), asc(colors.order));
+		.orderBy(asc(colorPalettes.order), asc(colors.order), asc(colors.name));
 
 	switch (params.format) {
 

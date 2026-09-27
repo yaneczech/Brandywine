@@ -1,4 +1,5 @@
 import { pgTable, text, integer, bigint, jsonb, timestamp, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { createId } from '../id';
 
@@ -15,6 +16,7 @@ export const folders = pgTable('folders', {
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 }, (t) => [
 	index('idx_folders_parent_id').on(t.parentId),
+	index('idx_folders_parent_sort').on(t.parentId, t.sortOrder),
 ]);
 
 export const assets = pgTable('assets', {
@@ -33,10 +35,10 @@ export const assets = pgTable('assets', {
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 }, (t) => [
-	index('idx_assets_created_at').on(t.createdAt),
+	index('idx_assets_created_at').on(t.createdAt.desc().nullsFirst()),
 	index('idx_assets_mime').on(t.mime),
 	index('idx_assets_folder_id').on(t.folderId),
-	index('idx_assets_hash').on(t.hash),
+	index('idx_assets_hash').on(t.hash).where(sql`${t.hash} IS NOT NULL`),
 ]);
 
 export const assetVersions = pgTable('asset_versions', {

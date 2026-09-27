@@ -43,7 +43,7 @@ export async function loadManualSnapshot(origin: string): Promise<ManualSnapshot
 		db.select().from(brandSettings).where(eq(brandSettings.id, 1)),
 		db.select().from(manualPages).where(eq(manualPages.enabled, true)).orderBy(asc(manualPages.sortOrder), asc(manualPages.title)),
 		db.select().from(manualBlocks).where(eq(manualBlocks.enabled, true)).orderBy(asc(manualBlocks.sortOrder)),
-		db.select().from(colors).orderBy(asc(colors.order)),
+		db.select().from(colors).orderBy(asc(colors.order), asc(colors.name)),
 		db.select().from(colorPalettes).orderBy(asc(colorPalettes.order)),
 		db.select().from(typographyFonts).orderBy(asc(typographyFonts.order)),
 		db.select().from(typographyStyles).orderBy(asc(typographyStyles.order)),

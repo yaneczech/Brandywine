@@ -30,8 +30,7 @@ function load(): AdminModule[] {
 		seen.set(def.id, path);
 		list.push(def);
 	}
-	return list.sort((a, b) =>
-		MODULE_GROUPS.indexOf(a.group) - MODULE_GROUPS.indexOf(b.group) || a.order - b.order || a.id.localeCompare(b.id));
+	return list.sort(byPosition);
 }
 
 export const adminModules: readonly AdminModule[] = load();
@@ -42,21 +41,29 @@ const GROUP_LABELS: Record<ModuleGroup, () => string> = {
 	admin: m.admin_group_admin,
 };
 
-/** Sidebar groups with the modules this role may see; empty groups are left out. */
-export function adminNav(role: string | null | undefined) {
+function byPosition(a: AdminModule, b: AdminModule) {
+	return MODULE_GROUPS.indexOf(a.group) - MODULE_GROUPS.indexOf(b.group) || a.order - b.order || a.id.localeCompare(b.id);
+}
+
+/**
+ * Sidebar groups with the modules this role may see; empty groups are left
+ * out. `extra` adds modules known only at runtime (runtime plugins).
+ */
+export function adminNav(role: string | null | undefined, extra: readonly AdminModule[] = []) {
+	const all = [...adminModules, ...extra].sort(byPosition);
 	return MODULE_GROUPS
 		.map((group) => ({
 			group,
 			label: GROUP_LABELS[group](),
-			items: adminModules.filter((mod) => mod.group === group && hasRole(role, mod.minRole ?? 'editor')),
+			items: all.filter((mod) => mod.group === group && hasRole(role, mod.minRole ?? 'editor')),
 		}))
 		.filter((g) => g.items.length);
 }
 
 /** The module a path belongs to (longest matching href), if any. */
-export function moduleForPath(pathname: string): AdminModule | undefined {
+export function moduleForPath(pathname: string, extra: readonly AdminModule[] = []): AdminModule | undefined {
 	let best: AdminModule | undefined;
-	for (const mod of adminModules) {
+	for (const mod of [...adminModules, ...extra]) {
 		const inside = mod.href === '/admin' ? pathname === '/admin' : pathname === mod.href || pathname.startsWith(mod.href + '/');
 		if (inside && (!best || mod.href.length > best.href.length)) best = mod;
 	}

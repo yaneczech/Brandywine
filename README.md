@@ -14,15 +14,22 @@
   ·
   <a href="#what-you-get"><strong>Features</strong></a>
   ·
-  <a href="#built-for"><strong>Who it is for</strong></a>
+  <a href="#extending"><strong>Extending</strong></a>
   ·
-  <a href="#stack"><strong>Stack</strong></a>
+  <a href="./docs/README.md"><strong>Docs</strong></a>
+  ·
+  <a href="./CONTRIBUTING.md"><strong>Contributing</strong></a>
 </p>
 
 <p align="center">
+  <a href="https://github.com/yaneczech/Brandywine/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/yaneczech/Brandywine/actions/workflows/ci.yml/badge.svg" /></a>
   <img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-4A1204" />
   <img alt="Self-hosted" src="https://img.shields.io/badge/self--hosted-Docker-111111" />
   <img alt="Built with SvelteKit" src="https://img.shields.io/badge/SvelteKit-TypeScript-ff3e00" />
+</p>
+
+<p align="center">
+  <img src="./docs/assets/screenshots/manual-landing.webp" alt="A brand manual built with Brandywine: landing page with chapter cards" width="900" />
 </p>
 
 ---
@@ -41,11 +48,19 @@ It is made for brandguide workflows where details matter: colors, contrast, typo
 
 Create a public-facing manual that feels like a real product, not a document dump.
 
-- Custom brand identity, logo, primary color, footer, and access rules
-- Manual pages with hierarchy, slugs, sorting, and editable content blocks
-- Dedicated sections for colors, typography, logos, and brand assets
-- Czech and English system UI with a configurable default manual language
-- Public, password-protected, and e-mail allowlisted manuals
+- Pages in a tree with 35 content block types: rich text, images and galleries,
+  before/after, hotspots, colours, typography, logo specification and downloads,
+  do & don't, grids, charts, tables, embeds and more
+- Your brand's look: accent colour, light/dark/visitor-selectable theme,
+  typography presets, brand fonts for headings and text, corner radius
+- Chapter numbering, table of contents, search, card covers generated from the
+  content, subpages before or after the page content
+- Public, password-protected and e-mail-allowlisted manuals
+- A manual audit that finds empty blocks, missing alt text, broken files and
+  unreadable colour combinations before you share
+- Markdown export, `llms.txt` and a read-only MCP server, so AI tools follow
+  your brand rules
+- Czech and English interface; the manual language is set per brand
 
 ### Color governance designers can trust
 
@@ -55,6 +70,10 @@ Treat brand colors as production data, not screenshots.
 - Exportable color formats for design and engineering workflows
 - Token endpoint for downstream usage
 - Pantone naming preferences and practical UI controls for maintainers
+
+<p align="center">
+  <img src="./docs/assets/screenshots/manual-colors.webp" alt="Colour block with values, print references, shades and WCAG contrast" width="900" />
+</p>
 
 ### Typography that understands brand systems
 
@@ -72,7 +91,6 @@ Keep files organized in the same structure the manual uses.
 
 - Upload, preview, search, tag, download, rename, move, and delete assets
 - Hierarchical folders with breadcrumbs, rename/delete flows, and resizable navigation
-- Shared folder picker component for future manual page builders and user workflows
 - Image, document, font, SVG, PDF, and video processing pipeline
 - Background worker for thumbnails, conversions, and media optimization
 
@@ -116,58 +134,34 @@ flowchart LR
   C --> B
   D --> E[Design and engineering workflows]
   F[Worker] --> C
+  A --> G[Plugins and webhooks]
+  G --> H[Your tools and services]
 ```
 
 ## Quick start
 
-```bash
-./brandywine install brand.example.com
-```
-
-The installer creates `.env` with cryptographically random secrets, validates
-Docker and Compose, builds the application, runs database migrations, waits for
-PostgreSQL and Redis, and reports when the application is ready. Use `localhost`
-instead of a domain for a local installation.
-
-The production stack is the default: application, compiled media worker,
-PostgreSQL, Redis and Caddy start together, migrations run automatically, and
-services restart after a reboot. Development is opt-in:
+On a Linux server or a Mac with Docker:
 
 ```bash
-docker compose -f docker-compose.yml -f compose.dev.yml up --build
+curl -fsSL https://raw.githubusercontent.com/yaneczech/Brandywine/main/install.sh | sh
 ```
 
-When ports 80 or 443 are already occupied locally, set `HTTP_PORT=8080`,
-`HTTPS_PORT=8443`, `APP_URL=http://localhost:8080`, and
-`CADDYFILE=./Caddyfile.local` in `.env`. The local Caddy configuration serves
-HTTP without requiring a locally trusted certificate; production keeps HTTPS
-and automatic redirects.
+The installer checks the computer, asks whether Brandywine should run on a
+domain (with automatic HTTPS) or only locally, optionally sets up e-mail, and
+starts everything. Then open the printed address: a short wizard creates your
+account, sets up your brand and can fill the manual with an example in your
+colours.
 
-Open the manual and admin:
-
-```text
-https://brand.example.com/
-https://brand.example.com/admin
-```
-
-On a fresh install, Brandywine will guide you through creating the first admin account.
-
-### Operations
-
-The same utility covers routine self-hosting without knowledge of Docker internals:
+Backups, updates, health checks and uninstalling are one command each:
 
 ```bash
-./brandywine doctor
 ./brandywine backup
 ./brandywine update
-./brandywine restore backups/20260821T120000Z
-./brandywine logs
+./brandywine doctor
 ```
 
-Backups contain a PostgreSQL custom-format dump, all uploaded files, a manifest,
-and SHA-256 checksums. Restore first creates an automatic safety backup and
-requires explicit confirmation. Keep the `backups/` directory outside the server
-or copy it to separate storage for disaster recovery.
+The [installation guide](./docs/INSTALL.md) covers the options, non-interactive
+installs, operations and troubleshooting.
 
 ## Development
 
@@ -200,6 +194,9 @@ than edits to existing code:
 - **Plugins** — blocks, admin sections, API routes and event handlers in the
   installation's `plugins/` folder, without touching the code; **webhooks**
   notify other services of changes. [Guide](./docs/extending/plugins.md)
+- **Runtime plugins** — a zip uploaded in Admin → Plugins that works at once,
+  without a rebuild: blocks with generated editors, admin pages, API and
+  events. [Guide](./docs/extending/runtime-plugins.md)
 
 ## Stack
 
@@ -208,15 +205,16 @@ than edits to existing code:
 - **Queue**: Redis, BullMQ
 - **Media worker**: Sharp, FFmpeg, SVGO, Ghostscript
 - **Internationalization**: Paraglide.js, Czech and English included
+- **Quality**: svelte-check, ESLint, Vitest, Playwright; CI on every pull request
 - **Deployment**: Docker Compose, Caddy, automatic HTTPS-ready reverse proxy
 
 ## Project status
 
-Brandywine is under active development. The core product direction is clear: a beautiful, self-hosted brand CMS for designers, brand teams, and agencies. Expect rapid iteration around manual page building, asset workflows, typography, permissions, and polish.
-
-See the [roadmap](./docs/ROADMAP.md) (in Czech) for the release milestones, DAM
-workflows, governance, integrations, and the next steps beyond the included
-install/update/backup experience.
+Brandywine is in active development and has not reached 1.0 yet. It is usable
+for a single brand today and migrates its database automatically on update,
+but the HTTP API and the plugin contract may still change between releases. See the
+[roadmap](./docs/ROADMAP.md) for what comes next and the
+[changelog](./CHANGELOG.md) for what changed.
 
 ## Contributing
 
@@ -226,7 +224,8 @@ described in [SECURITY.md](./SECURITY.md).
 
 ## License
 
-Brandywine is open-source under the [Apache License 2.0](./LICENSE).
+Brandywine is open-source under the [Apache License 2.0](./LICENSE). See
+[NOTICE](./NOTICE) for attribution.
 
 ---
 

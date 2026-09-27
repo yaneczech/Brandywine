@@ -94,7 +94,7 @@
 							id="email"
 							type="email"
 							name="email"
-							placeholder="jan@studio.cz"
+							placeholder="you@example.com"
 							required
 							autocomplete="email"
 						/>
@@ -150,7 +150,7 @@
 								id="forgot-email"
 								type="email"
 								bind:value={forgotEmail}
-								placeholder="jan@studio.cz"
+								placeholder="you@example.com"
 								autocomplete="email"
 								onkeydown={e => e.key === 'Enter' && sendReset()}
 							/>

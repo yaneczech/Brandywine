@@ -13,7 +13,7 @@ export const load: PageServerLoad = async () => {
 			name: colors.name,
 			hex: colors.hex,
 			order: colors.order
-		}).from(colors).orderBy(asc(colors.order))
+		}).from(colors).orderBy(asc(colors.order), asc(colors.name))
 	]);
 
 	const fontsWithData = fonts.map(f => ({

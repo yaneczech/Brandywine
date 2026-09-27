@@ -1,5 +1,6 @@
 # Brandywine documentation
 
+- [Installation](INSTALL.md) — install, operate, update, troubleshoot
 - [Architecture](architecture.md) — services, repository layout, request flow, data model
 - [Design codex](../DESIGN.md) — binding UI rules and the design audit
 - [Roadmap](ROADMAP.md) (in Czech)
@@ -11,6 +12,7 @@
 - [Adding a worker queue](extending/worker.md)
 - [Languages and translations](extending/languages.md)
 - [Plugins, events and webhooks](extending/plugins.md)
+- [Runtime plugins (install from a zip, no rebuild)](extending/runtime-plugins.md)
 
 ## Contributing
 
