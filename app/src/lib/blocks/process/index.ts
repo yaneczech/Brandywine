@@ -10,4 +10,9 @@ export default defineBlock({
 	icon: IconStairs,
 	Render,
 	Editor,
+	audit(c, { arr, empty }) {
+		if (!arr(c.steps).length) empty();
+	},
+	toMarkdown: (c, { str, arr }) => arr<{ title?: string; description?: string }>(c.steps)
+		.map((s, i) => `${i + 1}. **${str(s.title)}**${str(s.description) ? ` — ${str(s.description)}` : ''}`).join('\n'),
 });

@@ -10,4 +10,8 @@ export default defineBlock({
 	icon: IconChartRadar,
 	Render,
 	Editor,
+	audit(c, { str, empty }) {
+		if (!str(c.data)) empty();
+	},
+	toMarkdown: (c, { str }) => str(c.data).split('\n').filter(Boolean).map((l) => `- ${l.trim()}`).join('\n'),
 });

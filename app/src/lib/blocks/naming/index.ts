@@ -10,4 +10,8 @@ export default defineBlock({
 	icon: IconAbc,
 	Render,
 	Editor,
+	audit(c, { str, empty }) {
+		if (!str(c.markdown)) empty();
+	},
+	toMarkdown: (c, { str }) => str(c.markdown),
 });

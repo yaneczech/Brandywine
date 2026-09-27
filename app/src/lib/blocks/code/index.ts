@@ -10,4 +10,8 @@ export default defineBlock({
 	icon: IconCode,
 	Render,
 	Editor,
+	audit(c, { str, empty }) {
+		if (!str(c.code)) empty();
+	},
+	toMarkdown: (c, { str }) => `\`\`\`${str(c.language)}\n${String(c.code ?? '')}\n\`\`\``,
 });

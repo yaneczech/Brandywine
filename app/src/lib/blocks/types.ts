@@ -83,32 +83,45 @@ export type BlockGroup = (typeof BLOCK_GROUPS)[number];
 export type BlockAuditContext = {
 	/** Report that the block has no content (optionally with a specific message) */
 	empty: (message?: string) => void;
+	/** Report an image without alternative text */
 	missingAlt: () => void;
-	/** Report a referenced file that no longer exists; `what` names it */
+	/** Report a referenced upload that no longer exists; `what` names it */
 	broken: (what: string) => void;
+	/** Any other warning; `code` is a stable id for the issue kind */
 	warn: (code: string, message: string) => void;
-	fileExists: (path: string) => boolean;
+	/** False only when a local upload path points at a missing file */
+	fileExists: (url: string) => boolean;
 	str: (value: unknown) => string;
 	arr: <T = Record<string, unknown>>(value: unknown) => T[];
-	colorRows: { id: string; hex: string; paletteId: string | null }[];
+	/** Whether rich content (`content` items or legacy `markdown`) has any text */
+	richHasContent: (config: Record<string, unknown>) => boolean;
+	colorRows: { id: string; paletteId: string | null }[];
 	palettes: { id: string; name: string }[];
 	fontRows: { id: string }[];
+	/** Assets selected by the block's folder and tags */
 	assetsFor: (config: Record<string, unknown>, imagesOnly: boolean) => unknown[];
 };
 
 /** Helpers the Markdown export hands to `toMarkdown()`. */
 export type BlockMarkdownContext = {
+	blockId: string;
+	/** Public origin of the manual, e.g. https://brand.example.com */
+	origin: string;
 	str: (value: unknown) => string;
 	arr: <T = Record<string, unknown>>(value: unknown) => T[];
 	/** Absolute URL for an uploaded file or link */
 	abs: (url: string) => string;
+	/** Rich content (`content` items or legacy `markdown`) as Markdown */
 	richContent: (config: Record<string, unknown>) => string;
-	table: (headers: string[], rows: string[][]) => string;
+	table: (headers: string[], rows: unknown[][]) => string;
+	/** Colour tables for a colour source ('all' or a palette) */
 	colorsMarkdown: (source: string) => string;
+	/** Typeface descriptions, optionally limited to some fonts */
 	typographyMarkdown: (fontIds?: string[]) => string;
-	colorName: (id: string) => { name: string; hex: string } | undefined;
-	fontName: (id: string) => string | undefined;
-	assetsFor: (config: Record<string, unknown>, imagesOnly: boolean) => { filename: string; storagePath: string }[];
+	colors: { id: string; name: string; hex: string }[];
+	fonts: { id: string; name: string }[];
+	/** Markdown list of assets selected by the block's folder and tags */
+	assetList: (config: Record<string, unknown>, imagesOnly?: boolean) => string;
 };
 
 export type BlockDefinition = {

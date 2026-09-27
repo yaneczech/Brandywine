@@ -10,4 +10,8 @@ export default defineBlock({
 	icon: IconBrackets,
 	Render,
 	Editor,
+	audit(c, { str, empty }) {
+		if (!str(c.html)) empty();
+	},
+	toMarkdown: (c, { str }) => str(c.html) ? `\`\`\`html\n${String(c.html)}\n\`\`\`` : '',
 });

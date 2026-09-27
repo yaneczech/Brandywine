@@ -10,4 +10,8 @@ export default defineBlock({
 	icon: IconTable,
 	Render,
 	Editor,
+	audit(c, { arr, empty }) {
+		if (!arr(c.headers).length && !arr(c.rows).length) empty();
+	},
+	toMarkdown: (c, { arr, table }) => table(arr<string>(c.headers), arr<string[]>(c.rows)),
 });

@@ -10,4 +10,11 @@ export default defineBlock({
 	icon: IconChartPie,
 	Render,
 	Editor,
+	audit(c, { arr, empty }) {
+		if (!arr(c.items).length) empty();
+	},
+	toMarkdown: (c, { arr, colors }) => arr<{ colorId?: string; percent?: number }>(c.items).map((i) => {
+		const color = colors.find((x) => x.id === i.colorId);
+		return color ? `- ${color.name} (${color.hex.toUpperCase()}): ${Number(i.percent) || 0} %` : '';
+	}).filter(Boolean).join('\n'),
 });

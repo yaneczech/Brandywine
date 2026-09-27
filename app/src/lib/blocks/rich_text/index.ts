@@ -10,4 +10,8 @@ export default defineBlock({
 	icon: IconAlignLeft,
 	Render,
 	Editor,
+	audit(c, { richHasContent, empty }) {
+		if (!richHasContent(c)) empty();
+	},
+	toMarkdown: (c, { richContent }) => richContent(c),
 });

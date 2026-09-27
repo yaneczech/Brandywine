@@ -11,4 +11,5 @@ export default defineBlock({
 	Render,
 	Editor,
 	rendersWithoutConfig: true,
+	toMarkdown: () => 'Interactive WCAG contrast checker for the brand colours (see Colors).',
 });

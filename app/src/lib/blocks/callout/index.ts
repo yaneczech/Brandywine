@@ -10,4 +10,8 @@ export default defineBlock({
 	icon: IconInfoCircle,
 	Render,
 	Editor,
+	audit(c, { str, empty }) {
+		if (!str(c.title) && !str(c.text)) empty();
+	},
+	toMarkdown: (c, { str }) => `> **${str(c.tone) || 'info'}:** ${[str(c.title), str(c.text)].filter(Boolean).join(' — ')}`,
 });

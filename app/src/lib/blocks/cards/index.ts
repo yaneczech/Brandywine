@@ -10,4 +10,9 @@ export default defineBlock({
 	icon: IconCards,
 	Render,
 	Editor,
+	audit(c, { arr, empty }) {
+		if (!arr(c.cards).length) empty();
+	},
+	toMarkdown: (c, { str, arr }) => arr<{ title?: string; description?: string }>(c.cards)
+		.map((i) => `- **${str(i.title)}** — ${str(i.description)}`).join('\n'),
 });
