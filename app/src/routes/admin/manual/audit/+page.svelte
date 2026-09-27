@@ -2,7 +2,7 @@
 	import Tabs from '$lib/components/ui/Tabs.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { blockLabel } from '$lib/manual/blockLabels';
+	import { blockLabel } from '$lib/blocks/labels';
 	import type { PageData } from './$types';
 	import { invalidateAll } from '$app/navigation';
 	import {

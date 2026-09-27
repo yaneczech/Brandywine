@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { db } from '$lib/db';
 import { manualPages, manualBlocks, colors, colorPalettes, typographyFonts, typographyStyles, typographyFontFiles, assets } from '$lib/db/schema';
 import { eq, asc, and } from 'drizzle-orm';
-import { isLandingBlockVisible } from '$lib/manual/blockTypes';
+import { isLandingBlockVisible } from '$lib/blocks';
 import { pagePreviews } from '$server/page-previews';
 
 export const load: PageServerLoad = async () => {

@@ -1,0 +1,11 @@
+import { defineBlock } from '../define';
+import { IconTable } from '$lib/icons';
+import Render from './Render.svelte';
+
+export default defineBlock({
+	type: 'table',
+	group: 'structure',
+	order: 30,
+	icon: IconTable,
+	Render,
+});

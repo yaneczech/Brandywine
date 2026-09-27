@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isLandingBlockVisible } from '../../src/lib/manual/blockTypes';
+import { isLandingBlockVisible } from '../../src/lib/blocks';
 
 describe('landing block visibility', () => {
 	it.each(['colors', 'typography', 'text_styles', 'grid', 'contrast_checker', 'divider', 'asset_gallery', 'download'])('keeps default %s blocks', type => {
