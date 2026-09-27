@@ -49,7 +49,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		[{ value: manualPageCount }],
 		[{ value: publishedPageCount }],
 		brandColors,
-		brandPalettes
+		brandPalettes,
+		brandFonts
 	] = await Promise.all([
 		db.select().from(brandSettings).where(eq(brandSettings.id, 1)),
 		db.select({ value: count() }).from(colors),
@@ -60,7 +61,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		db.select({ value: count() }).from(manualPages).where(eq(manualPages.enabled, true)),
 		db.select({ id: colors.id, name: colors.name, hex: colors.hex, paletteId: colors.paletteId })
 			.from(colors).orderBy(asc(colors.order)),
-		db.select({ id: colorPalettes.id, name: colorPalettes.name }).from(colorPalettes).orderBy(asc(colorPalettes.order))
+		db.select({ id: colorPalettes.id, name: colorPalettes.name }).from(colorPalettes).orderBy(asc(colorPalettes.order)),
+		db.select({ id: typographyFonts.id, name: typographyFonts.name, role: typographyFonts.role })
+			.from(typographyFonts).orderBy(asc(typographyFonts.order), asc(typographyFonts.name))
 	]);
 
 	const resolvedSettings = settings ?? DEFAULTS;
@@ -72,6 +75,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		},
 		health: { colorCount, fontCount, styleCount, assetCount, manualPageCount, publishedPageCount },
 		brandColors,
-		brandPalettes
+		brandPalettes,
+		brandFonts
 	};
 };

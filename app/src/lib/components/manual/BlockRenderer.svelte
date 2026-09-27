@@ -1791,7 +1791,7 @@
 
 	/* ── Rich text ───────────────────────────────────────────────────────────── */
 	.prose { max-width: 72ch; color: var(--manual-ink); line-height: 1.75; font-size: var(--text-lg); text-wrap: pretty; }
-	.prose :global(h2), .prose :global(h3), .prose :global(h4) { margin: 1.6em 0 .5em; line-height: 1.25; letter-spacing: -.015em; font-weight: 500; }
+	.prose :global(h2), .prose :global(h3), .prose :global(h4) { margin: 1.6em 0 .5em; font-family: var(--manual-font-heading, var(--manual-font)); line-height: 1.25; letter-spacing: -.015em; font-weight: 500; }
 	.prose :global(h2:first-child), .prose :global(h3:first-child), .prose :global(h4:first-child) { margin-top: 0; }
 	.prose :global(a) { color: inherit; text-decoration-color: color-mix(in srgb, var(--manual-brand) 55%, transparent); text-decoration-thickness: 1px; text-underline-offset: 3px; transition: text-decoration-color .15s ease; }
 	.prose :global(a:hover) { text-decoration-color: var(--manual-brand); }

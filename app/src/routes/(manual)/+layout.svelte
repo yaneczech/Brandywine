@@ -76,6 +76,8 @@
 		add('--manual-surface', pick(brand?.manualSurfaceColor,    brand?.manualSurfaceColorDark),    'surface');
 		add('--manual-ink',     pick(brand?.manualTextColor,       brand?.manualTextColorDark),       'ink');
 		add('--manual-muted',   pick(brand?.manualMutedColor,      brand?.manualMutedColorDark),      'muted');
+		if (data.manualFonts?.body) pairs.push(`--manual-font:${data.manualFonts.body}`);
+		if (data.manualFonts?.heading) pairs.push(`--manual-font-heading:${data.manualFonts.heading}`);
 		return pairs.join(';');
 	});
 
@@ -326,6 +328,13 @@
 	<meta property="og:title" content={currentPathLabel} />
 	<meta property="og:site_name" content={brandName} />
 	<meta name="theme-color" content={isDark ? '#101010' : '#fbfaf8'} />
+	{#each data.manualFonts?.stylesheets ?? [] as href (href)}
+		<link rel="stylesheet" {href} />
+	{/each}
+	{#if data.manualFonts?.css}
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -- generated server-side from escaped font metadata -->
+		{@html `<style>${data.manualFonts.css}</style>`}
+	{/if}
 </svelte:head>
 
 <div
@@ -586,6 +595,7 @@
 		--manual-shadow-lg: 0 24px 64px -12px rgba(0,0,0,.22), 0 4px 12px rgba(0,0,0,.06);
 		--manual-ease: cubic-bezier(.2, .7, .2, 1);
 		--manual-font: var(--font-sans);
+		--manual-font-heading: var(--manual-font);
 		--manual-mono: var(--font-mono);
 		min-height: 100vh;
 		min-height: 100dvh;

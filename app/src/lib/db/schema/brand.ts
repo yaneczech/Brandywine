@@ -62,6 +62,9 @@ export const brandSettings = pgTable('brand_settings', {
 	manualBorderRadius: integer('manual_border_radius').notNull().default(8),
 	manualTypographyPreset: text('manual_typography_preset').$type<ManualTypographyPreset>().notNull().default('neutral'),
 	manualLandingLayout: text('manual_landing_layout').$type<ManualLandingLayout>().notNull().default('grid'),
+	// Brand typefaces for the manual (typography_fonts.id); null keeps the default
+	manualHeadingFontId: text('manual_heading_font_id'),
+	manualBodyFontId: text('manual_body_font_id'),
 	// Hierarchical chapter numbers (1, 1.1, 1.1.1) in navigation and headings
 	manualNumbering: boolean('manual_numbering').notNull().default(false),
 	// Access control

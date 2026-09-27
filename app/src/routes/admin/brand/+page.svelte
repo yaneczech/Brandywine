@@ -41,6 +41,8 @@
 	type BrandPalette = { id: string; name: string };
 	const brandColors   = $derived((data.brandColors   ?? []) as BrandColor[]);
 	const brandPalettes = $derived((data.brandPalettes ?? []) as BrandPalette[]);
+	type BrandFont = { id: string; name: string; role: string | null };
+	const brandFonts = $derived((data.brandFonts ?? []) as BrandFont[]);
 
 	type Settings = typeof data.settings & {
 		activeLanguages?: string[] | null;
@@ -62,6 +64,8 @@
 		manualNumbering?: boolean | null;
 		manualTypographyPreset?: ManualTypographyPreset | null;
 		manualLandingLayout?: ManualLandingLayout | null;
+		manualHeadingFontId?: string | null;
+		manualBodyFontId?: string | null;
 		logoDarkPath?: string | null;
 	};
 
@@ -644,6 +648,30 @@
 					</div>
 					<div class="direction-group">
 						<div class="direction-head">
+							<strong>{uiLanguage === 'cs' ? 'Písma' : 'Typefaces'}</strong>
+							<span>{uiLanguage === 'cs' ? 'Fonty z modulu Typografie. Čísla kapitol a ovládání zůstávají v písmu textu.' : 'Fonts from the Typography module. Chapter numbers and controls use the body face.'}</span>
+						</div>
+						<div class="font-pick-grid">
+							{#each [['manualHeadingFontId', uiLanguage === 'cs' ? 'Nadpisy' : 'Headings'], ['manualBodyFontId', uiLanguage === 'cs' ? 'Text' : 'Body text']] as [key, label] (key)}
+								<label class="field">
+									<span>{label}</span>
+									<select value={s[key as 'manualHeadingFontId' | 'manualBodyFontId'] ?? ''}
+										onchange={(e) => (s[key as 'manualHeadingFontId' | 'manualBodyFontId'] = (e.currentTarget as HTMLSelectElement).value || null)}
+										disabled={!brandFonts.length}>
+										<option value="">{uiLanguage === 'cs' ? 'Výchozí (Geist)' : 'Default (Geist)'}</option>
+										{#each brandFonts as f (f.id)}
+											<option value={f.id}>{f.name}</option>
+										{/each}
+									</select>
+								</label>
+							{/each}
+						</div>
+						{#if !brandFonts.length}
+							<small class="field-hint">{uiLanguage === 'cs' ? 'Nejdřív přidej font v sekci Typografie.' : 'Add a font in Typography first.'}</small>
+						{/if}
+					</div>
+					<div class="direction-group">
+						<div class="direction-head">
 							<strong>{uiLanguage === 'cs' ? 'Kompozice úvodní stránky' : 'Landing composition'}</strong>
 							<span>{uiLanguage === 'cs' ? 'Určuje poměr a důraz karet kapitol.' : 'Sets chapter-card proportion and emphasis.'}</span>
 						</div>
@@ -1059,6 +1087,7 @@
 	.direction-head strong { font-size: var(--text-sm); font-weight: 600; }
 	.direction-head span { color: var(--color-muted); font-size: var(--text-xs); }
 	.direction-option-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+	.font-pick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 	.direction-card {
 		display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; min-height: 116px;
 		padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius);
@@ -1290,7 +1319,7 @@
 		.theme-columns { grid-template-columns: 1fr; }
 	}
 	@media (max-width: 560px) {
-		.grid-two, .access-grid, .theme-mode-grid, .direction-option-grid { grid-template-columns: 1fr; }
+		.grid-two, .access-grid, .theme-mode-grid, .direction-option-grid, .font-pick-grid { grid-template-columns: 1fr; }
 		.path-input-row { grid-template-columns: 1fr; }
 		.path-picker-btn { width: 100%; }
 		.theme-builder-head { flex-direction: column; }

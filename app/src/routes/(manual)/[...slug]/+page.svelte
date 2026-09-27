@@ -334,6 +334,7 @@
 	.subpages.at-start:not(:last-child) { margin-bottom: var(--manual-section-gap); }
 	.subpages-heading {
 		margin: 0 0 20px;
+		font-family: var(--manual-font-heading, var(--manual-font));
 		font-size: var(--text-lg);
 		font-weight: 600;
 		letter-spacing: var(--tracking-snug);

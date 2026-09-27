@@ -30,6 +30,8 @@ const DEFAULTS: SafeBrandSettings = {
 	manualTypographyPreset: 'neutral',
 	manualLandingLayout: 'grid',
 	manualNumbering: false,
+	manualHeadingFontId: null,
+	manualBodyFontId: null,
 	showAttribution: true,
 	customFooterText: null,
 	accessMode: 'public',

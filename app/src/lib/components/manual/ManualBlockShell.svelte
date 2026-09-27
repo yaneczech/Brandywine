@@ -153,6 +153,7 @@
 		color: var(--manual-ink);
 		font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem);
 		font-weight: var(--manual-display-weight, 500);
+		font-family: var(--manual-font-heading, var(--manual-font));
 		letter-spacing: var(--manual-heading-tracking, -.028em);
 		line-height: 1.1;
 		text-wrap: balance;
@@ -162,6 +163,7 @@
 	/* Chapter number: a small superior figure on the cap line — present for
 	   orientation, quiet next to the heading itself */
 	.section-num {
+		font-family: var(--manual-font);
 		align-self: flex-start;
 		margin: .3em .2em 0 0;
 		color: var(--manual-muted);

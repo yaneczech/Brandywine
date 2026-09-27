@@ -9,6 +9,7 @@ import {
 	MANUAL_ACCESS_COOKIE
 } from '$server/manual-access';
 import { withoutManualSecrets } from '$server/brand-settings';
+import { loadManualFonts } from '$server/manual-fonts';
 
 export const load: LayoutServerLoad = async ({ locals, cookies, url }) => {
 	const [settings] = await db.select().from(brandSettings).where(eq(brandSettings.id, 1));
@@ -68,6 +69,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies, url }) => {
 		sectionCounts = Object.fromEntries(rows.map((r) => [r.pageId, r.n]));
 	}
 
-	if (!settings) return { settings: null, pages, sectionCounts };
-	return { settings: withoutManualSecrets(settings), pages, sectionCounts };
+	if (!settings) return { settings: null, pages, sectionCounts, manualFonts: await loadManualFonts(null, null) };
+	const manualFonts = await loadManualFonts(settings.manualHeadingFontId, settings.manualBodyFontId);
+	return { settings: withoutManualSecrets(settings), pages, sectionCounts, manualFonts };
 };

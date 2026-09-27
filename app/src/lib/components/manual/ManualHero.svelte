@@ -151,11 +151,13 @@
 		color: var(--hero-text);
 		font-size: clamp(2rem, 3.2vw, 3rem);
 		font-weight: var(--manual-display-weight, 500);
+		font-family: var(--manual-font-heading, var(--manual-font));
 		line-height: 1.05;
 		letter-spacing: var(--manual-heading-tracking, var(--tracking-display));
 		text-wrap: balance;
 	}
 	.hero-num {
+		font-family: var(--manual-font);
 		flex: 0 0 auto;
 		padding-top: .18em;
 		color: var(--hero-muted);

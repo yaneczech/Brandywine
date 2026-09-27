@@ -194,6 +194,7 @@
 	.card-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }
 	.card-title {
 		font-size: var(--text-lg);
+		font-family: var(--manual-font-heading, var(--manual-font));
 		font-weight: var(--manual-display-weight, 500);
 		line-height: 1.3;
 		letter-spacing: -.012em;
@@ -216,7 +217,7 @@
 		transition: color .2s ease, transform .2s var(--manual-ease);
 	}
 	.page-card:hover .card-arrow { color: var(--manual-ink); transform: translate(2px, -2px); }
-	.card-num { margin-right: .5em; color: var(--manual-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+	.card-num { margin-right: .5em; font-family: var(--manual-font); color: var(--manual-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
 	.page-card:hover .card-title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 
 	@media (max-width: 1180px) {

@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/db';
-import { brandSettings } from '$lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { brandSettings, typographyFonts } from '$lib/db/schema';
+import { eq, inArray } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { invalidateLangCache } from '$lib/server/lang-cache';
 import { hashPassword } from '$server/auth';
@@ -78,6 +78,11 @@ function normalizeValue(key: string, value: unknown): unknown {
 		if (value !== null && typeof value === 'object' && !Array.isArray(value)) return value;
 		error(400, 'Invalid locale rules');
 	}
+	if (key === 'manualHeadingFontId' || key === 'manualBodyFontId') {
+		if (value === null || value === '') return null;
+		if (typeof value === 'string' && value.length <= 64) return value;
+		error(400, `Invalid ${key}`);
+	}
 	if (key === 'manualNumbering') {
 		if (typeof value === 'boolean') return value;
 		error(400, 'Invalid manual numbering flag');
@@ -130,6 +135,8 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 		'manualTypographyPreset',
 		'manualLandingLayout',
 		'manualNumbering',
+		'manualHeadingFontId',
+		'manualBodyFontId',
 		'showAttribution',
 		'customFooterText',
 		'accessMode',
@@ -154,6 +161,11 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 			continue;
 		}
 		Object.assign(update, { [key]: normalizeValue(key, body[key]) });
+	}
+	const fontIds = [update.manualHeadingFontId, update.manualBodyFontId].filter((id): id is string => Boolean(id));
+	if (fontIds.length) {
+		const found = await db.select({ id: typographyFonts.id }).from(typographyFonts).where(inArray(typographyFonts.id, fontIds));
+		if (found.length !== new Set(fontIds).size) error(400, 'Unknown font');
 	}
 	if (body.accessMode === 'password' && !update.accessPassword && !existing?.accessPassword) {
 		error(400, 'Set a manual password before enabling password access');
