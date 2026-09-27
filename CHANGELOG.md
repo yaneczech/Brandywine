@@ -33,6 +33,14 @@ releases may include breaking changes, listed under **Changed**.
 - All interface copy, including sign-in and password-reset e-mails, comes
   from the translation catalogue
 
+### Removed
+
+- The unused legacy `manual_sections` table and `section_type` enum
+  (migration 0031)
+- The NOTICE requirement to display "Powered by Brandywine", which the
+  Apache License 2.0 does not allow to add; the in-app attribution link
+  stays an option in Admin → Brand
+
 ### Fixed
 
 - The page editor's "View" link opened a missing page
