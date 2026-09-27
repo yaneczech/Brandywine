@@ -19,6 +19,7 @@ await discover.goto(base + '/', { waitUntil: 'networkidle' });
 const paths = await discover.evaluate(() =>
 	[...new Set([...document.querySelectorAll('a[href^="/"]')].map((a) => a.getAttribute('href').split('#')[0]))]
 		.filter((h) => !/^\/(admin|api|access|llms)/.test(h)));
+paths.push('/__design-audit-404');
 await discover.close();
 
 const results = [];

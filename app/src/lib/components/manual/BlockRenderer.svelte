@@ -1703,7 +1703,7 @@
 	.carousel-controls { display: flex; gap: 8px; justify-content: flex-end; order: 2; }
 	.carousel-btn {
 		display: grid; place-items: center; width: 36px; height: 36px;
-		border: 1px solid var(--manual-border); border-radius: var(--manual-radius);
+		border: 1px solid var(--manual-border); border-radius: var(--manual-control-radius);
 		background: transparent; color: var(--manual-ink); cursor: pointer;
 		transition: background .15s ease, opacity .15s ease, border-color .15s ease;
 	}
@@ -1971,7 +1971,7 @@
 		width: 28px;
 		height: 28px;
 		place-items: center;
-		border-radius: var(--manual-radius);
+		border-radius: var(--manual-control-radius);
 		opacity: 0;
 		transition: opacity .16s ease;
 	}
@@ -2488,9 +2488,9 @@
 	.cc-field { display: flex; flex-direction: column; gap: 8px; }
 	.cc-label { font-size: var(--manual-label-size); font-weight: 500; letter-spacing: var(--manual-label-tracking); text-transform: uppercase; color: var(--manual-muted); }
 	.cc-input { display: flex; align-items: center; gap: 8px; }
-	.cc-input input[type="color"] { width: 36px; height: 36px; padding: 0; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: none; cursor: pointer; }
+	.cc-input input[type="color"] { width: 36px; height: 36px; padding: 0; border: 1px solid var(--manual-border); border-radius: var(--manual-control-radius); background: none; cursor: pointer; }
 	.cc-input input[type="text"] {
-		flex: 1; min-width: 0; height: 36px; padding: 0 12px; border: 1px solid var(--manual-border); border-radius: var(--manual-radius);
+		flex: 1; min-width: 0; height: 36px; padding: 0 12px; border: 1px solid var(--manual-border); border-radius: var(--manual-control-radius);
 		background: transparent; color: var(--manual-ink); font-family: var(--manual-mono, monospace); font-size: var(--text-sm);
 		transition: border-color .15s ease;
 	}
@@ -2500,7 +2500,7 @@
 	.cc-swatch.active { outline: 1px solid var(--manual-ink); outline-offset: 2px; }
 	.cc-swap {
 		display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; height: 32px; padding: 0 12px;
-		border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: transparent; color: var(--manual-ink);
+		border: 1px solid var(--manual-border); border-radius: var(--manual-control-radius); background: transparent; color: var(--manual-ink);
 		font-family: inherit; font-size: var(--text-sm); font-weight: 500; cursor: pointer;
 		transition: border-color .15s ease;
 	}
@@ -2555,7 +2555,7 @@
 	.code-lang { color: var(--manual-muted); font-size: var(--manual-label-size); font-weight: 500; letter-spacing: var(--manual-label-tracking); text-transform: uppercase; }
 	.code-copy {
 		display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px;
-		border: 0; border-radius: var(--manual-radius); background: transparent; color: var(--manual-muted);
+		border: 0; border-radius: var(--manual-control-radius); background: transparent; color: var(--manual-muted);
 		font-family: inherit; font-size: var(--text-xs); font-weight: 500; cursor: pointer;
 		transition: color .15s ease;
 	}
@@ -2631,7 +2631,7 @@
 	.text-image-copy h3 { margin: 0; color: var(--manual-ink); font-size: var(--text-2xl); font-weight: 500; letter-spacing: -.022em; line-height: 1.2; text-wrap: balance; }
 	.text-image-cta {
 		display: inline-flex; align-items: center; gap: 8px; align-self: flex-start;
-		height: 38px; padding: 0 16px; margin-top: 4px; border-radius: var(--manual-radius);
+		height: 38px; padding: 0 16px; margin-top: 4px; border-radius: var(--manual-control-radius);
 		background: var(--manual-ink); color: var(--manual-paper);
 		font-size: var(--text-sm); font-weight: 500; text-decoration: none;
 		transition: opacity .15s ease;

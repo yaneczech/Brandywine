@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ensureContrast } from '$lib/ui/contrast';
 	import type { LayoutData } from './$types';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -49,11 +50,17 @@
 		light: { paper: '#FBFAF8', surface: '#FFFFFF', ink: '#171717', muted: '#737373' },
 		dark: { paper: '#101010', surface: '#171717', ink: '#F4F4F4', muted: '#A3A3A3' }
 	};
+	// The accent marks UI (active item, focus, sliders), so it must stay
+	// visible on the paper it sits on — ≥ 3:1, same hue (DESIGN.md › Přístupnost)
+	const paperLight = $derived(brand?.manualBackgroundColor || themeDefaults.light.paper);
+	const paperDark  = $derived(brand?.manualBackgroundColorDark || themeDefaults.dark.paper);
+	const uiAccentLight = $derived(ensureContrast(manualAccentLight, paperLight));
+	const uiAccentDark  = $derived(ensureContrast(manualAccentDark, paperDark));
 	const manualShellStyle = $derived.by(() => {
 		const mode = isDark ? 'dark' : 'light';
 		const pairs = [
-			`--manual-brand:${isDark ? manualAccentDark : manualAccentLight}`,
-			`--manual-brand-dark:${manualAccentDark}`,
+			`--manual-brand:${isDark ? uiAccentDark : uiAccentLight}`,
+			`--manual-brand-dark:${uiAccentDark}`,
 			`--manual-radius:${radiusValue(brand?.manualBorderRadius)}px`,
 		];
 		const pick = (light: string | null | undefined, dark: string | null | undefined) =>
@@ -552,6 +559,8 @@
 		--manual-border-strong: color-mix(in srgb, var(--manual-ink) 16%, transparent);
 		--manual-hover: color-mix(in srgb, var(--manual-ink) 5%, transparent);
 		--manual-radius: 8px;
+		/* Controls follow the brand radius but stay concentric: never a pill */
+		--manual-control-radius: min(var(--manual-radius), 10px);
 		/* Rhythm & stage — the frame around the brand's own material */
 		/* Stepped, not fluid: rhythm stays on the 4px grid (DESIGN.md › Rytmus) */
 		--manual-section-gap: 64px;
@@ -719,7 +728,7 @@
 		width: 36px;
 		height: 36px;
 		border: 1px solid transparent;
-		border-radius: var(--radius-full);
+		border-radius: var(--manual-control-radius);
 		background: transparent;
 		color: var(--manual-ink);
 		cursor: pointer;
@@ -736,7 +745,7 @@
 		height: 36px;
 		padding: 0 8px 0 12px;
 		border: 1px solid var(--manual-border);
-		border-radius: var(--manual-radius);
+		border-radius: var(--manual-control-radius);
 		background: transparent;
 		color: var(--manual-muted);
 		font: inherit;
@@ -757,7 +766,7 @@
 		gap: 8px;
 		padding: 0 12px;
 		border: 1px solid var(--manual-border);
-		border-radius: var(--manual-radius);
+		border-radius: var(--manual-control-radius);
 		color: var(--manual-ink);
 		font-size: var(--text-sm);
 		font-weight: 500;
@@ -842,7 +851,7 @@
 		align-items: center;
 		gap: 12px;
 		padding: 8px 12px;
-		border-radius: var(--manual-radius);
+		border-radius: var(--manual-control-radius);
 		text-decoration: none;
 		color: inherit;
 	}

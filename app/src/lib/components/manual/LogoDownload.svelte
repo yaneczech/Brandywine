@@ -280,12 +280,12 @@
 	.ld-sliders output { min-width: 3.2em; color: var(--manual-ink); font-size: var(--text-sm); font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
 	.ld-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 	.ld-png { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; }
-	.ld-width { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: transparent; }
+	.ld-width { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--manual-border); border-radius: var(--manual-control-radius); background: transparent; }
 	.ld-width input { width: 64px; border: 0; background: transparent; color: var(--manual-ink); font-family: inherit; font-size: var(--text-base); font-variant-numeric: tabular-nums; outline: none; }
 	.ld-unit { color: var(--manual-muted); font-size: var(--text-xs); white-space: nowrap; font-variant-numeric: tabular-nums; }
 	.ld-btn {
 		display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px;
-		border: 1px solid var(--manual-border); border-radius: var(--manual-radius);
+		border: 1px solid var(--manual-border); border-radius: var(--manual-control-radius);
 		background: transparent; color: var(--manual-ink); font-family: inherit; font-size: var(--text-sm); font-weight: 500;
 		text-decoration: none; cursor: pointer; transition: border-color .15s ease;
 	}

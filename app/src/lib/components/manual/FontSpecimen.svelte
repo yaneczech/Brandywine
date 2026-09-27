@@ -226,7 +226,7 @@
 	details[open] > summary .fs-summary-end :global(svg) { transform: rotate(180deg); }
 	.fs-btn {
 		display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px;
-		border: 1px solid var(--manual-border); border-radius: var(--manual-radius);
+		border: 1px solid var(--manual-border); border-radius: var(--manual-control-radius);
 		color: var(--manual-ink); font-size: var(--text-sm); font-weight: 500; text-decoration: none; white-space: nowrap;
 		transition: border-color .15s ease;
 	}
@@ -262,7 +262,7 @@
 	.fs-tester-controls label { display: inline-flex; align-items: center; gap: 8px; }
 	.fs-tester-controls input[type="range"] { width: 140px; height: 24px; accent-color: var(--manual-brand); }
 	.fs-tester-controls output { min-width: 3.5em; color: var(--manual-ink); font-weight: 500; font-variant-numeric: tabular-nums; }
-	.fs-tester-controls select { height: 30px; padding: 0 8px; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: transparent; color: var(--manual-ink); font-family: inherit; }
+	.fs-tester-controls select { height: 30px; padding: 0 8px; border: 1px solid var(--manual-border); border-radius: var(--manual-control-radius); background: transparent; color: var(--manual-ink); font-family: inherit; }
 	.fs-check { min-height: 24px; }
 	.fs-check input { width: 16px; height: 16px; accent-color: var(--manual-brand); }
 	.fs-tester-text {

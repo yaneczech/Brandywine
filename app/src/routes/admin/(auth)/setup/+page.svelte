@@ -1,18 +1,20 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
 	import * as m from '$lib/paraglide/messages';
-	import { readableOn } from '$lib/ui/contrast';
+	import { ensureContrast, readableOn } from '$lib/ui/contrast';
 	import { IconInfoCircle, IconArrowRight } from '$lib/icons';
 	const { form, data }: { form: ActionData; data: PageData } = $props();
 
 	const systemName = $derived(data.brand?.systemName ?? 'Brandywine');
 	const logoSrc    = $derived(data.brand?.logoPath ?? '/logo.svg');
 	const primary    = $derived(data.brand?.primaryColor ?? '#4A1204');
+	// Brand as UI accent on the admin background: same hue, ≥ 3:1
+	const uiBrand = $derived(ensureContrast(primary, '#f7f7f5'));
 </script>
 
 <svelte:head><title>{m.auth_setup_title()} · {systemName}</title></svelte:head>
 
-<div class="auth-root brand-scope" style="--brand:{primary}; --brand-light:{primary}; --color-accent-contrast:{readableOn(primary)}">
+<div class="auth-root brand-scope" style="--brand:{uiBrand}; --brand-light:{uiBrand}; --color-accent-contrast:{readableOn(uiBrand)}">
 	<!-- Left: brand panel -->
 	<div class="brand-panel">
 		<div class="brand-panel-inner">

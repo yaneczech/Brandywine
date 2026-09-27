@@ -100,7 +100,7 @@
 		align-items: center;
 		min-height: 34px;
 		padding: 0 16px;
-		border-radius: var(--radius-full);
+		border-radius: var(--manual-control-radius);
 		border: 1px solid color-mix(in srgb, var(--hero-text) 20%, transparent);
 		background: color-mix(in srgb, var(--hero-text) 6%, transparent);
 		color: var(--hero-text);
