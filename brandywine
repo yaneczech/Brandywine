@@ -1,54 +1,234 @@
 #!/bin/sh
+# Brandywine self-hosting utility — install, update, back up and look after a
+# Brandywine server. Run ./brandywine help for the commands.
 set -eu
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$ROOT_DIR"
 
-compose() {
-	docker compose "$@"
-}
+# ── Output ───────────────────────────────────────────────────────────────────
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+	BOLD=$(printf '\033[1m'); DIM=$(printf '\033[2m'); RED=$(printf '\033[31m')
+	GREEN=$(printf '\033[32m'); YELLOW=$(printf '\033[33m'); RESET=$(printf '\033[0m')
+else
+	BOLD=''; DIM=''; RED=''; GREEN=''; YELLOW=''; RESET=''
+fi
+
+say() { printf '%s\n' "$*"; }
+step() { printf '\n%s%s%s\n' "$BOLD" "$1" "$RESET"; }
+ok() { printf '  %s✓%s %s\n' "$GREEN" "$RESET" "$1"; }
+warn() { printf '  %s!%s %s\n' "$YELLOW" "$RESET" "$1"; }
+hint() { printf '    %s%s%s\n' "$DIM" "$1" "$RESET"; }
 
 fail() {
-	printf 'Error: %s\n' "$1" >&2
+	printf '\n%sError:%s %s\n' "$RED" "$RESET" "$1" >&2
 	exit 1
 }
 
-require_docker() {
-	command -v docker >/dev/null 2>&1 || fail 'Docker is not installed.'
-	docker info >/dev/null 2>&1 || fail 'Docker is not running or is not accessible.'
-	docker compose version >/dev/null 2>&1 || fail 'Docker Compose v2 is required.'
+# BRANDYWINE_DRY_RUN=1 walks through a command without touching Docker
+dry_run() { [ "${BRANDYWINE_DRY_RUN:-0}" = 1 ]; }
+
+compose() {
+	if dry_run; then
+		printf '    %s[dry run] docker compose %s%s\n' "$DIM" "$*" "$RESET"
+		return 0
+	fi
+	docker compose "$@"
+}
+
+# Questions are asked only in an interactive terminal; --yes takes the defaults
+interactive() { [ -t 0 ] && [ "${ASSUME_YES:-0}" != 1 ]; }
+
+# ask VAR "Question" [default]
+ask() {
+	_default=${3:-}
+	if interactive; then
+		if [ -n "$_default" ]; then printf '  %s %s[%s]%s: ' "$2" "$DIM" "$_default" "$RESET"
+		else printf '  %s: ' "$2"; fi
+		IFS= read -r _answer || _answer=''
+		[ -n "$_answer" ] || _answer=$_default
+	else
+		_answer=$_default
+	fi
+	eval "$1=\$_answer"
+}
+
+# ask_secret VAR "Question" — no echo while typing
+ask_secret() {
+	_answer=''
+	if interactive; then
+		printf '  %s: ' "$2"
+		stty -echo 2>/dev/null || true
+		IFS= read -r _answer || _answer=''
+		stty echo 2>/dev/null || true
+		printf '\n'
+	fi
+	eval "$1=\$_answer"
+}
+
+# confirm "Question" y|n — returns 0 for yes
+confirm() {
+	_default=${2:-n}
+	if ! interactive; then [ "$_default" = y ]; return; fi
+	if [ "$_default" = y ]; then _choices='Y/n'; else _choices='y/N'; fi
+	printf '  %s %s[%s]%s: ' "$1" "$DIM" "$_choices" "$RESET"
+	IFS= read -r _answer || _answer=''
+	[ -n "$_answer" ] || _answer=$_default
+	case "$_answer" in [Yy]*) return 0 ;; *) return 1 ;; esac
+}
+
+# ── Environment file ─────────────────────────────────────────────────────────
+env_value() {
+	[ -f .env ] || return 0
+	sed -n "s/^$1=//p" .env | tail -n 1
+}
+
+# set_env KEY VALUE — replaces KEY (also a commented "# KEY=") or appends it.
+# "$" is doubled because Docker Compose interpolates .env values.
+set_env() {
+	_value=$(printf '%s' "$2" | sed 's/\$/$$/g')
+	_tmp=".env.tmp.$$"
+	K="$1" V="$_value" awk '
+		BEGIN { done = 0 }
+		!done && ($0 ~ "^" ENVIRON["K"] "=" || $0 ~ "^# ?" ENVIRON["K"] "=") { print ENVIRON["K"] "=" ENVIRON["V"]; done = 1; next }
+		{ print }
+		END { if (!done) print ENVIRON["K"] "=" ENVIRON["V"] }
+	' .env > "$_tmp"
+	mv "$_tmp" .env
 }
 
 random_secret() {
-	if command -v openssl >/dev/null 2>&1; then
-		openssl rand -hex 32
-	else
-		fail 'OpenSSL is required to generate secure installation secrets.'
-	fi
-}
-
-env_value() {
-	key=$1
-	sed -n "s/^${key}=//p" .env | tail -n 1
+	command -v openssl >/dev/null 2>&1 || fail 'OpenSSL is needed to generate secure secrets. Install it (e.g. apt install openssl) and run the installer again.'
+	openssl rand -hex 32
 }
 
 validate_env() {
-	[ -f .env ] || fail 'Missing .env. Run ./brandywine install first.'
+	[ -f .env ] || fail 'Brandywine is not configured yet. Run ./brandywine install first.'
 	postgres_password=$(env_value POSTGRES_PASSWORD)
 	session_secret=$(env_value SESSION_SECRET)
-	[ -n "$postgres_password" ] || fail 'POSTGRES_PASSWORD is empty.'
-	[ "$postgres_password" != 'changeme_in_production' ] || fail 'POSTGRES_PASSWORD still uses the example value.'
-	[ "${#session_secret}" -ge 32 ] || fail 'SESSION_SECRET must contain at least 32 characters.'
-	[ "$session_secret" != 'changeme_in_production' ] || fail 'SESSION_SECRET still uses the example value.'
+	[ -n "$postgres_password" ] || fail 'POSTGRES_PASSWORD in .env is empty.'
+	[ "$postgres_password" != 'changeme_in_production' ] || fail 'POSTGRES_PASSWORD in .env still uses the example value.'
+	[ "${#session_secret}" -ge 32 ] || fail 'SESSION_SECRET in .env must contain at least 32 characters.'
+	[ "$session_secret" != 'changeme_in_production' ] || fail 'SESSION_SECRET in .env still uses the example value.'
 	compose config --quiet
 }
 
+# ── System checks ────────────────────────────────────────────────────────────
+docker_help() {
+	case "$(uname -s)" in
+		Darwin) hint 'Install Docker Desktop: https://docs.docker.com/desktop/setup/install/mac-install/' ;;
+		Linux) hint 'Install Docker Engine:  curl -fsSL https://get.docker.com | sh' ;;
+		*) hint 'Install Docker: https://docs.docker.com/get-started/get-docker/' ;;
+	esac
+}
+
+require_docker() {
+	dry_run && return 0
+	if ! command -v docker >/dev/null 2>&1; then
+		printf '%sDocker is not installed.%s Brandywine runs in Docker containers.\n' "$RED" "$RESET" >&2
+		docker_help
+		exit 1
+	fi
+	if ! docker info >/dev/null 2>&1; then
+		printf '%sDocker is installed but not running%s (or this user may not use it).\n' "$RED" "$RESET" >&2
+		hint 'Start Docker (Docker Desktop, or: sudo systemctl start docker),'
+		hint 'or run the installer with sudo, or add yourself to the docker group.'
+		exit 1
+	fi
+	docker compose version >/dev/null 2>&1 || fail 'Docker Compose v2 is required ("docker compose", not "docker-compose"). Update Docker.'
+}
+
+memory_mb() {
+	if [ -r /proc/meminfo ]; then awk '/MemTotal/ { print int($2 / 1024) }' /proc/meminfo
+	elif command -v sysctl >/dev/null 2>&1; then echo $(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1048576 ))
+	else echo 0; fi
+}
+
+free_disk_gb() {
+	df -Pk . 2>/dev/null | awk 'NR == 2 { print int($4 / 1048576) }'
+}
+
+port_busy() {
+	if command -v ss >/dev/null 2>&1; then
+		[ -n "$(ss -ltnH "sport = :$1" 2>/dev/null)" ]
+	elif command -v lsof >/dev/null 2>&1; then
+		lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
+	elif command -v nc >/dev/null 2>&1; then
+		nc -z 127.0.0.1 "$1" >/dev/null 2>&1
+	else
+		return 1
+	fi
+}
+
+# Ports held by Brandywine's own proxy are not a conflict
+own_proxy_running() {
+	! dry_run && [ -f .env ] && [ -n "$(docker compose ps --status running -q proxy 2>/dev/null)" ]
+}
+
+first_free_port() {
+	for _port in "$@"; do
+		if ! port_busy "$_port"; then echo "$_port"; return 0; fi
+	done
+	echo ''
+}
+
+resolve_host() {
+	{
+		if command -v getent >/dev/null 2>&1; then getent ahostsv4 "$1" 2>/dev/null | awk '{ print $1 }'
+		elif command -v dig >/dev/null 2>&1; then dig +short A "$1" 2>/dev/null
+		elif command -v host >/dev/null 2>&1; then host -t A "$1" 2>/dev/null | awk '/has address/ { print $4 }'
+		elif command -v dscacheutil >/dev/null 2>&1; then dscacheutil -q host -a name "$1" 2>/dev/null | awk '/ip_address/ { print $2 }'
+		fi
+	} | grep -E '^[0-9.]+$' | sort -u | tr '\n' ' '
+}
+
+check_system() {
+	require_docker
+	dry_run || ok "Docker $(docker version --format '{{.Server.Version}}' 2>/dev/null) with Compose $(docker compose version --short 2>/dev/null)"
+	command -v openssl >/dev/null 2>&1 || fail 'OpenSSL is needed to generate secure secrets. Install it (e.g. apt install openssl) and run the installer again.'
+	mem=$(memory_mb)
+	if [ "$mem" -gt 0 ] && [ "$mem" -lt 1800 ]; then
+		warn "This machine has ${mem} MB of memory; 2 GB or more is recommended."
+	elif [ "$mem" -gt 0 ]; then
+		ok "Memory: $((mem / 1024)) GB"
+	fi
+	disk=$(free_disk_gb)
+	if [ -n "$disk" ] && [ "$disk" -lt 5 ]; then
+		warn "Only ${disk} GB of disk space is free; keep at least 5 GB for Brandywine and your files."
+	elif [ -n "$disk" ]; then
+		ok "Free disk space: ${disk} GB"
+	fi
+}
+
+# ── Starting the stack ───────────────────────────────────────────────────────
+# Compiled plugins (plugins/plugins.json) are built into the app image
+needs_build() {
+	[ "${BRANDYWINE_BUILD:-0}" = 1 ] && return 0
+	[ -f plugins/plugins.json ] && tr -d ' \t\r\n' < plugins/plugins.json | grep -q '"enabled":\["'
+}
+
+start_stack() {
+	if needs_build; then
+		say '  Building Brandywine from source (this takes a few minutes)…'
+		compose up -d --build --remove-orphans
+		return
+	fi
+	say '  Downloading Brandywine…'
+	if compose pull --quiet app worker >/dev/null 2>&1; then
+		compose up -d --no-build --remove-orphans
+	else
+		warn 'Ready-made images are not available; building from source instead (5–10 minutes).'
+		compose up -d --build --remove-orphans
+	fi
+}
+
 wait_for_app() {
-	printf 'Waiting for Brandywine'
+	dry_run && { ok 'Brandywine is running'; return 0; }
+	printf '  Waiting for Brandywine to start'
 	attempt=1
-	while [ "$attempt" -le 60 ]; do
-		if compose exec -T app wget --spider -q http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
-			printf ' ready.\n'
+	while [ "$attempt" -le 90 ]; do
+		if docker compose exec -T app wget --spider -q http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
+			printf ' %sready%s\n' "$GREEN" "$RESET"
 			return 0
 		fi
 		printf '.'
@@ -56,62 +236,210 @@ wait_for_app() {
 		attempt=$((attempt + 1))
 	done
 	printf '\n' >&2
-	compose logs --tail=100 app >&2 || true
-	fail 'The application did not become ready in time.'
+	docker compose logs --tail=100 app >&2 || true
+	fail 'Brandywine did not start in time. The log above shows why; ./brandywine doctor checks the installation.'
+}
+
+open_browser() {
+	interactive || return 0
+	if command -v open >/dev/null 2>&1 && [ "$(uname -s)" = Darwin ]; then open "$1" >/dev/null 2>&1 || true
+	elif command -v xdg-open >/dev/null 2>&1 && [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then xdg-open "$1" >/dev/null 2>&1 || true
+	fi
+}
+
+# ── install ──────────────────────────────────────────────────────────────────
+install_usage() {
+	say 'Usage: ./brandywine install [domain] [options]'
+	say ''
+	say '  Without options, a short wizard asks everything it needs.'
+	say ''
+	say '  --domain NAME     Serve Brandywine on NAME with automatic HTTPS'
+	say '  --local           Only on this computer (http://localhost)'
+	say '  --http-port N     HTTP port for --local (default 80, or the first free of 8080, 8081, 8088)'
+	say '  --reconfigure     Answer the questions again (secrets and data are kept)'
+	say '  --build           Build from source instead of downloading images'
+	say '  --yes             Use the defaults, ask nothing'
 }
 
 install_cmd() {
-	require_docker
-	domain=${1:-localhost}
-	case "$domain" in
-		''|*[!A-Za-z0-9.-]*) fail 'Domain must be a hostname without a scheme, path, port or whitespace.' ;;
-	esac
-	if [ ! -f .env ]; then
-		umask 077
-		cp .env.example .env
-		postgres_password=$(random_secret)
-		session_secret=$(random_secret)
-		app_url="https://${domain}"
-		tmp_env=".env.tmp.$$"
-		sed \
-			-e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${postgres_password}|" \
-			-e "s|^SESSION_SECRET=.*|SESSION_SECRET=${session_secret}|" \
-			-e "s|^APP_DOMAIN=.*|APP_DOMAIN=${domain}|" \
-			-e "s|^APP_URL=.*|APP_URL=${app_url}|" \
-			.env > "$tmp_env"
-		mv "$tmp_env" .env
-		printf 'Created .env with secure random secrets.\n'
+	domain=''; mode=''; http_port=''; reconfigure=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--domain) domain=${2:-}; mode=domain; shift ;;
+			--domain=*) domain=${1#*=}; mode=domain ;;
+			--local) mode=local ;;
+			--http-port) http_port=${2:-}; shift ;;
+			--http-port=*) http_port=${1#*=} ;;
+			--reconfigure) reconfigure=1 ;;
+			--build) BRANDYWINE_BUILD=1 ;;
+			--yes|-y) ASSUME_YES=1 ;;
+			-h|--help) install_usage; return 0 ;;
+			-*) install_usage; fail "Unknown option: $1" ;;
+			*) domain=$1; mode=domain; [ "$domain" = localhost ] && mode=local ;;
+		esac
+		shift
+	done
+
+	printf '\n%sBrandywine installer%s\n' "$BOLD" "$RESET"
+	say 'Sets up your brand manual and asset library on this server.'
+
+	step '1 · Checking this computer'
+	check_system
+
+	if [ -f .env ] && [ "$reconfigure" = 0 ] && [ -z "$mode" ]; then
+		step '2 · Configuration'
+		ok 'Brandywine is already configured here (.env); keeping it.'
+		hint 'Run ./brandywine install --reconfigure to change the address or e-mail settings.'
 	else
-		printf 'Using existing .env.\n'
+		configure_install
 	fi
+
 	validate_env
-	compose up -d --build --remove-orphans
+	step '5 · Starting Brandywine'
+	start_stack
 	wait_for_app
-	public_url=$(env_value APP_URL)
-	[ -n "$public_url" ] || public_url="https://$(env_value APP_DOMAIN)"
-	printf 'Brandywine is ready at %s\n' "$public_url"
-	printf 'Create the first administrator at %s/admin/setup\n' "$public_url"
+
+	url=$(env_value APP_URL)
+	[ -n "$url" ] || url="https://$(env_value APP_DOMAIN)"
+	printf '\n%s✓ Brandywine is running%s\n\n' "$GREEN$BOLD" "$RESET"
+	say "  Open ${BOLD}${url}/admin/setup${RESET} to create your account and set up your brand."
+	say "  Your manual will be at ${url}"
+	say ''
+	hint './brandywine doctor   check the installation'
+	hint './brandywine backup   back up everything'
+	hint './brandywine update   update to the latest version'
+	open_browser "${url}/admin/setup"
 }
 
+configure_install() {
+	step '2 · Address'
+	if [ -z "$mode" ]; then
+		if interactive; then
+			say '  How will people open Brandywine?'
+			say "    ${BOLD}1${RESET}  On a domain, e.g. brand.example.com — HTTPS is set up automatically"
+			say "    ${BOLD}2${RESET}  Only on this computer (http://localhost) — to try it out"
+			ask choice 'Choose 1 or 2' 1
+			case "$choice" in 2) mode=local ;; *) mode=domain ;; esac
+		else
+			mode=local
+		fi
+	fi
+
+	caddyfile=./Caddyfile
+	https_port=443
+	if [ "$mode" = domain ]; then
+		while :; do
+			[ -n "$domain" ] || ask domain 'Domain (without https://)' ''
+			domain=$(printf '%s' "$domain" | sed -e 's#^https\{0,1\}://##' -e 's#/.*$##' | tr 'A-Z' 'a-z')
+			case "$domain" in
+				''|localhost|*[!a-z0-9.-]*|.*|*.|*..*) warn 'Enter a domain name such as brand.example.com.'; domain=''
+					interactive || fail 'Pass a domain such as brand.example.com, or --local.' ;;
+				*.*) break ;;
+				*) warn 'Enter a full domain name such as brand.example.com.'; domain=''
+					interactive || fail 'Pass a full domain name such as brand.example.com.' ;;
+			esac
+		done
+		addresses=$(resolve_host "$domain")
+		if [ -n "$addresses" ]; then
+			ok "$domain points to $addresses"
+			hint 'That should be the public address of this server — HTTPS certificates need it.'
+		else
+			warn "$domain does not resolve yet."
+			hint 'Create a DNS A record pointing to this server before visitors arrive.'
+			hint 'Brandywine will start now and get its HTTPS certificate once DNS works.'
+			interactive && { confirm 'Continue anyway?' y || fail 'Installation cancelled.'; }
+		fi
+		if ! own_proxy_running; then
+			for p in 80 443; do
+				port_busy "$p" && fail "Port $p is already in use by another program. A domain install needs ports 80 and 443 (for HTTPS certificates). Stop the other web server, or use --local with another port."
+			done
+			ok 'Ports 80 and 443 are free'
+		fi
+		http_port=80
+		app_url="https://${domain}"
+	else
+		domain=localhost
+		caddyfile=./Caddyfile.local
+		if [ -z "$http_port" ]; then
+			if own_proxy_running; then http_port=$(env_value HTTP_PORT); fi
+			[ -n "$http_port" ] || http_port=$(first_free_port 80 8080 8081 8088)
+			[ -n "$http_port" ] || fail 'Ports 80, 8080, 8081 and 8088 are all in use. Pass a free one with --http-port.'
+		fi
+		https_port=$(first_free_port 443 8443 8444)
+		[ -n "$https_port" ] || https_port=8443
+		if [ "$http_port" = 80 ]; then app_url='http://localhost'; else app_url="http://localhost:${http_port}"; fi
+		ok "Brandywine will open at $app_url"
+	fi
+
+	step '3 · E-mail (optional)'
+	say '  Brandywine sends e-mails for sign-in links and password resets.'
+	say '  Without an SMTP server they are written to the log instead.'
+	smtp_host=''
+	if confirm 'Set up an SMTP server now?' n; then
+		ask smtp_host 'SMTP server' ''
+		ask smtp_port 'Port' 587
+		ask smtp_user 'User name' ''
+		ask_secret smtp_pass 'Password'
+		ask smtp_from 'Sender' "Brandywine <noreply@${domain}>"
+	fi
+
+	step '4 · Summary'
+	say "  Address   $app_url"
+	if [ -n "$smtp_host" ]; then say "  E-mail    $smtp_host:$smtp_port"; else say '  E-mail    not set up (written to the log)'; fi
+	if needs_build; then say '  Install   build from source (compiled plugins are enabled)'
+	else say '  Install   ready-made images, or a build from source if unavailable'; fi
+	confirm 'Install now?' y || fail 'Installation cancelled. Nothing was changed.'
+
+	umask 077
+	[ -f .env ] || cp .env.example .env
+	postgres_password=$(env_value POSTGRES_PASSWORD)
+	case "$postgres_password" in ''|changeme_in_production) set_env POSTGRES_PASSWORD "$(random_secret)" ;; esac
+	session_secret=$(env_value SESSION_SECRET)
+	case "$session_secret" in ''|changeme_in_production) set_env SESSION_SECRET "$(random_secret)" ;; esac
+	set_env APP_DOMAIN "$domain"
+	set_env APP_URL "$app_url"
+	set_env HTTP_PORT "$http_port"
+	set_env HTTPS_PORT "$https_port"
+	set_env CADDYFILE "$caddyfile"
+	# install.sh passes the release being installed, so the images match it
+	[ -z "${BRANDYWINE_VERSION:-}" ] || set_env BRANDYWINE_VERSION "$BRANDYWINE_VERSION"
+	if [ -n "$smtp_host" ]; then
+		set_env SMTP_HOST "$smtp_host"
+		set_env SMTP_PORT "$smtp_port"
+		set_env SMTP_USER "$smtp_user"
+		set_env SMTP_PASS "$smtp_pass"
+		set_env SMTP_FROM "$smtp_from"
+	fi
+	ok 'Saved the configuration to .env (with newly generated secrets)'
+}
+
+# ── doctor ───────────────────────────────────────────────────────────────────
 doctor_cmd() {
 	require_docker
 	validate_env
-	printf 'Configuration: OK\n'
+	ok 'Configuration'
 	compose ps
 	compose exec -T db pg_isready -U brandywine >/dev/null || fail 'PostgreSQL is not ready.'
+	ok 'PostgreSQL'
 	compose exec -T redis redis-cli ping | grep -q PONG || fail 'Redis is not ready.'
-	compose exec -T app wget --spider -q http://127.0.0.1:3000/api/health || fail 'Application readiness check failed.'
-	[ -n "$(compose ps --status running -q worker)" ] || fail 'Media worker is not running.'
-	compose exec -T proxy caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1 || fail 'Reverse proxy configuration is invalid.'
-	migration_count=$(compose exec -T db psql -U brandywine -d brandywine -Atc 'SELECT count(*) FROM drizzle.__drizzle_migrations')
-	[ "$migration_count" -ge 23 ] || fail "Database is behind (${migration_count}/23 migrations)."
-	printf 'Database migrations: %s/23\n' "$migration_count"
-	printf 'Disk usage:\n'
+	ok 'Redis'
+	compose exec -T app wget --spider -q http://127.0.0.1:3000/api/health || fail 'The app does not answer its health check.'
+	ok 'App'
+	[ -n "$(docker compose ps --status running -q worker)" ] || fail 'The media worker is not running.'
+	ok 'Media worker'
+	compose exec -T proxy caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1 || fail 'The reverse proxy configuration is invalid.'
+	ok 'Reverse proxy'
+	applied=$(docker compose exec -T db psql -U brandywine -d brandywine -Atc 'SELECT count(*) FROM drizzle.__drizzle_migrations')
+	expected=$(docker compose exec -T app sh -c 'grep -c "\"tag\"" drizzle/migrations/meta/_journal.json')
+	[ "$applied" -ge "$expected" ] || fail "The database is behind: ${applied} of ${expected} migrations applied. Restart the app to apply them."
+	ok "Database migrations: ${applied}/${expected}"
+	say 'Disk usage:'
 	compose exec -T db df -h /var/lib/postgresql/data | tail -n 1
 	compose exec -T app df -h /uploads | tail -n 1
-	printf 'Doctor result: healthy\n'
+	printf '%sDoctor result: healthy%s\n' "$GREEN" "$RESET"
 }
 
+# ── backup / restore ─────────────────────────────────────────────────────────
 backup_cmd() {
 	require_docker
 	validate_env
@@ -133,7 +461,6 @@ backup_cmd() {
 	fi
 	printf 'Backup created: %s\n' "$destination"
 }
-
 restore_cmd() {
 	require_docker
 	validate_env
@@ -160,38 +487,85 @@ restore_cmd() {
 	printf 'Restore complete. Safety backup: %s\n' "$safety_backup"
 }
 
+# ── update ───────────────────────────────────────────────────────────────────
 update_cmd() {
 	require_docker
 	validate_env
 	backup_path="backups/pre-update-$(date -u +%Y%m%dT%H%M%SZ)"
+	step 'Backing up before the update'
 	backup_cmd "$backup_path"
-	compose pull db redis proxy
-	compose up -d --build --remove-orphans
+	step 'Updating'
+	if [ -d .git ] && command -v git >/dev/null 2>&1; then
+		if git symbolic-ref -q HEAD >/dev/null 2>&1; then
+			# A branch checkout: follow it
+			git pull --ff-only || warn 'Could not update the source with git pull; continuing with the current files.'
+		else
+			# A release checkout: move to the newest release
+			git fetch --quiet --tags --depth 1 origin 'refs/tags/v*:refs/tags/v*' 2>/dev/null || git fetch --quiet --tags || true
+			latest=$(git tag -l 'v[0-9]*' | sort -t. -k1,1V -k2,2n -k3,3n 2>/dev/null | tail -n 1)
+			if [ -n "$latest" ]; then
+				git checkout --quiet "$latest"
+				set_env BRANDYWINE_VERSION "${latest#v}"
+				ok "Source updated to $latest"
+			fi
+		fi
+	fi
+	compose pull --quiet db redis proxy
+	start_stack
 	wait_for_app
-	printf 'Update complete. Safety backup: %s\n' "$backup_path"
+	ok "Update complete. Safety backup: $backup_path"
+}
+
+# ── uninstall ────────────────────────────────────────────────────────────────
+uninstall_cmd() {
+	require_docker
+	purge=0
+	[ "${1:-}" = --purge ] && purge=1
+	if [ "$purge" = 1 ]; then
+		say 'This removes Brandywine and ALL its data: database, uploaded files and plugins.'
+		say 'A final backup is made first.'
+		if interactive; then
+			printf '  Type DELETE to continue: '
+			IFS= read -r answer || answer=''
+			[ "$answer" = DELETE ] || fail 'Uninstall cancelled.'
+		elif [ "${ASSUME_YES:-0}" != 1 ]; then
+			fail 'Run in a terminal, or pass --yes, to confirm deleting all data.'
+		fi
+		validate_env
+		backup_cmd "backups/final-$(date -u +%Y%m%dT%H%M%SZ)"
+		compose down --volumes --remove-orphans
+		ok 'Brandywine and its data were removed. Backups are kept in ./backups.'
+	else
+		compose down --remove-orphans
+		ok 'Brandywine was stopped and its containers removed. Your data is kept;'
+		hint './brandywine start brings it back, ./brandywine uninstall --purge deletes the data too.'
+	fi
 }
 
 usage() {
-	printf '%s\n' \
-		'Brandywine self-hosting utility' \
-		'' \
-		'  ./brandywine install [domain]       Generate config and start the stack' \
-		'  ./brandywine doctor                 Validate config, services and storage' \
-		'  ./brandywine backup [directory]     Back up database, uploads and plugins' \
-		'  ./brandywine restore directory      Restore with a safety backup' \
-		'  ./brandywine update                 Back up, rebuild and restart' \
-		'  ./brandywine start|stop|restart     Control services' \
-		'  ./brandywine logs                   Follow service logs'
+	printf '%sBrandywine%s — self-hosting utility\n\n' "$BOLD" "$RESET"
+	say '  ./brandywine install              Set up and start Brandywine (a short wizard)'
+	say '  ./brandywine doctor               Check configuration, services and storage'
+	say '  ./brandywine backup [directory]   Back up database, uploads and plugins'
+	say '  ./brandywine restore <directory>  Restore a backup (a safety backup is made first)'
+	say '  ./brandywine update               Back up, then update to the latest version'
+	say '  ./brandywine start|stop|restart   Control the services'
+	say '  ./brandywine logs                 Follow the logs'
+	say '  ./brandywine uninstall [--purge]  Stop and remove; --purge also deletes all data'
+	say ''
+	say '  ./brandywine install --help       Installer options'
 }
 
 command_name=${1:-help}
 shift || true
+for arg in "$@"; do [ "$arg" = --yes ] && ASSUME_YES=1; done
 case "$command_name" in
 	install) install_cmd "$@" ;;
 	doctor) doctor_cmd ;;
 	backup) backup_cmd "$@" ;;
 	restore) restore_cmd "$@" ;;
 	update) update_cmd ;;
+	uninstall) uninstall_cmd "$@" ;;
 	start) require_docker; validate_env; compose up -d; wait_for_app ;;
 	stop) require_docker; compose stop ;;
 	restart) require_docker; validate_env; compose restart; wait_for_app ;;

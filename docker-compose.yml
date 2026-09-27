@@ -1,5 +1,8 @@
 services:
   app:
+    # Ready-made image from GitHub Releases; ./brandywine builds from source
+    # instead when it is unavailable or compiled plugins are enabled
+    image: ${BRANDYWINE_IMAGE:-ghcr.io/yaneczech/brandywine}:${BRANDYWINE_VERSION:-latest}
     build:
       context: ./app
       dockerfile: Dockerfile
@@ -40,6 +43,7 @@ services:
       retries: 10
       start_period: 30s
   worker:
+    image: ${BRANDYWINE_WORKER_IMAGE:-ghcr.io/yaneczech/brandywine-worker}:${BRANDYWINE_VERSION:-latest}
     build:
       context: ./worker
       dockerfile: Dockerfile
