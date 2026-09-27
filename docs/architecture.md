@@ -52,6 +52,7 @@ app/                    SvelteKit application
 worker/                 media worker (Node, BullMQ)
   src/queues.ts         the queues the worker serves
   src/processors/       one processor per job type
+plugins/                installed plugins; plugins.json lists the active ones
 docs/                   documentation (you are here)
 brandywine              install / update / backup / restore CLI
 docker-compose.yml      production stack; compose.dev.yml is the dev overlay
@@ -84,6 +85,16 @@ editing existing ones.
 | a new admin section | `app/src/lib/modules/<id>/` + `app/src/routes/admin/<id>/` | [Modules](extending/modules.md) |
 | background processing | `worker/src/processors/` + an entry in `worker/src/queues.ts` | [Worker queues](extending/worker.md) |
 | a UI language | `app/src/messages/<lang>.json` + manual strings | [Languages](extending/languages.md) |
+| any of the above without touching the code, or event handlers | a folder in `plugins/` | [Plugins](extending/plugins.md) |
+| notify another service when something changes | Admin → Settings → Webhooks | [Webhooks](extending/plugins.md#webhooks) |
+
+## Events
+
+After a change is saved, the API calls `emit()` (`app/src/lib/server/events.ts`)
+with a typed event from `app/src/lib/events.ts` — `asset.uploaded`,
+`page.saved`, `user.signedIn`… Active plugins' handlers and matching webhooks
+receive it asynchronously; a failing handler or webhook never fails the
+request. New features that change content should emit an event too.
 
 ## Data model
 
@@ -98,6 +109,7 @@ The schema lives in `app/src/lib/db/schema/`, one file per area:
 | `assets.ts` | assets, asset versions and folders |
 | `users.ts`, `teams.ts` | users, sessions, teams, team members, permissions and invitations |
 | `shareLinks.ts`, `analytics.ts` | share links, usage events |
+| `webhooks.ts` | outgoing webhooks |
 
 A block's `config` is free-form JSON owned by its block type; the database
 only stores it. Schema changes need a migration:

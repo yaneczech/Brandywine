@@ -8,6 +8,9 @@ app/src/lib/modules/<id>/index.ts   registration: sidebar entry + access rule
 app/src/routes/admin/<id>/          its pages (SvelteKit routes)
 ```
 
+To add a section without changing the code, write a [plugin](plugins.md)
+instead.
+
 The registry (`app/src/lib/modules/index.ts`) picks up every
 `modules/*/index.ts` on its own. The admin layout builds the sidebar from it,
 and `routes/admin/+layout.server.ts` refuses every path under the module's

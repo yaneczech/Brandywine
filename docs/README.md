@@ -10,6 +10,7 @@
 - [Adding an admin module](extending/modules.md)
 - [Adding a worker queue](extending/worker.md)
 - [Languages and translations](extending/languages.md)
+- [Plugins, events and webhooks](extending/plugins.md)
 
 ## Contributing
 

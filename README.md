@@ -197,6 +197,9 @@ than edits to existing code:
   [Guide](./docs/extending/worker.md)
 - **Languages** — translations for the admin and the public manual.
   [Guide](./docs/extending/languages.md)
+- **Plugins** — blocks, admin sections, API routes and event handlers in the
+  installation's `plugins/` folder, without touching the code; **webhooks**
+  notify other services of changes. [Guide](./docs/extending/plugins.md)
 
 ## Stack
 

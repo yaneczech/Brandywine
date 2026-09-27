@@ -3,7 +3,8 @@
 A block is one kind of content in the brand manual — rich text, a colour
 palette, a logo specification. Every block type lives in its own folder in
 `app/src/lib/blocks/` and is discovered automatically: **adding a block means
-adding a folder.** Nothing else needs to change.
+adding a folder.** Nothing else needs to change. A [plugin](plugins.md) can
+add blocks the same way without touching `app/`.
 
 ```text
 app/src/lib/blocks/
