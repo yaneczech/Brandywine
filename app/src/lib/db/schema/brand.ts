@@ -1,4 +1,4 @@
-import { pgTable, text, jsonb, integer, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, text, jsonb, integer, boolean, timestamp } from 'drizzle-orm/pg-core';
 
 export const accessModeEnum = ['public', 'password', 'email_whitelist', 'token'] as const;
 export type AccessMode = (typeof accessModeEnum)[number];
@@ -67,6 +67,8 @@ export const brandSettings = pgTable('brand_settings', {
 	manualBodyFontId: text('manual_body_font_id'),
 	// Hierarchical chapter numbers (1, 1.1, 1.1.1) in navigation and headings
 	manualNumbering: boolean('manual_numbering').notNull().default(false),
+	// Set when the first administrator finishes the welcome wizard
+	onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
 	// Access control
 	accessMode: text('access_mode').$type<AccessMode>().notNull().default('public'),
 	accessPassword: text('access_password'),

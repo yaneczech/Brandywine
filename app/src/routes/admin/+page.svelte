@@ -42,6 +42,13 @@
 		</div>
 	</div>
 
+	{#if data.showOnboarding}
+		<a class="onboarding" href="/admin/welcome">
+			<span>{m.dash_finish_setup()}</span>
+			<strong>{m.dash_finish_setup_action()} <IconArrowUpRight size={15} stroke={1.5} /></strong>
+		</a>
+	{/if}
+
 	<!-- Section index -->
 	<div class="sections-grid">
 		{#each sections as s, i (s.href)}
@@ -174,4 +181,10 @@
 		.section-card { gap: var(--space-5); padding: var(--space-5) var(--space-4) var(--space-6); }
 		.card-num { font-size: var(--text-4xl); }
 	}
+	.onboarding {
+		display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+		margin-bottom: var(--space-8); padding: var(--space-4) 0 var(--space-4) var(--space-4);
+		border-left: 1px solid var(--color-accent); color: var(--color-text); text-decoration: none; font-size: var(--text-sm);
+	}
+	.onboarding strong { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-accent); font-weight: 500; }
 </style>
