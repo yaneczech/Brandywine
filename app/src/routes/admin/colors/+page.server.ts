@@ -12,7 +12,7 @@ export const load: PageServerLoad = async () => {
 		})
 		.from(colors)
 		.leftJoin(colorPalettes, eq(colors.paletteId, colorPalettes.id))
-		.orderBy(asc(colors.order)),
+		.orderBy(asc(colors.order), asc(colors.name)),
 		db.select().from(colorGradients).orderBy(asc(colorGradients.order))
 	]);
 

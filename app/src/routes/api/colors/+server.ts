@@ -19,7 +19,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		})
 		.from(colors)
 		.leftJoin(colorPalettes, eq(colors.paletteId, colorPalettes.id))
-		.orderBy(asc(colors.order));
+		.orderBy(asc(colors.order), asc(colors.name));
 
 	if (paletteId) query.where(eq(colors.paletteId, paletteId));
 

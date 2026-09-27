@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			.orderBy(asc(manualBlocks.sortOrder)),
 		db.select({ id: colors.id, name: colors.name, hex: colors.hex })
 			.from(colors)
-			.orderBy(asc(colors.order)),
+			.orderBy(asc(colors.order), asc(colors.name)),
 		db.select({ id: typographyFonts.id, name: typographyFonts.name })
 			.from(typographyFonts)
 			.orderBy(asc(typographyFonts.order)),

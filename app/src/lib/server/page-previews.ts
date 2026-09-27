@@ -35,7 +35,7 @@ export async function pagePreviews(pageIds: string[]): Promise<Record<string, Pa
 	const needsColors = blocks.some((b) => b.type === 'colors' || b.type === 'color_ratio');
 	const needsFonts = blocks.some((b) => TYPE_BLOCKS.has(b.type));
 	const [colorRows, fontRows, palettes] = await Promise.all([
-		needsColors ? db.select({ id: colors.id, hex: colors.hex, paletteId: colors.paletteId }).from(colors).orderBy(asc(colors.order)) : Promise.resolve([]),
+		needsColors ? db.select({ id: colors.id, hex: colors.hex, paletteId: colors.paletteId }).from(colors).orderBy(asc(colors.order), asc(colors.name)) : Promise.resolve([]),
 		needsFonts ? db.select({ id: typographyFonts.id, name: typographyFonts.name }).from(typographyFonts).orderBy(asc(typographyFonts.order)) : Promise.resolve([]),
 		needsColors ? db.select().from(colorPalettes).orderBy(asc(colorPalettes.order)) : Promise.resolve([]),
 	]);
