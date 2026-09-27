@@ -46,6 +46,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies, url }) => {
 			sortOrder: manualPages.sortOrder,
 			enabled: manualPages.enabled,
 			isLanding: manualPages.isLanding,
+			subpagesPosition: manualPages.subpagesPosition,
 		})
 		.from(manualPages)
 		.where(eq(manualPages.enabled, true))

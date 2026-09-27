@@ -56,6 +56,8 @@
 	let pageBgColor = $state<string>(page.bgColor ?? '');
 	// svelte-ignore state_referenced_locally
 	let pageTextColor = $state<string>(page.textColor ?? '');
+	// svelte-ignore state_referenced_locally
+	let pageSubpagesPosition = $state<'start' | 'end'>(page.subpagesPosition ?? 'end');
 
 	// WCAG contrast checker
 	function hexLuminance(hex: string): number {
@@ -314,6 +316,7 @@
 					heroBgSize: pageFeatureImage.trim() ? (pageHeroBgSize || 'cover') : null,
 					bgColor: pageBgColor || null,
 					textColor: pageTextColor || null,
+					subpagesPosition: pageSubpagesPosition,
 				}),
 			});
 			page = updated;
@@ -383,6 +386,18 @@
 							<span class="field-label">{m.editor_hero_lead()}</span>
 							<textarea rows="3" bind:value={pageDescription} placeholder={m.editor_hero_lead_placeholder()}></textarea>
 						</label>
+						<div class="field">
+							<span class="field-label">{m.editor_subpages_position()}</span>
+							<div class="bg-size-row" role="radiogroup" aria-label={m.editor_subpages_position()}>
+								{#each [['start', m.editor_subpages_start()], ['end', m.editor_subpages_end()]] as [val, label] (val)}
+									<label class="bg-size-opt" class:active={pageSubpagesPosition === val}>
+										<input type="radio" name="subpagesPosition" value={val} bind:group={pageSubpagesPosition} />
+										{label}
+									</label>
+								{/each}
+							</div>
+							<span class="field-hint">{m.editor_subpages_hint()}</span>
+						</div>
 					</div>
 				</div>
 				<div class="settings-row">
@@ -725,6 +740,7 @@
 }
 .colors-col { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 20px; }
 .field-label { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.field-hint { font-size: var(--text-xs); color: var(--color-muted); }
 /* feature image field */
 .fi-field { min-width: 280px; }
 .fi-input-row { display: flex; gap: 8px; }

@@ -26,7 +26,9 @@
 	const blockNumbers = $derived.by(() => {
 		// Same rule as the layout's section count: enabled, titled, not a divider
 		const blocks = (data.blocks ?? []) as { id: string; type: string; enabled?: boolean; config: Record<string, unknown> }[];
-		const nums = sectionNumbers(pageNumber, blocks.map((b) => (b.enabled === false || b.type === 'divider' ? null : String(b.config?.heading ?? ''))));
+		// Subpages shown first take the first numbers; sections continue after them
+		const offset = subpagesAt === 'start' ? (data.pages ?? []).filter((p: { parentId: string | null }) => p.parentId === data.page.id).length : 0;
+		const nums = sectionNumbers(pageNumber, blocks.map((b) => (b.enabled === false || b.type === 'divider' ? null : String(b.config?.heading ?? ''))), offset);
 		return new Map(blocks.map((b, i) => [b.id, nums[i]]));
 	});
 	const toc = $derived(
@@ -90,6 +92,7 @@
 	});
 	const landingTitle = $derived(allPages.find(p => p.isLanding)?.title ?? t.home);
 	const currentHref = $derived(pageHref(data.page as NavPage));
+	const subpagesAt = $derived(data.page.subpagesPosition === 'start' ? 'start' : 'end');
 
 	// ── Scroll-spy for ToC ──────────────────────────────────────────────────
 	let activeAnchor = $state<string | null>(null);
@@ -175,6 +178,17 @@
 		{/if}
 
 		<article class="article">
+			{#snippet subpages()}
+				{#if data.childPages?.length}
+					<section class="subpages" class:at-start={subpagesAt === 'start'} aria-labelledby="subpages-heading">
+						<h2 id="subpages-heading" class="subpages-heading">{t.subpages}</h2>
+						<PageCards pages={data.childPages} baseHref={currentHref} previews={data.previews} numbers={chapterNumbers} />
+					</section>
+				{/if}
+			{/snippet}
+
+			{#if subpagesAt === 'start'}{@render subpages()}{/if}
+
 			{#if data.blocks.length}
 				<div class="blocks">
 					{#each data.blocks as block (block.id)}
@@ -195,12 +209,7 @@
 				</section>
 			{/if}
 
-			{#if data.childPages?.length}
-				<section class="subpages" aria-labelledby="subpages-heading">
-					<h2 id="subpages-heading" class="subpages-heading">{t.subpages}</h2>
-					<PageCards pages={data.childPages} baseHref={currentHref} previews={data.previews} numbers={chapterNumbers} />
-				</section>
-			{/if}
+			{#if subpagesAt === 'end'}{@render subpages()}{/if}
 
 			{#if prevPage || nextPage}
 				<nav class="page-nav" aria-label="{t.previous} / {t.next}">
@@ -321,6 +330,8 @@
 
 	/* ── Sub-pages ───────────────────────────────────────────────────────── */
 	.subpages { margin-top: var(--manual-section-gap); }
+	.subpages.at-start { margin-top: 0; }
+	.subpages.at-start:not(:last-child) { margin-bottom: var(--manual-section-gap); }
 	.subpages-heading {
 		margin: 0 0 20px;
 		font-size: var(--text-lg);

@@ -176,6 +176,13 @@
       "when": 1780817683293,
       "tag": "0023_manual_art_direction",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1780817683294,
+      "tag": "0024_subpages_position",
+      "breakpoints": true
     }
   ]
 }
