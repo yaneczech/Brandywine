@@ -26,23 +26,39 @@ function load(): BlockDefinition[] {
 		seen.set(def.type, path);
 		list.push(def);
 	}
-	return list.sort((a, b) =>
-		BLOCK_GROUPS.indexOf(a.group) - BLOCK_GROUPS.indexOf(b.group) || a.order - b.order || a.type.localeCompare(b.type));
+	return list.sort(pickerOrder);
 }
 
-/** All block definitions, in picker order (group, then order). */
+function pickerOrder(a: BlockDefinition, b: BlockDefinition) {
+	return BLOCK_GROUPS.indexOf(a.group) - BLOCK_GROUPS.indexOf(b.group) || a.order - b.order || a.type.localeCompare(b.type);
+}
+
+/** Built-in and compiled-plugin block definitions, in picker order (group, then order). */
 export const blockDefinitions: readonly BlockDefinition[] = load();
 const byType = new Map(blockDefinitions.map((d) => [d.type, d]));
 
-/** Every registered block type. */
+/** Every compiled-in block type. */
 export const BLOCK_TYPES: readonly string[] = blockDefinitions.map((d) => d.type);
 
+// Blocks of runtime plugins (installed in Admin → Plugins) change while the
+// app runs; the server and the root layout keep this list current.
+let runtimeBlocks: BlockDefinition[] = [];
+
+export function setRuntimeBlocks(defs: BlockDefinition[]): void {
+	runtimeBlocks = defs.filter((d) => !byType.has(d.type));
+}
+
+/** All blocks available now, including runtime plugins, in picker order. */
+export function allBlockDefinitions(): BlockDefinition[] {
+	return [...blockDefinitions, ...runtimeBlocks].sort(pickerOrder);
+}
+
 export function getBlockDefinition(type: string): BlockDefinition | undefined {
-	return byType.get(type);
+	return byType.get(type) ?? runtimeBlocks.find((d) => d.type === type);
 }
 
 export function isBlockType(type: unknown): type is string {
-	return typeof type === 'string' && byType.has(type);
+	return typeof type === 'string' && getBlockDefinition(type) !== undefined;
 }
 
 /**
@@ -53,7 +69,7 @@ export function isLandingBlockVisible(block: {
 	type: string; enabled: boolean; config: Record<string, unknown> | null;
 }): boolean {
 	return block.enabled && (
-		Boolean(byType.get(block.type)?.rendersWithoutConfig) || Object.keys(block.config ?? {}).length > 0
+		Boolean(getBlockDefinition(block.type)?.rendersWithoutConfig) || Object.keys(block.config ?? {}).length > 0
 	);
 }
 

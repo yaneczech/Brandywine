@@ -8,7 +8,7 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
 import { manualPages, manualBlocks } from '$db/schema';
 import { eq, asc, max } from 'drizzle-orm';
-import { BLOCK_TYPES } from '$lib/blocks';
+import { isBlockType } from '$lib/blocks';
 import { createId } from '$lib/db/id';
 import { emit } from '$server/events';
 
@@ -43,8 +43,8 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	};
 
 	if (!body.type) error(400, 'type is required');
-	if (!BLOCK_TYPES.includes(body.type)) {
-		error(400, `Unknown block type: ${body.type}. Valid types: ${BLOCK_TYPES.join(', ')}`);
+	if (!isBlockType(body.type)) {
+		error(400, `Unknown block type: ${body.type}`);
 	}
 
 	// Determine sortOrder

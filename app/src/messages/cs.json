@@ -1078,5 +1078,20 @@
 	"webhooks_test_ok": "Test doručen (HTTP {status})",
 	"webhooks_test_failed": "Test se nepodařilo doručit: {error}",
 	"webhooks_never_sent": "Zatím nic neodesláno",
-	"webhooks_delete_title": "Smazat webhook?"
+	"webhooks_delete_title": "Smazat webhook?",
+	"admin_plugins": "Pluginy",
+	"plugins_sub": "Rozšíření nainstalovaná ze souboru .zip. Fungují hned po zapnutí, bez sestavení aplikace.",
+	"plugins_upload": "Nahrát plugin (.zip)",
+	"plugins_uploading": "Nahrávám…",
+	"plugins_installed": "Plugin {name} nainstalován. Zapněte ho v seznamu.",
+	"plugins_trust": "Plugin spouští vlastní kód na serveru s plným přístupem k datům. Instalujte jen pluginy od autorů, kterým věříte.",
+	"plugins_installs_disabled": "Instalace pluginů je na tomto serveru vypnutá (PLUGIN_INSTALLS=disabled). Nainstalované pluginy lze dál zapínat a vypínat.",
+	"plugins_contents": "Bloky: {blocks} · Stránky v adminu: {pages}",
+	"plugins_enabled": "Zapnuto",
+	"plugins_remove": "Odebrat",
+	"plugins_remove_title": "Odebrat plugin {name}?",
+	"plugins_remove_desc": "Smažou se soubory pluginu. Jeho uložená data a bloky na stránkách zůstanou a vrátí se po opětovné instalaci.",
+	"plugins_none": "Zatím žádné nainstalované pluginy.",
+	"plugins_compiled": "Pluginy zabudované při sestavení",
+	"plugins_compiled_hint": "Ze složky plugins/ instalace; mění se v plugins/plugins.json a vyžadují nové sestavení."
 }

@@ -120,15 +120,16 @@ backup_cmd() {
 	mkdir -p "$destination"
 	compose exec -T db pg_dump -U brandywine -d brandywine -Fc > "$destination/database.dump"
 	compose exec -T app tar -czf - -C /uploads . > "$destination/uploads.tar.gz"
+	compose exec -T app tar -czf - -C /runtime-plugins . > "$destination/plugins.tar.gz"
 	{
 		printf 'created_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 		printf 'migration_count=%s\n' "$(compose exec -T db psql -U brandywine -d brandywine -Atc 'SELECT count(*) FROM drizzle.__drizzle_migrations')"
 		printf 'app_image=%s\n' "$(docker inspect -f '{{.Image}}' "$(compose ps -q app)")"
 	} > "$destination/manifest.txt"
 	if command -v sha256sum >/dev/null 2>&1; then
-		(cd "$destination" && sha256sum database.dump uploads.tar.gz > SHA256SUMS)
+		(cd "$destination" && sha256sum database.dump uploads.tar.gz plugins.tar.gz > SHA256SUMS)
 	elif command -v shasum >/dev/null 2>&1; then
-		(cd "$destination" && shasum -a 256 database.dump uploads.tar.gz > SHA256SUMS)
+		(cd "$destination" && shasum -a 256 database.dump uploads.tar.gz plugins.tar.gz > SHA256SUMS)
 	fi
 	printf 'Backup created: %s\n' "$destination"
 }
@@ -150,6 +151,10 @@ restore_cmd() {
 	compose stop app worker
 	compose exec -T db pg_restore -U brandywine -d brandywine --clean --if-exists --no-owner < "$source_dir/database.dump"
 	compose run --rm --no-deps -T --entrypoint sh app -c 'find /uploads -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +; tar -xzf - -C /uploads' < "$source_dir/uploads.tar.gz"
+	# Backups made before runtime plugins existed have no plugins.tar.gz
+	if [ -f "$source_dir/plugins.tar.gz" ]; then
+		compose run --rm --no-deps -T --entrypoint sh app -c 'find /runtime-plugins -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +; tar -xzf - -C /runtime-plugins' < "$source_dir/plugins.tar.gz"
+	fi
 	compose up -d app worker proxy
 	wait_for_app
 	printf 'Restore complete. Safety backup: %s\n' "$safety_backup"
@@ -172,7 +177,7 @@ usage() {
 		'' \
 		'  ./brandywine install [domain]       Generate config and start the stack' \
 		'  ./brandywine doctor                 Validate config, services and storage' \
-		'  ./brandywine backup [directory]     Back up database and uploads' \
+		'  ./brandywine backup [directory]     Back up database, uploads and plugins' \
 		'  ./brandywine restore directory      Restore with a safety backup' \
 		'  ./brandywine update                 Back up, rebuild and restart' \
 		'  ./brandywine start|stop|restart     Control services' \

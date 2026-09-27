@@ -1078,5 +1078,20 @@
 	"webhooks_test_ok": "Test delivered (HTTP {status})",
 	"webhooks_test_failed": "Test delivery failed: {error}",
 	"webhooks_never_sent": "Nothing sent yet",
-	"webhooks_delete_title": "Delete webhook?"
+	"webhooks_delete_title": "Delete webhook?",
+	"admin_plugins": "Plugins",
+	"plugins_sub": "Extensions installed from a .zip file. They work as soon as you enable them, without rebuilding the app.",
+	"plugins_upload": "Upload plugin (.zip)",
+	"plugins_uploading": "Uploading…",
+	"plugins_installed": "Plugin {name} installed. Enable it in the list.",
+	"plugins_trust": "A plugin runs its own code on the server with full access to your data. Install only plugins from authors you trust.",
+	"plugins_installs_disabled": "Installing plugins is turned off on this server (PLUGIN_INSTALLS=disabled). Installed plugins can still be enabled and disabled.",
+	"plugins_contents": "Blocks: {blocks} · Admin pages: {pages}",
+	"plugins_enabled": "Enabled",
+	"plugins_remove": "Remove",
+	"plugins_remove_title": "Remove plugin {name}?",
+	"plugins_remove_desc": "The plugin’s files are deleted. Its stored data and the blocks on your pages stay and come back if you install it again.",
+	"plugins_none": "No plugins installed yet.",
+	"plugins_compiled": "Built-in plugins",
+	"plugins_compiled_hint": "From the installation’s plugins/ folder; managed in plugins/plugins.json and applied by a rebuild."
 }

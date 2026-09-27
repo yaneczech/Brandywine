@@ -200,6 +200,7 @@
 							styleRows={data.styleRows ?? []}
 							fontFileRows={data.fontFileRows ?? []}
 							assetRows={data.assetRows ?? []}
+							html={data.runtimeHtml?.[block.id]}
 						/>
 					{/each}
 				</div>

@@ -6,6 +6,8 @@
 	import DialogHost from '$lib/components/ui/DialogHost.svelte';
 	import { IconLogout, IconMenu2, IconExternalLink, IconBook2 } from '$lib/icons';
 	import { adminNav } from '$lib/modules';
+	import { runtimeModules } from '$lib/plugins/runtime';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import type { IconComponent } from '$lib/icons';
 	const { children, data } = $props();
 
@@ -26,7 +28,8 @@
 	// Brand as UI accent on the admin background: same hue, ≥ 3:1
 	const uiBrand = $derived(ensureContrast(primaryColor, '#f7f7f5'));
 	// Sidebar from the module registry (src/lib/modules); $derived so labels follow the language
-	const navGroups = $derived(adminNav(data.user?.role).map((g) => ({
+	const runtime = $derived(runtimeModules((data.runtimePlugins ?? []).map((p) => p.manifest), getLocale));
+	const navGroups = $derived(adminNav(data.user?.role, runtime).map((g) => ({
 		label: g.label,
 		items: g.items.map((mod) => ({ href: mod.href, label: mod.label(), icon: mod.icon })),
 	})));

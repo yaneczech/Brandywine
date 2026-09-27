@@ -15,3 +15,6 @@ backups/
 .claude/
 test-results/
 playwright-report/
+
+# Runtime plugins installed in development
+runtime-plugins/

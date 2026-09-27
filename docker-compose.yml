@@ -12,6 +12,9 @@ services:
       DATABASE_URL: postgresql://brandywine:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/brandywine
       REDIS_URL: redis://redis:6379
       UPLOAD_DIR: /uploads
+      # Runtime plugins installed in Admin → Plugins; PLUGIN_INSTALLS=disabled turns uploads off
+      RUNTIME_PLUGINS_DIR: /runtime-plugins
+      PLUGIN_INSTALLS: ${PLUGIN_INSTALLS:-enabled}
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
       APP_URL: ${APP_URL:-}
       ORIGIN: ${APP_URL:-}
@@ -23,6 +26,7 @@ services:
       NODE_ENV: production
     volumes:
       - uploads:/uploads
+      - runtime_plugins:/runtime-plugins
     depends_on:
       db:
         condition: service_healthy
@@ -101,6 +105,7 @@ services:
 
 volumes:
   uploads:
+  runtime_plugins:
   db_data:
   redis_data:
   caddy_data:

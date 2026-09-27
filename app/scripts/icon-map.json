@@ -8,7 +8,7 @@
  "IconChevronRight": "chevron_right", "IconChevronUp": "keyboard_arrow_up", "IconCircleCheck": "check_circle", "IconCircleX": "cancel",
  "IconCode": "code", "IconContrast": "contrast", "IconCopy": "content_copy", "IconCornerDownLeft": "keyboard_return",
  "IconDeviceDesktop": "desktop_windows", "IconDotsVertical": "more_vert", "IconDownload": "download", "IconEdit": "edit",
- "IconExclamationCircle": "error", "IconExternalLink": "open_in_new", "IconEye": "visibility", "IconEyeOff": "visibility_off",
+ "IconExclamationCircle": "error", "IconExtension": "extension", "IconExternalLink": "open_in_new", "IconEye": "visibility", "IconEyeOff": "visibility_off",
  "IconFile": "draft", "IconFileDownload": "file_save", "IconFileText": "description", "IconFileTypePdf": "picture_as_pdf",
  "IconFileZip": "folder_zip", "IconFolder": "folder", "IconFolderPlus": "create_new_folder", "IconFolders": "folder_copy",
  "IconGlobe": "language", "IconGridDots": "grid_on", "IconGripVertical": "drag_indicator", "IconIcons": "interests",

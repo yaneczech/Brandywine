@@ -1,5 +1,7 @@
 import { hasRole } from '$lib/auth/roles';
 import { moduleForPath } from '$lib/modules';
+import { runtimeModules } from '$lib/plugins/runtime';
+import { runtimePluginInfo } from '$server/runtime-plugins';
 import type { LayoutServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/db';
@@ -47,7 +49,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		redirect(302, '/');
 	}
 	// Each admin module declares the lowest role that may open it
-	const mod = moduleForPath(url.pathname);
+	const runtime = runtimeModules((await runtimePluginInfo()).map((p) => p.manifest), () => 'en');
+	const mod = moduleForPath(url.pathname, runtime);
 	if (mod && !hasRole(locals.user.role, mod.minRole ?? 'editor')) {
 		redirect(302, '/admin');
 	}

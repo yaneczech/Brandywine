@@ -1,11 +1,13 @@
 /**
  * Announce that something changed: runs the `on` handlers of active plugins
+ * (compiled and runtime)
  * and delivers webhooks. Fire-and-forget — the request that caused the event
  * never waits for, or fails because of, a handler.
  */
 import type { BrandywineEventName, BrandywineEvents } from '$lib/events';
 import { serverPlugins } from './plugins';
 import { deliverToWebhooks } from './webhooks';
+import { activeRuntimePlugins, pluginContext } from './runtime-plugins';
 
 export function emit<E extends BrandywineEventName>(event: E, payload: BrandywineEvents[E]): void {
 	void dispatch(event, payload);
@@ -19,6 +21,13 @@ export async function dispatch<E extends BrandywineEventName>(event: E, payload:
 		if (!handler) continue;
 		jobs.push(Promise.resolve()
 			.then(() => handler(payload))
+			.catch((e) => console.error(`[plugin ${plugin.id}] ${event} handler failed:`, e)));
+	}
+	for (const plugin of await activeRuntimePlugins()) {
+		const handler = plugin.server?.on?.[event];
+		if (!handler) continue;
+		jobs.push(Promise.resolve()
+			.then(() => handler(payload, pluginContext(plugin)))
 			.catch((e) => console.error(`[plugin ${plugin.id}] ${event} handler failed:`, e)));
 	}
 	jobs.push(deliverToWebhooks(event, payload).catch((e) => console.error(`[webhooks] ${event} failed:`, e)));

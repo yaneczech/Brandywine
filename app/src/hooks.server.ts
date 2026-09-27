@@ -7,6 +7,7 @@ import { db } from '$lib/db';
 import { brandSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getLangCache, setLangCache } from '$lib/server/lang-cache';
+import { activeRuntimePlugins } from '$lib/server/runtime-plugins';
 
 type LanguageTag = (typeof locales)[number];
 
@@ -69,4 +70,11 @@ const authHandle: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
-export const handle: Handle = sequence(languageHandle, authHandle);
+// Runtime plugins (Admin → Plugins) register their blocks before anything
+// reads the block registry; loaded once, then cached until a plugin changes.
+const pluginsHandle: Handle = async ({ event, resolve }) => {
+	await activeRuntimePlugins();
+	return resolve(event);
+};
+
+export const handle: Handle = sequence(pluginsHandle, languageHandle, authHandle);

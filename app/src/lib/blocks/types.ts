@@ -57,6 +57,8 @@ export type BlockRenderProps = {
 	data: BlockData;
 	/** Anchor id of the block (only blocks without the shell need it) */
 	anchorId?: string;
+	/** Server-rendered HTML of a runtime-plugin block */
+	html?: string;
 };
 
 /** Brand data available to the block editor in the admin. */

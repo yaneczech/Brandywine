@@ -4,6 +4,7 @@ import { db } from '$lib/db';
 import { manualPages, manualBlocks, colors, colorPalettes, typographyFonts, typographyStyles, typographyFontFiles, assets } from '$lib/db/schema';
 import { eq, asc, inArray, and } from 'drizzle-orm';
 import { pagePreviews } from '$server/page-previews';
+import { renderRuntimeBlocks } from '$server/runtime-plugins';
 
 export const load: PageServerLoad = async ({ params }) => {
 	// slug = 'loga' or 'loga/pouziti' etc.
@@ -58,7 +59,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	const needsAssets = blocks.some(b => ['image_gallery', 'carousel', 'icons', 'asset_gallery', 'download'].includes(b.type));
 
 	const [colorRows, paletteRows, fontRows, styleRows, fontFileRows, assetRows] = await Promise.all([
-		needsColors ? db.select().from(colors).orderBy(asc(colors.order)) : Promise.resolve([]),
+		needsColors ? db.select().from(colors).orderBy(asc(colors.order), asc(colors.name)) : Promise.resolve([]),
 		needsColors ? db.select().from(colorPalettes).orderBy(asc(colorPalettes.order)) : Promise.resolve([]),
 		needsTypo   ? db.select().from(typographyFonts).orderBy(asc(typographyFonts.order)) : Promise.resolve([]),
 		needsTypo   ? db.select().from(typographyStyles).orderBy(asc(typographyStyles.order)) : Promise.resolve([]),
@@ -72,5 +73,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	const previews = await pagePreviews(childPages.map(p => p.id));
 
-	return { page, blocks, childPages, previews, colorRows, paletteRows, fontRows, styleRows, fontFileRows, assetRows };
+	// HTML of blocks from runtime plugins, rendered by the plugins on the server
+	const runtimeHtml = await renderRuntimeBlocks(blocks);
+	return { page, blocks, childPages, previews, colorRows, paletteRows, fontRows, styleRows, fontFileRows, assetRows, runtimeHtml };
 };

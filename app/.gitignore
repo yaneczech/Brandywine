@@ -25,3 +25,6 @@ vite.config.ts.timestamp-*
 
 # Temporary node_modules leftovers (iCloud recovery)
 node_modules.*
+
+# Runtime plugins installed in development
+runtime-plugins/
