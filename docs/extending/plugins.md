@@ -1,6 +1,13 @@
 # Plugins
 
-A plugin extends a Brandywine installation without changing its code. Plugins
+Brandywine has two kinds of plugins:
+
+- **Compiled plugins** (this page) — a folder in `plugins/`, compiled into the
+  app; full access to the app's code, applied by a rebuild.
+- **[Runtime plugins](runtime-plugins.md)** — a zip uploaded in
+  Admin → Plugins; work immediately, no rebuild.
+
+A compiled plugin extends a Brandywine installation without changing its code. Plugins
 live in the installation's `plugins/` folder (next to `app/`), one folder per
 plugin, and are switched on in `plugins/plugins.json`. They are compiled into
 the app, so **enabling, disabling or changing a plugin needs a rebuild**:

@@ -85,7 +85,8 @@ editing existing ones.
 | a new admin section | `app/src/lib/modules/<id>/` + `app/src/routes/admin/<id>/` | [Modules](extending/modules.md) |
 | background processing | `worker/src/processors/` + an entry in `worker/src/queues.ts` | [Worker queues](extending/worker.md) |
 | a UI language | `app/src/messages/<lang>.json` + manual strings | [Languages](extending/languages.md) |
-| any of the above without touching the code, or event handlers | a folder in `plugins/` | [Plugins](extending/plugins.md) |
+| any of the above without touching the code, or event handlers | a folder in `plugins/` (compiled in) | [Plugins](extending/plugins.md) |
+| an extension people install without a rebuild | a zip in Admin → Plugins | [Runtime plugins](extending/runtime-plugins.md) |
 | notify another service when something changes | Admin → Settings → Webhooks | [Webhooks](extending/plugins.md#webhooks) |
 
 ## Events
@@ -110,6 +111,7 @@ The schema lives in `app/src/lib/db/schema/`, one file per area:
 | `users.ts`, `teams.ts` | users, sessions, teams, team members, permissions and invitations |
 | `shareLinks.ts`, `analytics.ts` | share links, usage events |
 | `webhooks.ts` | outgoing webhooks |
+| `plugins.ts` | installed runtime plugins, plugin key-value storage |
 
 A block's `config` is free-form JSON owned by its block type; the database
 only stores it. Schema changes need a migration:

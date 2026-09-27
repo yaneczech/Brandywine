@@ -11,6 +11,7 @@
 - [Adding a worker queue](extending/worker.md)
 - [Languages and translations](extending/languages.md)
 - [Plugins, events and webhooks](extending/plugins.md)
+- [Runtime plugins (install from a zip, no rebuild)](extending/runtime-plugins.md)
 
 ## Contributing
 

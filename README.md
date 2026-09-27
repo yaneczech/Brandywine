@@ -200,6 +200,9 @@ than edits to existing code:
 - **Plugins** — blocks, admin sections, API routes and event handlers in the
   installation's `plugins/` folder, without touching the code; **webhooks**
   notify other services of changes. [Guide](./docs/extending/plugins.md)
+- **Runtime plugins** — a zip uploaded in Admin → Plugins that works at once,
+  without a rebuild: blocks with generated editors, admin pages, API and
+  events. [Guide](./docs/extending/runtime-plugins.md)
 
 ## Stack
 
