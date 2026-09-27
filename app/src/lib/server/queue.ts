@@ -1,3 +1,7 @@
+/**
+ * Background jobs for the media worker. Queue names must match the
+ * definitions in worker/src/queues.ts, which process them.
+ */
 import { Queue } from 'bullmq';
 import { env } from '$env/dynamic/private';
 
