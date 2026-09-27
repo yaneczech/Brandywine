@@ -8,6 +8,15 @@ releases may include breaking changes, listed under **Changed**.
 
 ### Added
 
+- One-line installer (`install.sh`) and an interactive `./brandywine install`
+  wizard: checks the machine, asks for a domain or local use, checks DNS and
+  ports, optionally sets up e-mail, generates secrets and starts everything
+- Welcome wizard after the first account: brand name, colour, logo, manual
+  language, access and an optional example manual in the brand's colours
+- Ready-made app and worker images published to GitHub Container Registry on
+  every release; installs fall back to building from source
+- `./brandywine uninstall [--purge]`; `update` follows releases; `doctor`
+  checks migrations against the installed version
 - Plugins: compiled plugins in the installation's `plugins/` folder, and
   runtime plugins uploaded as a zip in Admin → Plugins that work without a
   rebuild (blocks with generated editors, admin pages, API routes, event

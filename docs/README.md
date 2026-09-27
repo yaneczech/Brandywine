@@ -1,5 +1,6 @@
 # Brandywine documentation
 
+- [Installation](INSTALL.md) — install, operate, update, troubleshoot
 - [Architecture](architecture.md) — services, repository layout, request flow, data model
 - [Design codex](../DESIGN.md) — binding UI rules and the design audit
 - [Roadmap](ROADMAP.md) (in Czech)

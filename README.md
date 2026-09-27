@@ -140,58 +140,28 @@ flowchart LR
 
 ## Quick start
 
-You need a Linux server (or a Mac) with Docker and Docker Compose v2.
+On a Linux server or a Mac with Docker:
 
 ```bash
-git clone https://github.com/yaneczech/Brandywine.git
-cd Brandywine
-./brandywine install brand.example.com
+curl -fsSL https://raw.githubusercontent.com/yaneczech/Brandywine/main/install.sh | sh
 ```
 
-The installer creates `.env` with cryptographically random secrets, validates
-Docker and Compose, builds the application, runs database migrations, waits for
-PostgreSQL and Redis, and reports when the application is ready. Use `localhost`
-instead of a domain for a local installation.
+The installer checks the computer, asks whether Brandywine should run on a
+domain (with automatic HTTPS) or only locally, optionally sets up e-mail, and
+starts everything. Then open the printed address: a short wizard creates your
+account, sets up your brand and can fill the manual with an example in your
+colours.
 
-The production stack is the default: application, compiled media worker,
-PostgreSQL, Redis and Caddy start together, migrations run automatically, and
-services restart after a reboot. Development is opt-in:
+Backups, updates, health checks and uninstalling are one command each:
 
 ```bash
-docker compose -f docker-compose.yml -f compose.dev.yml up --build
-```
-
-When ports 80 or 443 are already occupied locally, set `HTTP_PORT=8080`,
-`HTTPS_PORT=8443`, `APP_URL=http://localhost:8080`, and
-`CADDYFILE=./Caddyfile.local` in `.env`. The local Caddy configuration serves
-HTTP without requiring a locally trusted certificate; production keeps HTTPS
-and automatic redirects.
-
-Open the manual and admin:
-
-```text
-https://brand.example.com/
-https://brand.example.com/admin
-```
-
-On a fresh install, Brandywine will guide you through creating the first admin account.
-
-### Operations
-
-The same utility covers routine self-hosting without knowledge of Docker internals:
-
-```bash
-./brandywine doctor
 ./brandywine backup
 ./brandywine update
-./brandywine restore backups/20260821T120000Z
-./brandywine logs
+./brandywine doctor
 ```
 
-Backups contain a PostgreSQL custom-format dump, all uploaded files, installed
-runtime plugins, a manifest, and SHA-256 checksums. Restore first creates an automatic safety backup and
-requires explicit confirmation. Keep the `backups/` directory outside the server
-or copy it to separate storage for disaster recovery.
+The [installation guide](./docs/INSTALL.md) covers the options, non-interactive
+installs, operations and troubleshooting.
 
 ## Development
 
