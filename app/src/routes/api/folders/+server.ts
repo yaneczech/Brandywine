@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
 import { folders, assets } from '$db/schema';
-import { eq, sql, count } from 'drizzle-orm';
+import { eq, count } from 'drizzle-orm';
 
 // GET /api/folders — flat list with asset counts (client builds tree)
 export const GET: RequestHandler = async ({ locals }) => {

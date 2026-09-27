@@ -1,3 +1,4 @@
+import * as m from '$lib/paraglide/messages';
 import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
 import { db } from '$db';
@@ -27,13 +28,13 @@ export const actions: Actions = {
 		const password = form.get('password')?.toString() ?? '';
 		const confirm  = form.get('confirm')?.toString() ?? '';
 
-		if (!token) return fail(400, { error: 'Chybí token.' });
-		if (password.length < 8) return fail(400, { error: 'Heslo musí mít alespoň 8 znaků.', token });
-		if (password !== confirm) return fail(400, { error: 'Hesla se neshodují.', token });
+		if (!token) return fail(400, { error: m.auth_err_missing_token() });
+		if (password.length < 8) return fail(400, { error: m.auth_err_password_short(), token });
+		if (password !== confirm) return fail(400, { error: m.auth_err_password_mismatch(), token });
 
 		const [user] = await db.select().from(users).where(eq(users.magicToken, token)).limit(1);
 		if (!user?.magicTokenExpiresAt || user.magicTokenExpiresAt < new Date()) {
-			return fail(400, { error: 'Odkaz vypršel nebo je neplatný. Požádejte o nový.', token });
+			return fail(400, { error: m.auth_err_link_expired(), token });
 		}
 
 		const passwordHash = await hashPassword(password);

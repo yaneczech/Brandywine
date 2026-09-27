@@ -1,12 +1,24 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
+	import { BLOCK_TYPES } from '$lib/manual/blockTypes';
+	import { blockLabel, blockDesc } from '$lib/manual/blockLabels';
 	import type { PageData } from './$types';
-	import { invalidateAll } from '$app/navigation';
 	import {
 		IconArrowLeft, IconPlus, IconTrash, IconGripVertical, IconX,
 		IconEye, IconEyeOff, IconChevronUp, IconChevronDown, IconSettings,
-		IconCheck, IconPhoto, IconExternalLink
+		IconCheck, IconPhoto, IconExternalLink, IconSearch,
+		IconAlignLeft, IconLayoutColumns, IconQuote, IconInfoCircle, IconLayoutList,
+		IconLayoutGrid, IconSlideshow, IconArrowsHorizontal, IconPlayerPlay,
+		IconPalette, IconTypography, IconLetterCase, IconBadge, IconGridDots, IconThumbUp,
+		IconAbc, IconTextSpellcheck, IconIcons, IconStairs, IconChartRadar,
+		IconCards, IconNumbers, IconTable, IconLink, IconSeparator,
+		IconFolders, IconDownload, IconCode, IconBrackets, IconChartPie, IconContrast, IconPointer, IconFileDownload, IconTableOptions
 	} from '@tabler/icons-svelte';
-	import { BLOCK_TYPES } from '$lib/manual/blockTypes';
+	import Modal from '$lib/components/ui/Modal.svelte';
+	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import { toast } from '$lib/ui/toast.svelte';
+	import { onMount, tick } from 'svelte';
 	import BlockConfigPanel from './BlockConfigPanel.svelte';
 	import BlockPrimaryEditor from './BlockPrimaryEditor.svelte';
 	import AssetPickerModal from '$lib/components/admin/AssetPickerModal.svelte';
@@ -29,7 +41,6 @@
 	// svelte-ignore state_referenced_locally
 	let brandColors = $state<BrandColor[]>((data.brandColors ?? []) as BrandColor[]);
 	let saving = $state(false);
-	let errMsg = $state('');
 
 	// Page settings panel
 	let showPageSettings = $state(false);
@@ -89,7 +100,9 @@
 	let editingCfg    = $state<Record<string, unknown>>({});
 	let editingAnchor = $state('');
 
-	$effect(() => {
+	// .pre: the config must be in place before the block editors render, since
+	// they seed their local list state from it once per block.
+	$effect.pre(() => {
 		const b = editingBlock;
 		if (b) {
 			editingCfg    = { ...b.config };
@@ -102,46 +115,97 @@
 		await saveBlockConfig(editingBlock.id, editingCfg, editingAnchor);
 	}
 
+	// Deep links from the manual audit: ?block=<id> opens that block, ?settings=1 the hero panel
+	onMount(async () => {
+		const params = new URLSearchParams(location.search);
+		const blockId = params.get('block');
+		if (params.get('settings')) showPageSettings = true;
+		if (blockId && blocks.some(b => b.id === blockId)) {
+			editingBlockId = blockId;
+			await tick();
+			document.querySelector('.block-row.active')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		}
+	});
+
 	// Delete confirm
 	let confirmDeleteId = $state<string | null>(null);
 
 	// ── Block type labels ──────────────────────────────────────────────────────
-	const BLOCK_LABELS: Record<string, string> = {
-		rich_text:    'Formátovaný text',
-		image:        'Obrázek',
-		image_gallery:'Galerie obrázků',
-		carousel:     'Karusel',
-		before_after: 'Before / After',
-		colors:       'Barvy',
-		typography:   'Typografie',
-		text_styles:  'Kombinace stylů',
-		grid:         'Grid & zarovnání',
-		logo_spec:    'Specifikace loga',
-		do_dont:      'Do / Don\'t',
-		naming:       'Psaní názvů',
-		icons:        'Ikony',
-		process:      'Proces tvorby',
-		chart:        'Graf (radar)',
-		table:        'Tabulka',
-		asset_gallery:'Galerie assets',
-		download:     'Ke stažení',
-		accordion:    'Accordion (FAQ)',
-		cards:        'Kartičky',
-		html:         'HTML blok',
-		code:         'Kódový blok',
-		divider:      'Oddělovač',
+	const BLOCK_LABELS: Record<string, string> = Object.fromEntries(BLOCK_TYPES.map((t) => [t, blockLabel(t)]));
+
+	// Icon + one-line description for the block picker
+	const BLOCK_META: Record<string, { icon: typeof IconAlignLeft; desc: string }> = {
+		rich_text:     { icon: IconAlignLeft,        desc: blockDesc('rich_text') },
+		text_image:    { icon: IconLayoutColumns,    desc: blockDesc('text_image') },
+		quote:         { icon: IconQuote,            desc: blockDesc('quote') },
+		callout:       { icon: IconInfoCircle,       desc: blockDesc('callout') },
+		accordion:     { icon: IconLayoutList,       desc: blockDesc('accordion') },
+		image:         { icon: IconPhoto,            desc: blockDesc('image') },
+		image_gallery: { icon: IconLayoutGrid,       desc: blockDesc('image_gallery') },
+		carousel:      { icon: IconSlideshow,        desc: blockDesc('carousel') },
+		before_after:  { icon: IconArrowsHorizontal, desc: blockDesc('before_after') },
+		embed:         { icon: IconPlayerPlay,       desc: blockDesc('embed') },
+		colors:        { icon: IconPalette,          desc: blockDesc('colors') },
+		typography:    { icon: IconTypography,       desc: blockDesc('typography') },
+		text_styles:   { icon: IconLetterCase,       desc: blockDesc('text_styles') },
+		logo_spec:     { icon: IconBadge,            desc: blockDesc('logo_spec') },
+		grid:          { icon: IconGridDots,         desc: blockDesc('grid') },
+		do_dont:       { icon: IconThumbUp,          desc: blockDesc('do_dont') },
+		naming:        { icon: IconAbc,              desc: blockDesc('naming') },
+		typo_rules:    { icon: IconTextSpellcheck,   desc: blockDesc('typo_rules') },
+		icons:         { icon: IconIcons,            desc: blockDesc('icons') },
+		process:       { icon: IconStairs,           desc: blockDesc('process') },
+		chart:         { icon: IconChartRadar,       desc: blockDesc('chart') },
+		cards:         { icon: IconCards,            desc: blockDesc('cards') },
+		stats:         { icon: IconNumbers,          desc: blockDesc('stats') },
+		table:         { icon: IconTable,            desc: blockDesc('table') },
+		links:         { icon: IconLink,             desc: blockDesc('links') },
+		divider:       { icon: IconSeparator,        desc: blockDesc('divider') },
+		asset_gallery: { icon: IconFolders,          desc: blockDesc('asset_gallery') },
+		download:      { icon: IconDownload,         desc: blockDesc('download') },
+		html:          { icon: IconBrackets,         desc: blockDesc('html') },
+		code:          { icon: IconCode,             desc: blockDesc('code') },
+		color_ratio:   { icon: IconChartPie,         desc: blockDesc('color_ratio') },
+		contrast_checker: { icon: IconContrast,      desc: blockDesc('contrast_checker') },
+		hotspots:      { icon: IconPointer,          desc: blockDesc('hotspots') },
+		logo_download: { icon: IconFileDownload,     desc: blockDesc('logo_download') },
+		font_usage:    { icon: IconTableOptions,     desc: blockDesc('font_usage') },
 	};
+
+	let pickerQuery = $state('');
+	function normalizeQuery(value: string) {
+		return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+	}
+	const pickerGroups = $derived.by(() => {
+		const q = normalizeQuery(pickerQuery.trim());
+		if (!q) return PICKER_GROUPS;
+		return PICKER_GROUPS
+			.map((group) => ({
+				...group,
+				types: group.types.filter((type) =>
+					normalizeQuery(`${BLOCK_LABELS[type] ?? type} ${BLOCK_META[type]?.desc ?? ''} ${type}`).includes(q)
+				),
+			}))
+			.filter((group) => group.types.length);
+	});
+	function openBlockPicker(afterIdx: number | null) {
+		insertAfterIdx = afterIdx;
+		pickerQuery = '';
+		showPicker = true;
+	}
 
 	// Group block types for the picker
 	const PICKER_GROUPS = [
-		{ label: 'Obsah',     types: ['rich_text', 'image', 'image_gallery', 'carousel', 'before_after'] },
-		{ label: 'Brand',     types: ['colors', 'typography', 'text_styles', 'grid', 'logo_spec', 'do_dont', 'naming', 'icons', 'process', 'chart'] },
-		{ label: 'Data',      types: ['table', 'asset_gallery', 'download', 'accordion', 'cards'] },
-		{ label: 'Pokročilé', types: ['html', 'code', 'divider'] },
+		{ label: m.picker_group_text(),      types: ['rich_text', 'text_image', 'quote', 'callout', 'accordion'] },
+		{ label: m.picker_group_media(),     types: ['image', 'hotspots', 'image_gallery', 'carousel', 'before_after', 'embed'] },
+		{ label: m.picker_group_brand(),     types: ['logo_download', 'colors', 'color_ratio', 'contrast_checker', 'typography', 'font_usage', 'text_styles', 'logo_spec', 'grid', 'do_dont', 'naming', 'typo_rules', 'icons', 'process', 'chart'] },
+		{ label: m.picker_group_structure(), types: ['cards', 'stats', 'table', 'links', 'divider'] },
+		{ label: m.picker_group_files(),   types: ['asset_gallery', 'download'] },
+		{ label: m.picker_group_advanced(), types: ['html', 'code'] },
 	];
 
 	// ── API helpers ───────────────────────────────────────────────────────────
-	async function apiFetch(url: string, opts: RequestInit) {
+	async function apiFetch(url: string, opts: Parameters<typeof fetch>[1]) {
 		const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
 		if (!r.ok) {
 			const txt = await r.text().catch(() => r.statusText);
@@ -158,7 +222,7 @@
 	}
 
 	async function addBlock(type: string) {
-		saving = true; errMsg = '';
+		saving = true;
 		try {
 			const afterId = insertAfterIdx !== null ? blocks[insertAfterIdx]?.id : undefined;
 			const block = await apiFetch(`/api/manual/pages/${page.id}/blocks`, {
@@ -175,7 +239,7 @@
 			showPicker = false;
 			editingBlockId = block.id; // immediately open config
 		} catch (e: unknown) {
-			errMsg = e instanceof Error ? e.message : String(e);
+			toast.error(e instanceof Error ? e.message : String(e));
 		} finally {
 			saving = false;
 		}
@@ -187,7 +251,7 @@
 		if (dir === 'down' && idx === blocks.length - 1) return;
 
 		const other = dir === 'up' ? blocks[idx - 1] : blocks[idx + 1];
-		saving = true; errMsg = '';
+		saving = true;
 		try {
 			await apiFetch(`/api/manual/blocks/${id}`, {
 				method: 'PATCH',
@@ -202,14 +266,14 @@
 			}
 			blocks = newBlocks;
 		} catch (e: unknown) {
-			errMsg = e instanceof Error ? e.message : String(e);
+			toast.error(e instanceof Error ? e.message : String(e));
 		} finally {
 			saving = false;
 		}
 	}
 
 	async function toggleBlockEnabled(block: Block) {
-		saving = true; errMsg = '';
+		saving = true;
 		try {
 			const updated = await apiFetch(`/api/manual/blocks/${block.id}`, {
 				method: 'PATCH',
@@ -217,21 +281,21 @@
 			}) as Block;
 			blocks = blocks.map(b => b.id === block.id ? updated : b);
 		} catch (e: unknown) {
-			errMsg = e instanceof Error ? e.message : String(e);
+			toast.error(e instanceof Error ? e.message : String(e));
 		} finally {
 			saving = false;
 		}
 	}
 
 	async function deleteBlock(id: string) {
-		saving = true; errMsg = '';
+		saving = true;
 		try {
 			await apiFetch(`/api/manual/blocks/${id}`, { method: 'DELETE' });
 			blocks = blocks.filter(b => b.id !== id);
 			confirmDeleteId = null;
 			if (editingBlockId === id) editingBlockId = null;
 		} catch (e: unknown) {
-			errMsg = e instanceof Error ? e.message : String(e);
+			toast.error(e instanceof Error ? e.message : String(e));
 		} finally {
 			saving = false;
 		}
@@ -239,7 +303,7 @@
 
 	// Save page-level settings and hero content.
 	async function savePageSettings() {
-		saving = true; errMsg = '';
+		saving = true;
 		try {
 			const updated = await apiFetch(`/api/manual/pages/${page.id}`, {
 				method: 'PATCH',
@@ -255,7 +319,7 @@
 			page = updated;
 			showPageSettings = false;
 		} catch (e: unknown) {
-			errMsg = e instanceof Error ? e.message : String(e);
+			toast.error(e instanceof Error ? e.message : String(e));
 		} finally {
 			saving = false;
 		}
@@ -263,7 +327,7 @@
 
 	// Save block config + anchor
 	async function saveBlockConfig(blockId: string, config: Record<string, unknown>, anchor?: string) {
-		saving = true; errMsg = '';
+		saving = true;
 		try {
 			const { __anchor, ...cleanConfig } = config;
 			const resolvedAnchor = anchor !== undefined ? anchor : (typeof __anchor === 'string' ? __anchor : undefined);
@@ -276,7 +340,7 @@
 			}) as Block;
 			blocks = blocks.map(b => b.id === blockId ? updated : b);
 		} catch (e: unknown) {
-			errMsg = e instanceof Error ? e.message : String(e);
+			toast.error(e instanceof Error ? e.message : String(e));
 		} finally {
 			saving = false;
 		}
@@ -288,17 +352,17 @@
 	<div class="main-col">
 		<!-- Header -->
 		<div class="page-header">
-			<a href="/admin/manual" class="back-btn"><IconArrowLeft size={18} /> Stránky</a>
+			<a href="/admin/manual" class="back-btn"><IconArrowLeft size={16} stroke={1.5} /> {m.audit_back()}</a>
 			<div class="page-info">
 				<h1>{page.title}</h1>
 				<span class="page-slug muted">/manual/{page.slug}</span>
 			</div>
-			<a href="/manual/{page.slug}" target="_blank" rel="noopener" class="btn-ghost preview-btn" title="Zobrazit v manuálu">
-				<IconExternalLink size={15} /> Zobrazit
+			<a href="/manual/{page.slug}" target="_blank" rel="noopener" class="btn-ghost preview-btn" title={m.editor_view_in_manual()}>
+				<IconExternalLink size={15} stroke={1.5} /> {m.common_view()}
 			</a>
 			<button class="btn-ghost settings-btn" class:active={showPageSettings}
-				onclick={() => showPageSettings = !showPageSettings} title="Nastavení stránky">
-				<IconSettings size={16} /> Hero a stránka
+				onclick={() => showPageSettings = !showPageSettings} title={m.editor_page_settings()}>
+				<IconSettings size={16} /> {m.editor_hero_and_page()}
 			</button>
 		</div>
 
@@ -307,28 +371,28 @@
 			<div class="page-settings-panel">
 				<div class="settings-section">
 					<div class="settings-section-meta">
-						<h2>Hero sekce</h2>
-						<p>Nadpis a perex, které se zobrazují nahoře ve veřejném manuálu.</p>
+						<h2>{m.editor_hero_title()}</h2>
+						<p>{m.editor_hero_sub()}</p>
 					</div>
 					<div class="settings-fields">
 						<label class="field">
-							<span class="field-label">Nadpis hero</span>
-							<input type="text" bind:value={pageTitle} placeholder="Název stránky" />
+							<span class="field-label">{m.editor_hero_heading()}</span>
+							<input type="text" bind:value={pageTitle} placeholder={m.editor_hero_heading_placeholder()} />
 						</label>
 						<label class="field">
-							<span class="field-label">Popisek hero</span>
-							<textarea rows="3" bind:value={pageDescription} placeholder="Krátký úvod k této části manuálu…"></textarea>
+							<span class="field-label">{m.editor_hero_lead()}</span>
+							<textarea rows="3" bind:value={pageDescription} placeholder={m.editor_hero_lead_placeholder()}></textarea>
 						</label>
 					</div>
 				</div>
 				<div class="settings-row">
 					<!-- Feature image -->
 					<div class="field fi-field">
-						<span class="field-label">Hero obrázek</span>
+						<span class="field-label">{m.editor_hero_image()}</span>
 						<div class="fi-input-row">
 							<input type="text" bind:value={pageFeatureImage} placeholder="/uploads/…" class="fi-url-input" />
-							<button class="btn-ghost fi-pick-btn" onclick={() => showAssetPicker = true} title="Vybrat z assetů">
-								<IconPhoto size={15} /> Vybrat
+							<button class="btn-ghost fi-pick-btn" onclick={() => showAssetPicker = true} title={m.editor_pick_asset()}>
+								<IconPhoto size={15} stroke={1.5} /> {m.be_choose()}
 							</button>
 						</div>
 						<!-- 3:2 preview -->
@@ -342,7 +406,7 @@
 						</div>
 						{#if pageFeatureImage}
 							<div class="bg-size-row">
-								{#each [['cover','Cover'], ['contain','Contain'], ['tile','Tile']] as [val, label]}
+				{#each [['cover','Cover'], ['contain','Contain'], ['tile','Tile']] as [val, label] (val)}
 									<label class="bg-size-opt" class:active={pageHeroBgSize === val}>
 										<input type="radio" name="heroBgSize" value={val} bind:group={pageHeroBgSize} />
 										{label}
@@ -356,14 +420,14 @@
 					<div class="colors-col">
 						<!-- Background color -->
 						<label class="field">
-							<span class="field-label">Barva pozadí hero</span>
+							<span class="field-label">{m.editor_hero_bg()}</span>
 							<div class="color-picker-row">
 								<input type="color" bind:value={pageBgColor} class="color-swatch-input" />
 								<input type="text" bind:value={pageBgColor} placeholder="#4A1204" class="color-text-input" />
 							</div>
 							{#if brandColors.length}
 								<div class="palette-swatches">
-									{#each brandColors as c}
+				{#each brandColors as c (c.id)}
 										<button
 											class="palette-swatch"
 											class:selected={pageBgColor === c.hex}
@@ -372,7 +436,7 @@
 											onclick={() => pageBgColor = c.hex}
 										></button>
 									{/each}
-									<button class="palette-swatch clear-swatch" title="Bez barvy"
+									<button class="palette-swatch clear-swatch" title={m.editor_no_color()} aria-label={m.editor_no_color()}
 										onclick={() => pageBgColor = ''}>✕</button>
 								</div>
 							{/if}
@@ -380,7 +444,7 @@
 
 						<!-- Text color + contrast checker -->
 						<label class="field">
-							<span class="field-label">Barva textu hero
+							<span class="field-label">{m.editor_hero_text()}
 								{#if contrastInfo}
 									<span class="contrast-badge" class:ok={contrastInfo.ok} class:fail={!contrastInfo.ok}>
 										{contrastInfo.label} · {contrastInfo.r}:1
@@ -393,7 +457,7 @@
 							</div>
 							{#if brandColors.length}
 								<div class="palette-swatches">
-									{#each brandColors as c}
+				{#each brandColors as c (c.id)}
 										<button
 											class="palette-swatch"
 											class:selected={pageTextColor === c.hex}
@@ -402,38 +466,35 @@
 											onclick={() => pageTextColor = c.hex}
 										></button>
 									{/each}
-									<button class="palette-swatch clear-swatch" title="Bez barvy"
+									<button class="palette-swatch clear-swatch" title={m.editor_no_color()} aria-label={m.editor_no_color()}
 										onclick={() => pageTextColor = ''}>✕</button>
 								</div>
 							{/if}
 							{#if pageBgColor && pageTextColor}
 								<div class="contrast-preview" style="background:{pageBgColor}; color:{pageTextColor}">
-									Aa — ukázka textu na pozadí
+									{m.editor_contrast_sample()}
 								</div>
 							{/if}
 						</label>
 					</div>
 				</div>
 				<div class="settings-actions">
-					<button class="btn-secondary" onclick={() => showPageSettings = false}>Zrušit</button>
-					<button class="btn-primary" onclick={savePageSettings} disabled={saving}>
-						<IconCheck size={14} /> {saving ? 'Ukládám…' : 'Uložit'}
+					<button class="btn btn-secondary" onclick={() => showPageSettings = false}>{m.common_cancel()}</button>
+					<button class="btn btn-primary" onclick={savePageSettings} disabled={saving}>
+						<IconCheck size={14} /> {saving ? m.common_saving() : m.common_save()}
 					</button>
 				</div>
 			</div>
 		{/if}
 
-		{#if errMsg}
-			<div class="error-bar">{errMsg}</div>
-		{/if}
 
 		<!-- Block list -->
 		<div class="block-list" style="margin-top: {showPageSettings ? 0 : '1.5rem'}">
 			{#if blocks.length === 0}
 				<div class="empty-state">
-					<p>Tato stránka nemá žádné bloky.</p>
-					<button class="btn-primary" onclick={() => { insertAfterIdx = null; showPicker = true; }}>
-						<IconPlus size={16} /> Přidat první blok
+					<p>{m.editor_no_blocks()}</p>
+					<button class="btn btn-primary" onclick={() => openBlockPicker(null)}>
+						<IconPlus size={16} /> {m.editor_add_first_block()}
 					</button>
 				</div>
 			{:else}
@@ -467,16 +528,16 @@
 							</div>
 
 							<div class="block-actions">
-								<button class="btn-ghost sm" onclick={() => moveBlock(block.id, 'up')} disabled={i === 0} title="Výš">
+								<button class="btn-ghost sm" onclick={() => moveBlock(block.id, 'up')} disabled={i === 0} title={m.editor_move_up()} aria-label={m.editor_move_up()}>
 									<IconChevronUp size={14} />
 								</button>
-								<button class="btn-ghost sm" onclick={() => moveBlock(block.id, 'down')} disabled={i === blocks.length - 1} title="Níž">
+								<button class="btn-ghost sm" onclick={() => moveBlock(block.id, 'down')} disabled={i === blocks.length - 1} title={m.editor_move_down()} aria-label={m.editor_move_down()}>
 									<IconChevronDown size={14} />
 								</button>
-								<button class="btn-ghost sm" onclick={() => toggleBlockEnabled(block)} title={block.enabled ? 'Skrýt' : 'Zobrazit'}>
+								<button class="btn-ghost sm" onclick={() => toggleBlockEnabled(block)} title={block.enabled ? m.common_hide() : m.common_show()} aria-label={block.enabled ? m.common_hide() : m.common_show()}>
 									{#if block.enabled}<IconEye size={14} />{:else}<IconEyeOff size={14} />{/if}
 								</button>
-								<button class="btn-ghost sm danger" onclick={() => confirmDeleteId = block.id} title="Smazat">
+								<button class="btn-ghost sm danger" onclick={() => confirmDeleteId = block.id} title={m.common_delete()} aria-label={m.common_delete()}>
 									<IconTrash size={14} />
 								</button>
 							</div>
@@ -491,13 +552,16 @@
 									onUpdate={(newCfg) => { editingCfg = newCfg; }}
 									onSave={handleSave}
 									{saving}
+									{brandColors}
+									brandFonts={data.brandFonts ?? []}
+									brandPalettes={data.brandPalettes ?? []}
 								/>
 							</div>
 						{/if}
 					</div>
 
 					<!-- Insert button between blocks -->
-					<button class="insert-btn" onclick={() => { insertAfterIdx = i; showPicker = true; }} title="Vložit blok">
+					<button class="insert-btn" onclick={() => openBlockPicker(i)} title={m.editor_insert_block()} aria-label={m.editor_insert_block()}>
 						<span class="insert-icon"><IconPlus size={10} /></span>
 					</button>
 				{/each}
@@ -505,8 +569,8 @@
 
 			{#if blocks.length > 0}
 				<div class="add-block-row">
-					<button class="btn-secondary" onclick={() => { insertAfterIdx = null; showPicker = true; }}>
-						<IconPlus size={16} /> Přidat blok
+					<button class="btn btn-secondary" onclick={() => openBlockPicker(null)}>
+						<IconPlus size={16} /> {m.editor_add_block()}
 					</button>
 				</div>
 			{/if}
@@ -519,9 +583,9 @@
 			<div class="panel-header">
 				<div class="panel-header-left">
 					<span class="panel-title">{BLOCK_LABELS[editingBlock.type] ?? editingBlock.type}</span>
-					<span class="panel-subtitle">Kontext sekce</span>
+					<span class="panel-subtitle">{m.block_ctx_title()}</span>
 				</div>
-				<button class="btn-ghost" onclick={() => editingBlockId = null}><IconX size={18} /></button>
+				<button class="btn-ghost" onclick={() => editingBlockId = null} aria-label={m.common_close()}><IconX size={18} /></button>
 			</div>
 			<div class="panel-body">
 				<BlockConfigPanel
@@ -536,32 +600,38 @@
 	{/if}
 </div>
 
-<!-- Block picker modal -->
-{#if showPicker}
-	<div class="modal-backdrop" role="presentation" onclick={() => showPicker = false}>
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div class="modal picker-modal" role="dialog" tabindex="-1" onclick={e => e.stopPropagation()}>
-			<div class="modal-header">
-				<h2>Vybrat typ bloku</h2>
-				<button class="btn-ghost" onclick={() => showPicker = false}><IconX size={18} /></button>
-			</div>
-			<div class="picker-body">
-				{#each PICKER_GROUPS as group}
-					<div class="picker-group">
-						<div class="picker-group-label">{group.label}</div>
-						<div class="picker-grid">
-							{#each group.types as type}
-								<button class="picker-tile" onclick={() => addBlock(type)} disabled={saving}>
-									<span class="tile-label">{BLOCK_LABELS[type] ?? type}</span>
-								</button>
-							{/each}
-						</div>
-					</div>
-				{/each}
-			</div>
-		</div>
+<!-- Block picker -->
+<Modal open={showPicker} title={m.editor_add_block()} size="xl" onClose={() => (showPicker = false)} initialFocus=".picker-search input">
+	<div class="picker-search">
+		<IconSearch size={16} stroke={1.5} />
+		<input type="search" bind:value={pickerQuery} placeholder={m.editor_picker_search()}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' && pickerGroups[0]?.types[0]) { e.preventDefault(); addBlock(pickerGroups[0].types[0]); }
+			}} />
+		<kbd>↵</kbd>
 	</div>
-{/if}
+	<div class="picker-body">
+		{#each pickerGroups as group (group.label)}
+			<section class="picker-group">
+				<h3 class="picker-group-label">{group.label}</h3>
+				<div class="picker-grid">
+					{#each group.types as type (type)}
+						{@const meta = BLOCK_META[type]}
+						<button class="picker-tile" onclick={() => addBlock(type)} disabled={saving}>
+							{#if meta}<span class="tile-icon"><meta.icon size={18} stroke={1.5} /></span>{/if}
+							<span class="tile-text">
+								<span class="tile-label">{BLOCK_LABELS[type] ?? type}</span>
+								{#if meta}<span class="tile-desc">{meta.desc}</span>{/if}
+							</span>
+						</button>
+					{/each}
+				</div>
+			</section>
+		{:else}
+			<EmptyState compact icon={IconSearch} title={m.editor_picker_empty({ query: pickerQuery })} />
+		{/each}
+	</div>
+</Modal>
 
 <!-- Asset picker modal (hero image) -->
 <AssetPickerModal
@@ -572,26 +642,14 @@
 />
 
 <!-- Delete confirm -->
-{#if confirmDeleteId}
-	<div class="modal-backdrop" role="presentation" onclick={() => confirmDeleteId = null}>
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div class="modal modal-sm" role="dialog" tabindex="-1" onclick={e => e.stopPropagation()}>
-			<div class="modal-header">
-				<h2>Smazat blok?</h2>
-				<button class="btn-ghost" onclick={() => confirmDeleteId = null}><IconX size={18} /></button>
-			</div>
-			<div class="modal-body">
-				<p>Opravdu smazat tento blok? Tuto akci nelze vrátit.</p>
-			</div>
-			<div class="modal-footer">
-				<button class="btn-secondary" onclick={() => confirmDeleteId = null}>Zrušit</button>
-				<button class="btn-danger" onclick={() => deleteBlock(confirmDeleteId!)} disabled={saving}>
-					{saving ? 'Mažu…' : 'Smazat'}
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}
+<ConfirmDialog
+	open={!!confirmDeleteId}
+	title={m.editor_delete_block_title()}
+	description={m.editor_delete_block_body()}
+	busy={saving}
+	onCancel={() => (confirmDeleteId = null)}
+	onConfirm={() => deleteBlock(confirmDeleteId!)}
+/>
 
 <style>
 /* ── Layout ─────────────────────────────────────────────────────────────────── */
@@ -601,8 +659,8 @@
 .config-panel { width: clamp(300px, 22vw, 360px); flex-shrink: 0; border-left: 1px solid var(--color-border); background: var(--color-surface); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; padding: .85rem 1.1rem; border-bottom: 1px solid var(--color-border); gap: .5rem; }
 .panel-header-left { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
-.panel-title { font-weight: 650; font-size: .875rem; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.panel-subtitle { font-size: .72rem; color: var(--color-muted); font-weight: 400; }
+.panel-title { font-weight: 600; font-size: var(--text-base); color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-subtitle { font-size: var(--text-xs); color: var(--color-muted); font-weight: 400; }
 .panel-body { padding: 1rem; flex: 1; }
 
 @media (max-width: 980px) {
@@ -627,13 +685,13 @@
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
 .page-header { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 0; flex-wrap: wrap; }
-.preview-btn { border: 1px solid var(--color-border); font-size: .8rem; margin-left: auto; text-decoration: none; }
-.preview-btn:hover { color: var(--brand); border-color: var(--brand); }
-.settings-btn { border: 1px solid var(--color-border); font-size: .8rem; }
-.settings-btn.active { background: var(--color-surface-raised); color: var(--color-text); border-color: var(--brand); }
+.preview-btn { border: 1px solid var(--color-border); font-size: var(--text-sm); margin-left: auto; text-decoration: none; }
+.preview-btn:hover { color: var(--color-text); border-color: var(--color-border-strong); }
+.settings-btn { border: 1px solid var(--color-border); font-size: var(--text-sm); }
+.settings-btn.active { background: var(--color-surface-raised); color: var(--color-text); border-color: var(--color-accent); }
 .page-settings-panel {
 	background: var(--color-surface-raised); border: 1px solid var(--color-border);
-	border-radius: 10px; padding: 1.2rem; margin: .75rem 0 1.5rem; display: flex; flex-direction: column; gap: 1rem;
+	border-radius: var(--radius-lg); padding: 1.2rem; margin: .75rem 0 1.5rem; display: flex; flex-direction: column; gap: 1rem;
 }
 .settings-section {
 	display: grid;
@@ -642,43 +700,43 @@
 	padding-bottom: 1rem;
 	border-bottom: 1px solid var(--color-border);
 }
-.settings-section-meta h2 { margin: 0 0 .35rem; font-size: .95rem; font-weight: 700; }
-.settings-section-meta p { margin: 0; color: var(--color-muted); font-size: .82rem; line-height: 1.5; }
+.settings-section-meta h2 { margin: 0 0 .35rem; font-size: var(--text-md); font-weight: 600; }
+.settings-section-meta p { margin: 0; color: var(--color-muted); font-size: var(--text-sm); line-height: 1.5; }
 .settings-fields { display: flex; flex-direction: column; gap: .85rem; }
 .settings-row { display: flex; gap: 1.5rem; flex-wrap: wrap; }
-.settings-row .field { display: flex; flex-direction: column; gap: .5rem; font-size: .875rem; }
+.settings-row .field { display: flex; flex-direction: column; gap: .5rem; font-size: var(--text-base); }
 .page-settings-panel .field input[type="text"],
 .page-settings-panel .field textarea {
 	width: 100%;
 	padding: .55rem .65rem;
 	border: 1px solid var(--color-border);
-	border-radius: 6px;
+	border-radius: var(--radius);
 	background: var(--color-surface);
 	color: var(--color-text);
 	font: inherit;
-	font-size: .875rem;
+	font-size: var(--text-base);
 	outline: none;
 }
 .page-settings-panel .field textarea { resize: vertical; line-height: 1.5; }
 .page-settings-panel .field input[type="text"]:focus,
 .page-settings-panel .field textarea:focus {
-	border-color: var(--brand);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 10%, transparent);
+	border-color: var(--color-border-focus);
+	box-shadow: var(--focus-ring);
 }
 .colors-col { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 1.25rem; }
-.field-label { font-size: .82rem; font-weight: 600; color: var(--color-text); }
+.field-label { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
 /* feature image field */
 .fi-field { min-width: 280px; }
 .fi-input-row { display: flex; gap: .4rem; }
-.fi-url-input { flex: 1; padding: .45rem .65rem; border: 1px solid var(--color-border); border-radius: 6px; font-size: .875rem; background: var(--color-surface); color: var(--color-text); outline: none; min-width: 0; }
-.fi-url-input:focus { border-color: var(--brand); }
-.fi-pick-btn { border: 1px solid var(--color-border); padding: .4rem .65rem; font-size: .8rem; white-space: nowrap; }
+.fi-url-input { flex: 1; padding: .45rem .65rem; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: var(--text-base); background: var(--color-surface); color: var(--color-text); outline: none; min-width: 0; }
+.fi-url-input:focus { border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
+.fi-pick-btn { border: 1px solid var(--color-border); padding: .4rem .65rem; font-size: var(--text-sm); white-space: nowrap; }
 .fi-preview {
 	aspect-ratio: 3 / 2;
 	width: 100%;
 	max-width: 320px;
 	border: 1px solid var(--color-border);
-	border-radius: 6px;
+	border-radius: var(--radius);
 	overflow: hidden;
 	background: var(--color-surface-raised);
 	display: flex;
@@ -686,71 +744,70 @@
 	justify-content: center;
 }
 .fi-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.fi-empty { display: flex; flex-direction: column; align-items: center; gap: .35rem; color: var(--color-muted); font-size: .72rem; font-weight: 600; letter-spacing: .04em; }
+.fi-empty { display: flex; flex-direction: column; align-items: center; gap: .35rem; color: var(--color-muted); font-size: var(--text-xs); font-weight: 600; letter-spacing: var(--tracking-eyebrow); }
 .bg-size-row { display: flex; gap: .3rem; margin-top: .4rem; }
 .bg-size-opt {
 	display: flex; align-items: center; gap: .3rem;
 	padding: .28rem .65rem;
 	border: 1px solid var(--color-border);
-	border-radius: 6px;
-	font-size: .78rem;
+	border-radius: var(--radius);
+	font-size: var(--text-xs);
 	color: var(--color-muted);
 	cursor: pointer;
 	user-select: none;
 	transition: background .1s, border-color .1s, color .1s;
 }
 .bg-size-opt input { display: none; }
-.bg-size-opt:hover { background: var(--color-surface-raised); color: var(--color-text); }
+.bg-size-opt:hover { background: var(--color-hover); color: var(--color-text); }
 .bg-size-opt.active {
-	background: color-mix(in srgb, var(--brand) 10%, transparent);
-	border-color: color-mix(in srgb, var(--brand) 35%, transparent);
-	color: var(--brand);
-	font-weight: 600;
+	background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+	border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+	color: var(--color-accent);
+	font-weight: 500;
 }
 /* color field */
 .color-picker-row { display: flex; align-items: center; gap: .5rem; }
-.color-swatch-input { width: 36px; height: 36px; border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; padding: 2px; background: none; flex-shrink: 0; }
-.color-text-input { width: 110px; padding: .4rem .6rem; border: 1px solid var(--color-border); border-radius: 6px; font-family: monospace; font-size: .82rem; background: var(--color-surface); color: var(--color-text); outline: none; }
-.color-text-input:focus { border-color: var(--brand); }
+.color-swatch-input { width: 36px; height: 36px; border: 1px solid var(--color-border); border-radius: var(--radius); cursor: pointer; padding: 2px; background: none; flex-shrink: 0; }
+.color-text-input { width: 110px; padding: .4rem .6rem; border: 1px solid var(--color-border); border-radius: var(--radius); font-family: monospace; font-size: var(--text-sm); background: var(--color-surface); color: var(--color-text); outline: none; }
+.color-text-input:focus { border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
 .palette-swatches { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .15rem; }
-.palette-swatch { width: 22px; height: 22px; border-radius: 4px; border: 2px solid transparent; cursor: pointer; transition: transform .1s, border-color .1s; }
+.palette-swatch { width: 22px; height: 22px; border-radius: var(--radius-sm); border: 2px solid transparent; cursor: pointer; transition: transform .1s, border-color .1s; }
 .palette-swatch:hover { transform: scale(1.15); }
 .palette-swatch.selected { border-color: var(--color-text); }
-.clear-swatch { background: var(--color-surface); border: 1px solid var(--color-border); font-size: .65rem; color: var(--color-muted); display: flex; align-items: center; justify-content: center; }
-.contrast-badge { display: inline-flex; align-items: center; margin-left: .4rem; padding: .1rem .4rem; border-radius: 4px; font-size: .72rem; font-weight: 700; letter-spacing: .02em; vertical-align: middle; }
-.contrast-badge.ok   { background: #dcfce7; color: #166534; }
-.contrast-badge.fail { background: #fee2e2; color: #991b1b; }
-.contrast-preview { margin-top: .4rem; padding: .55rem .75rem; border-radius: 6px; font-size: .875rem; font-weight: 500; }
+.clear-swatch { background: var(--color-surface); border: 1px solid var(--color-border); font-size: var(--text-2xs); color: var(--color-muted); display: flex; align-items: center; justify-content: center; }
+.contrast-badge { display: inline-flex; align-items: center; margin-left: .4rem; padding: .1rem .4rem; border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 600; letter-spacing: .02em; vertical-align: middle; }
+.contrast-badge.ok   { background: var(--color-success-border); color: var(--color-success); }
+.contrast-badge.fail { background: var(--color-danger-border); color: var(--color-danger); }
+.contrast-preview { margin-top: .4rem; padding: .55rem .75rem; border-radius: var(--radius); font-size: var(--text-base); font-weight: 500; }
 .settings-actions { display: flex; gap: .5rem; justify-content: flex-end; }
 
-.back-btn { display: flex; align-items: center; gap: .4rem; color: var(--color-muted); text-decoration: none; font-size: .875rem; padding: .4rem .1rem; }
+.back-btn { display: flex; align-items: center; gap: .4rem; color: var(--color-muted); text-decoration: none; font-size: var(--text-base); padding: .4rem .1rem; }
 .back-btn:hover { color: var(--color-text); }
 .page-info { flex: 1; }
 .page-info h1 { margin: 0 0 .15rem; font-size: 1.3rem; font-weight: 600; }
-.page-slug { font-family: monospace; font-size: .8rem; }
+.page-slug { font-family: monospace; font-size: var(--text-sm); }
 .muted { color: var(--color-muted); }
-.error-bar { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 6px; padding: .6rem 1rem; margin-bottom: 1rem; font-size: .875rem; }
 
 /* ── Block list ─────────────────────────────────────────────────────────────── */
 .block-list { display: flex; flex-direction: column; gap: 0; }
 .block-row {
 	display: flex; flex-direction: column;
 	background: var(--color-surface); border: 1px solid var(--color-border);
-	border-radius: 8px; transition: border-color .15s, box-shadow .15s;
+	border-radius: var(--radius); transition: border-color .15s, box-shadow .15s;
 	overflow: hidden;
 }
-.block-row:hover { border-color: color-mix(in srgb, var(--brand) 60%, var(--color-border)); }
-.block-row.active { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 13%, transparent); }
+.block-row:hover { border-color: color-mix(in srgb, var(--color-accent) 60%, var(--color-border)); }
+.block-row.active { border-color: var(--color-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 13%, transparent); }
 .block-row.disabled { opacity: .55; }
 .block-row-header { display: flex; align-items: center; gap: .5rem; padding: .6rem .75rem; cursor: pointer; }
 .block-drag { color: var(--color-muted); cursor: grab; flex-shrink: 0; }
 .block-body { flex: 1; display: flex; align-items: center; gap: .6rem; min-width: 0; }
-.block-type-badge { font-size: .8rem; font-weight: 500; background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: 4px; padding: .15rem .5rem; white-space: nowrap; }
-.block-title { min-width: 0; color: var(--color-text); font-size: .86rem; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.block-anchor { font-family: monospace; font-size: .75rem; }
-.callout-badge { font-size: .68rem; background: color-mix(in srgb, var(--brand) 9%, var(--color-surface-raised)); color: var(--brand); border-radius: 4px; padding: .1rem .4rem; }
-.callout-badge.alert { background: #fee2e2; color: #b91c1c; }
-.hidden-badge { font-size: .7rem; background: #fef3c7; color: #92400e; border-radius: 4px; padding: .1rem .4rem; }
+.block-type-badge { font-size: var(--text-sm); font-weight: 500; background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .15rem .5rem; white-space: nowrap; }
+.block-title { min-width: 0; color: var(--color-text); font-size: var(--text-base); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.block-anchor { font-family: monospace; font-size: var(--text-xs); }
+.callout-badge { font-size: var(--text-2xs); background: color-mix(in srgb, var(--color-accent) 9%, var(--color-surface-raised)); color: var(--color-accent); border-radius: var(--radius-sm); padding: .1rem .4rem; }
+.callout-badge.alert { background: var(--color-danger-border); color: var(--color-danger); }
+.hidden-badge { font-size: var(--text-2xs); background: var(--color-warning-border); color: var(--color-warning); border-radius: var(--radius-sm); padding: .1rem .4rem; }
 .block-actions { display: flex; align-items: center; gap: .1rem; flex-shrink: 0; }
 /* Inline primary editor area */
 .block-inline-editor {
@@ -761,40 +818,50 @@
 .insert-btn { display: flex; align-items: center; justify-content: center; width: 100%; height: 20px; background: none; border: none; cursor: pointer; color: var(--color-border); transition: color .15s; position: relative; }
 .insert-btn::before { content: ''; position: absolute; left: 2rem; right: 2rem; top: 50%; height: 1px; background: currentColor; }
 .insert-icon { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid currentColor; background: var(--color-bg); }
-.insert-btn:hover { color: var(--brand); }
-.empty-state { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 3rem; text-align: center; color: var(--color-muted); background: var(--color-surface); border: 2px dashed var(--color-border); border-radius: 10px; }
+.insert-btn:hover { color: var(--color-text); }
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 3rem; text-align: center; color: var(--color-muted); background: var(--color-surface); border: 2px dashed var(--color-border); border-radius: var(--radius-lg); }
 .add-block-row { display: flex; justify-content: center; padding-top: .75rem; }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────────── */
-.btn-primary { display: flex; align-items: center; gap: .4rem; padding: .5rem 1rem; background: var(--brand); color: #fff; border: none; border-radius: 6px; font-size: .875rem; cursor: pointer; }
-.btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
-.btn-secondary { display: flex; align-items: center; gap: .4rem; padding: .5rem 1rem; background: var(--color-surface-raised); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 6px; font-size: .875rem; cursor: pointer; }
-.btn-secondary:hover:not(:disabled) { background: var(--color-border); }
-.btn-danger { display: flex; align-items: center; gap: .4rem; padding: .5rem 1rem; background: #ef4444; color: #fff; border: none; border-radius: 6px; font-size: .875rem; cursor: pointer; }
-.btn-danger:hover:not(:disabled) { background: #dc2626; }
-.btn-danger:disabled { opacity: .5; }
-.btn-ghost { display: flex; align-items: center; gap: .3rem; padding: .3rem .5rem; background: none; border: none; border-radius: 5px; font-size: .8rem; cursor: pointer; color: var(--color-muted); }
-.btn-ghost:hover:not(:disabled) { background: var(--color-surface-raised); color: var(--color-text); }
+
+
+
+
+
+
+
+.btn-ghost { display: flex; align-items: center; gap: .3rem; padding: .3rem .5rem; background: none; border: none; border-radius: var(--radius-sm); font-size: var(--text-sm); cursor: pointer; color: var(--color-muted); }
+.btn-ghost:hover:not(:disabled) { background: var(--color-hover); color: var(--color-text); }
 .btn-ghost.sm { padding: .2rem .35rem; }
-.btn-ghost.danger:hover { color: #ef4444; }
+.btn-ghost.danger:hover { color: var(--color-danger); }
 .btn-ghost:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ── Modal ──────────────────────────────────────────────────────────────────── */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal { background: var(--color-surface); border-radius: 12px; width: 520px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,.25); max-height: 85vh; display: flex; flex-direction: column; }
-.modal-sm { width: 360px; }
-.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 1.4rem .8rem; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
-.modal-header h2 { margin: 0; font-size: 1rem; font-weight: 600; }
-.modal-body { padding: 1.2rem 1.4rem; }
-.modal-footer { padding: .8rem 1.4rem 1.2rem; display: flex; justify-content: flex-end; gap: .5rem; border-top: 1px solid var(--color-border); }
 
 /* ── Picker ─────────────────────────────────────────────────────────────────── */
-.picker-modal { width: 620px; }
-.picker-body { padding: 1.2rem 1.4rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.2rem; }
-.picker-group-label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--color-muted); margin-bottom: .5rem; }
-.picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: .5rem; }
-.picker-tile { padding: .7rem 1rem; background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: 8px; cursor: pointer; text-align: left; transition: border-color .15s, background .15s; }
-.picker-tile:hover:not(:disabled) { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 6%, var(--color-surface)); }
+.picker-search {
+	position: sticky; top: calc(-1 * var(--space-5)); z-index: 1;
+	display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px 0 12px; margin-bottom: var(--space-5);
+	border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface);
+	box-shadow: var(--shadow-xs), 0 -12px 0 var(--color-surface); color: var(--color-muted);
+	transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.picker-search:focus-within { border-color: var(--color-border-focus); box-shadow: var(--focus-ring), 0 -12px 0 var(--color-surface); }
+.picker-search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--color-text); font-size: var(--text-base); }
+.picker-search input::-webkit-search-cancel-button { display: none; }
+.picker-body { display: flex; flex-direction: column; gap: var(--space-6); }
+.picker-group-label { margin-bottom: var(--space-2); font-size: var(--text-2xs); font-weight: 500; text-transform: uppercase; letter-spacing: var(--tracking-eyebrow); color: var(--color-muted); }
+.picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-2); }
+.picker-tile {
+	display: flex; align-items: flex-start; gap: 12px; padding: 12px; text-align: left;
+	border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface);
+	transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.picker-tile:hover:not(:disabled), .picker-tile:focus-visible { border-color: var(--color-border-strong); box-shadow: var(--shadow); }
+.picker-tile:hover:not(:disabled) .tile-icon { color: var(--color-accent); }
 .picker-tile:disabled { opacity: .5; cursor: not-allowed; }
-.tile-label { font-size: .8rem; font-weight: 500; }
+.tile-icon { display: grid; place-items: center; flex: 0 0 auto; width: 32px; height: 32px; border-radius: var(--radius); background: var(--color-surface-raised); color: var(--color-text-secondary); transition: color var(--dur-fast) var(--ease); }
+.tile-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-top: 1px; }
+.tile-label { font-size: var(--text-sm); font-weight: 500; color: var(--color-text); letter-spacing: var(--tracking-snug); }
+.tile-desc { font-size: var(--text-xs); line-height: var(--leading-snug); color: var(--color-muted); }
 </style>

@@ -1,7 +1,19 @@
 <script lang="ts">
-	import * as m from '$lib/paraglide/messages';
-	import { IconCancel, IconExclamationCircle, IconChevronRight, IconDownload, IconCheck, IconCopy, IconX } from '@tabler/icons-svelte';
+	import { colorsForSource } from '$lib/manual/color-source';
+	import {
+		IconCancel, IconExclamationCircle, IconChevronRight, IconChevronLeft, IconDownload, IconCheck, IconCopy, IconX,
+		IconInfoCircle, IconCircleCheck, IconAlertTriangle, IconArrowUpRight, IconArrowsHorizontal, IconQuote, IconPlayerPlay
+	} from '@tabler/icons-svelte';
 	import ManualBlockShell from './ManualBlockShell.svelte';
+	import Lightbox, { type LightboxImage } from './Lightbox.svelte';
+	import LogoDownload from './LogoDownload.svelte';
+	import FontSpecimen from './FontSpecimen.svelte';
+	import { sanitizeRichHtml } from '$lib/utils/sanitize-rich-html';
+	import { useManualStrings } from '$lib/manual/ui-strings';
+	import { resolveEmbed } from '$lib/manual/embed';
+
+	const strings = useManualStrings();
+	const t = $derived(strings());
 
 	type Block = {
 		id: string; type: string;
@@ -9,31 +21,31 @@
 		anchor: string | null;
 		enabled: boolean;
 	};
-	type ManualLanguage = 'en' | 'cs';
 	type RichContentItem = { type: 'text' | 'attention' | 'alert'; html: string };
 	type ProductionRef = { type: 'pantone' | 'ral' | 'ncs' | 'foil' | 'other'; label: string; value: string };
 	type ColorRow    = { id: string; name: string; hex: string; rgb: { r:number;g:number;b:number } | null; cmyk: { c:number;m:number;y:number;k:number } | null; hsl: { h:number;s:number;l:number } | null; pantoneRef: string | null; ralRef: string | null; productionRefs?: ProductionRef[] | null; paletteId: string | null; order: number };
 	type PaletteRow  = { id: string; name: string; order: number };
-	type FontRow     = { id: string; name: string; foundry: string | null; role: string | null; sourceUrl: string | null; weights: number[] | null; isVariable: boolean | null; order: number };
+	type FontRow     = { id: string; name: string; foundry: string | null; role: string | null; license?: string | null; sourceUrl: string | null; weights: number[] | null; isVariable: boolean | null; variableAxes?: { tag: string; label: string; min: number; max: number; default: number }[] | null; order: number };
 	type StyleRow    = { id: string; fontId: string | null; name: string; tag: string | null; size: number | null; lineHeight: number | null; tracking: number | null; weight: number | null; order: number };
-	type FontFileRow = { id: string; fontId: string; storagePath: string; format: string; isVariable: boolean | null };
+	type FontFileRow = { id: string; fontId: string; storagePath: string; format: string; isVariable: boolean | null; fileSize?: number | null };
+	type AssetRow = { id: string; filename: string; mime: string; size: number; storagePath: string; thumbnailPath: string | null; folderId: string | null; tags: string[] | null };
 
 	const {
 		block,
-		language = 'en',
 		colorRows    = [],
 		paletteRows  = [],
 		fontRows     = [],
 		styleRows    = [],
 		fontFileRows = [],
+		assetRows    = [],
 	}: {
 		block: Block;
-		language?: ManualLanguage;
 		colorRows?: ColorRow[];
 		paletteRows?: PaletteRow[];
 		fontRows?: FontRow[];
 		styleRows?: StyleRow[];
 		fontFileRows?: FontFileRow[];
+		assetRows?: AssetRow[];
 	} = $props();
 
 	// ── Helpers ───────────────────────────────────────────────────────────────
@@ -49,25 +61,59 @@
 		return `/uploads/${value.replace(/^\/+/, '')}`;
 	}
 
+	function assetsForBlock(config: Record<string, unknown>, imagesOnly = false, requireFolder = false): AssetRow[] {
+		const folderId = typeof config.folderId === 'string' && config.folderId ? config.folderId : null;
+		if (requireFolder && !folderId) return [];
+		const tags = typeof config.tags === 'string'
+			? config.tags.split(',').map((tag) => tag.trim().toLowerCase()).filter(Boolean)
+			: [];
+		return assetRows.filter((asset) => {
+			if (imagesOnly && !asset.mime.startsWith('image/')) return false;
+			if (folderId && asset.folderId !== folderId) return false;
+			if (tags.length && !tags.every((tag) => (asset.tags ?? []).includes(tag))) return false;
+			return true;
+		});
+	}
+
+	function assetPreview(asset: AssetRow): string | null {
+		if (asset.thumbnailPath) return assetSrc(asset.thumbnailPath);
+		if (asset.mime.startsWith('image/')) return assetSrc(asset.storagePath);
+		return null;
+	}
+
+	// Photographs fill their frame; graphics (logos, icons, illustrations —
+	// usually vector or transparent) are shown whole, never cropped.
+	function isPhoto(asset: AssetRow): boolean {
+		return /^image\/(jpe?g|heic|heif|avif)$/i.test(asset.mime);
+	}
+
+	function assetExt(asset: AssetRow): string {
+		return (asset.filename.split('.').pop() ?? '').toUpperCase();
+	}
+
+	function assetDownload(asset: AssetRow): string {
+		return assetSrc(asset.storagePath);
+	}
+
+	function formatBytes(value: number): string {
+		if (value < 1024) return `${value} B`;
+		if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+		return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+	}
+
 	function escapeHtml(value: string) {
 		return value
 			.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 			.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 	}
 
-	function sanitizeHtml(value: unknown) {
-		return String(value ?? '')
-			.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-			.replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, '')
-			.replace(/\s+on[a-z]+\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, '')
-			.replace(/\s+href\s*=\s*(['"])\s*javascript:[\s\S]*?\1/gi, '')
-			.replace(/<(?!\/?(p|br|strong|b|em|i|u|ul|ol|li|h3|h4|a)\b)[^>]+>/gi, '');
-	}
-
 	function markdownFallback(value: unknown) {
 		const text = String(value ?? '').trim();
 		if (!text) return '';
-		return text.split(/\n{2,}/).map(part => `<p>${escapeHtml(part).replace(/\n/g, '<br>')}</p>`).join('');
+		const inline = (s: string) => s
+			.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+			.replace(/(^|[^*])\*(?!\s)(.+?)\*/g, '$1<em>$2</em>');
+		return text.split(/\n{2,}/).map(part => `<p>${inline(escapeHtml(part)).replace(/\n/g, '<br>')}</p>`).join('');
 	}
 
 	function richContent(config: Record<string, unknown>): RichContentItem[] {
@@ -77,12 +123,34 @@
 					const record = item as Record<string, unknown>;
 					const type: RichContentItem['type'] =
 						record.type === 'attention' || record.type === 'alert' ? record.type : 'text';
-					return { type, html: sanitizeHtml(record.html) };
+					return { type, html: sanitizeRichHtml(record.html) };
 				})
 				.filter((item) => item.html.trim());
 		}
 		const fallback = markdownFallback(config.markdown);
 		return fallback ? [{ type: 'text', html: fallback }] : [];
+	}
+
+	function sandboxedHtmlPreview(value: unknown): string {
+		return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data:; style-src 'unsafe-inline' https:; font-src https: data:;"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html{color-scheme:light}body{margin:16px;font:14px/1.5 system-ui,sans-serif;color:#171717}</style></head><body>${String(value ?? '')}</body></html>`;
+	}
+
+	function cssQuoted(value: string): string {
+		return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/[\r\n\f]/g, ' ');
+	}
+
+	function uploadFontUrl(storagePath: string): string {
+		return `/uploads/${storagePath.replace(/\\/g, '/').split('/').map(encodeURIComponent).join('/')}`;
+	}
+
+	function externalStylesheetUrl(value: string | null): string | null {
+		if (!value) return null;
+		try {
+			const url = new URL(value);
+			return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null;
+		} catch {
+			return null;
+		}
 	}
 
 	function hexParts(hex: string) {
@@ -120,10 +188,10 @@
 		return wcagContrast(hex, '#ffffff') >= wcagContrast(hex, '#000000') ? '#ffffff' : '#171717';
 	}
 
-	function wcagBadge(ratio: number): 'AAA' | 'AA' | 'A' | null {
+	function wcagBadge(ratio: number): 'AAA' | 'AA' | 'AA Large' | null {
 		if (ratio >= 7)   return 'AAA';
 		if (ratio >= 4.5) return 'AA';
-		if (ratio >= 3)   return 'A';
+		if (ratio >= 3)   return 'AA Large';
 		return null;
 	}
 
@@ -135,7 +203,7 @@
 		if (max === min) return { h:0, s:0, l: Math.round(l*100) };
 		const d = max-min;
 		const s = l > 0.5 ? d/(2-max-min) : d/(max+min);
-		let h = 0;
+		let h: number;
 		if      (max===rp) h = (gp-bp)/d + (gp<bp ? 6 : 0);
 		else if (max===gp) h = (bp-rp)/d + 2;
 		else               h = (rp-gp)/d + 4;
@@ -240,13 +308,7 @@
 	// ── Derived data ──────────────────────────────────────────────────────────
 
 	// Colors filtered by source config
-	const filteredColors = $derived.by(() => {
-		const source = String(block.config.source ?? 'all');
-		if (source === 'all') return colorRows;
-		const palette = paletteRows.find(p => p.name.toLowerCase() === source);
-		if (palette) return colorRows.filter(c => c.paletteId === palette.id);
-		return colorRows;
-	});
+	const filteredColors = $derived(colorsForSource(colorRows, paletteRows, block.config.source));
 
 	// Colors grouped by palette
 	const colorsByPalette = $derived.by(() => {
@@ -267,40 +329,132 @@
 			if (!files.length) return '';
 			if (font.sourceUrl) return ''; // external URL — injected via <link>
 			const srcs = files.map(f =>
-				`url('/uploads/${f.storagePath}') format('${f.format}')`
+				`url('${cssQuoted(uploadFontUrl(f.storagePath))}') format('${cssQuoted(f.format)}')`
 			).join(', ');
-			const weights = (font.weights ?? [400]);
-			return weights.map(w => `@font-face { font-family: '${font.name}'; src: ${srcs}; font-weight: ${w}; font-display: swap; }`).join('\n');
+			const weights = (font.weights ?? [400]).filter((weight) => Number.isInteger(weight) && weight >= 1 && weight <= 1000);
+			return weights.map(w => `@font-face { font-family: '${cssQuoted(font.name)}'; src: ${srcs}; font-weight: ${w}; font-display: swap; }`).join('\n');
 		}).join('\n');
 	});
+	const externalStylesheets = $derived(
+		fontRows
+			.map((font) => externalStylesheetUrl(font.sourceUrl))
+			.filter((href, index, all): href is string => Boolean(href) && all.indexOf(href) === index)
+	);
 
 	const anchorId = $derived(block.anchor ?? (block.config.heading ? slugify(String(block.config.heading)) : undefined));
 
+	// colours: display variant + value format shown on swatches
+	type ColorFormat = 'hex' | 'rgb' | 'cmyk' | 'hsl' | 'pantone' | 'ral';
+	let colorFormat = $state<ColorFormat>('hex');
+	const colorDisplay = $derived(['swatches', 'compact'].includes(String(block.config.display)) ? String(block.config.display) : 'cards');
+	const availableFormats = $derived.by(() => {
+		const list: { id: ColorFormat; label: string }[] = [
+			{ id: 'hex', label: 'HEX' }, { id: 'rgb', label: 'RGB' }, { id: 'cmyk', label: 'CMYK' }, { id: 'hsl', label: 'HSL' },
+		];
+		if (filteredColors.some((c) => productionRefsFor(c).some((r) => r.type === 'pantone'))) list.push({ id: 'pantone', label: 'Pantone' });
+		if (filteredColors.some((c) => productionRefsFor(c).some((r) => r.type === 'ral'))) list.push({ id: 'ral', label: 'RAL' });
+		return list;
+	});
+	function colorValue(color: ColorRow, format: ColorFormat): string {
+		if (format === 'rgb') return `RGB(${hexToRgbStr(color.hex, color)})`;
+		if (format === 'cmyk') return fmtCmyk(color.cmyk ?? computeCmyk(color.hex));
+		if (format === 'hsl') return fmtHsl(color.hsl ?? computeHsl(color.hex));
+		if (format === 'pantone' || format === 'ral') return productionRefsFor(color).find((r) => r.type === format)?.value ?? '—';
+		return color.hex.toUpperCase();
+	}
+
+	// contrast checker + hotspots
+	// svelte-ignore state_referenced_locally
+	let contrastFg = $state(typeof block.config.foreground === 'string' ? block.config.foreground : (colorRows[0]?.hex ?? '#171717'));
+	// svelte-ignore state_referenced_locally
+	let contrastBg = $state(typeof block.config.background === 'string' ? block.config.background : '#ffffff');
+	let activeHotspot = $state<number | null>(null);
+
 	// before/after slider state
 	let sliderValue = $state(50);
+	// lightbox (image + gallery blocks)
+	let lightboxIndex = $state<number | null>(null);
+	let lightboxImages = $state<LightboxImage[]>([]);
+	function openLightbox(images: LightboxImage[], index: number) {
+		lightboxImages = images;
+		lightboxIndex = index;
+	}
+	// carousel
+	let carouselEl = $state<HTMLElement | null>(null);
+	let carouselAtStart = $state(true);
+	let carouselAtEnd = $state(false);
+	function updateCarouselEdges() {
+		if (!carouselEl) return;
+		carouselAtStart = carouselEl.scrollLeft <= 4;
+		carouselAtEnd = carouselEl.scrollLeft + carouselEl.clientWidth >= carouselEl.scrollWidth - 4;
+	}
+	function scrollCarousel(dir: 1 | -1) {
+		if (!carouselEl) return;
+		carouselEl.scrollBy({ left: dir * carouselEl.clientWidth * 0.8, behavior: 'smooth' });
+	}
+	$effect(() => {
+		if (!carouselEl) return;
+		updateCarouselEdges();
+		const ro = new ResizeObserver(updateCarouselEdges);
+		ro.observe(carouselEl);
+		return () => ro.disconnect();
+	});
+
+	// ── Generic helpers for the newer blocks ─────────────────────────────────
+	function list<T = Record<string, unknown>>(key: string): T[] {
+		const value = block.config[key];
+		return Array.isArray(value) ? (value as T[]) : [];
+	}
+	function cfgStr(key: string, fallback = ''): string {
+		const value = block.config[key];
+		return typeof value === 'string' ? value : fallback;
+	}
+	function isExternal(href: string): boolean {
+		return /^https?:\/\//i.test(href);
+	}
+	function hostOf(href: string): string {
+		try { return new URL(href).hostname.replace(/^www\./, ''); } catch { return ''; }
+	}
+	function linkHref(href: string): string {
+		if (isExternal(href) || /^(\/|#|mailto:|tel:)/.test(href)) return href;
+		return `https://${href}`;
+	}
 	// typo_rules tab state
 	let typoRulesTab = $state(0);
 </script>
+
+<svelte:head>
+	{#if fontFaces}
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -- CSS is generated from escaped, validated font metadata. -->
+		{@html `<style>${fontFaces}</style>`}
+	{/if}
+	{#each externalStylesheets as href (href)}
+		<link rel="stylesheet" {href} />
+	{/each}
+</svelte:head>
 
 {#if !block.enabled}
 	<!-- hidden -->
 
 {:else if block.type === 'divider'}
-	<hr class="divider" id={anchorId} style="margin: {block.config.spacing ?? 4}rem 0" />
+	{@const dividerStyle = cfgStr('style') || 'line'}
+	<div class="divider divider-{dividerStyle}" id={anchorId} role="separator" style="--divider-space:{Math.min(20, Math.max(0, Number(block.config.spacing ?? 4)))}rem"></div>
 
 {:else if block.type === 'rich_text'}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
 		{#if richContent(block.config).length}
 			<div class="rich-flow">
-				{#each richContent(block.config) as item}
+				{#each richContent(block.config) as item, itemIndex (itemIndex)}
 					{#if item.type === 'text'}
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -- richContent() sanitizes this HTML. -->
 						<div class="prose">{@html item.html}</div>
 					{:else}
 						<div class="content-callout" class:alert={item.type === 'alert'}>
 							<div class="content-callout-icon" aria-hidden="true">
 								{#if item.type === 'alert'}<IconCancel size={18} stroke={1.9} />{:else}<IconExclamationCircle size={18} stroke={1.9} />{/if}
 							</div>
-							<div class="content-callout-body">{@html item.html}</div>
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -- richContent() sanitizes this HTML. -->
+						<div class="content-callout-body">{@html item.html}</div>
 						</div>
 					{/if}
 				{/each}
@@ -321,7 +475,13 @@
 								: 'border:none'
 							].join(';')
 						: ''}>
-				<img src={assetSrc(block.config.url)} alt={String(block.config.alt ?? '')} class="block-img" loading="lazy" decoding="async" />
+				{#if block.config.zoom !== false}
+					<button class="zoom-btn" aria-label={t.openImage} onclick={() => openLightbox([{ src: assetSrc(block.config.url), alt: String(block.config.alt ?? ''), caption: block.config.caption ? String(block.config.caption) : undefined, download: assetSrc(block.config.url) }], 0)}>
+						<img src={assetSrc(block.config.url)} alt={String(block.config.alt ?? '')} class="block-img" loading="lazy" decoding="async" />
+					</button>
+				{:else}
+					<img src={assetSrc(block.config.url)} alt={String(block.config.alt ?? '')} class="block-img" loading="lazy" decoding="async" />
+				{/if}
 				{#if block.config.caption}
 					<figcaption class="img-caption">{block.config.caption}</figcaption>
 				{/if}
@@ -335,46 +495,78 @@
 			<div class="ba-wrap">
 				<div class="ba-slider" style="--split:{sliderValue}%">
 					<div class="ba-before">
-						<img src={assetSrc(block.config.beforeUrl)} alt={String(block.config.beforeLabel ?? 'Before')} loading="lazy" decoding="async" />
+						<img src={assetSrc(block.config.beforeUrl)} alt={String(block.config.beforeLabel ?? t.before)} loading="lazy" decoding="async" />
 						{#if block.config.beforeLabel}<span class="ba-label ba-label-before">{block.config.beforeLabel}</span>{/if}
 					</div>
 					<div class="ba-after">
-						<img src={assetSrc(block.config.afterUrl)} alt={String(block.config.afterLabel ?? 'After')} loading="lazy" decoding="async" />
+						<img src={assetSrc(block.config.afterUrl)} alt={String(block.config.afterLabel ?? t.after)} loading="lazy" decoding="async" />
 						{#if block.config.afterLabel}<span class="ba-label ba-label-after">{block.config.afterLabel}</span>{/if}
 					</div>
 					<div class="ba-divider" style="left:{sliderValue}%">
-						<div class="ba-handle"></div>
+						<div class="ba-handle"><IconArrowsHorizontal size={18} stroke={2} /></div>
 					</div>
+					<input type="range" min="0" max="100" step="0.5" bind:value={sliderValue} class="ba-range" aria-label={t.compare} />
 				</div>
-				<input type="range" min="0" max="100" bind:value={sliderValue} class="ba-range" aria-label="Porovnání" />
 			</div>
 		{/if}
 	</ManualBlockShell>
 
 {:else if block.type === 'colors'}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
-		{#if filteredColors.length}
+		{#if filteredColors.length && colorDisplay !== 'cards'}
 			<div class="colors-wrap">
-				{#each colorsByPalette as group, gi}
-					<section class="palette-section" aria-labelledby="palette-{gi}">
+				<div class="format-tabs" role="tablist" aria-label={t.colorFormat}>
+					{#each availableFormats as f (f.id)}
+						<button role="tab" aria-selected={colorFormat === f.id} class:active={colorFormat === f.id} onclick={() => (colorFormat = f.id)}>{f.label}</button>
+					{/each}
+				</div>
+				{#each colorsByPalette as group, gi (group.palette?.id ?? '__unassigned')}
+					<section class="palette-section" aria-label={group.palette?.name ?? t.colors}>
+						{#if block.config.showPaletteNames !== false && colorsByPalette.length > 1}
+							<h3 class="palette-name">{group.palette?.name ?? t.colors}</h3>
+						{/if}
+						<div class={colorDisplay === 'compact' ? 'swatch-compact' : 'swatch-grid'} data-group={gi}>
+							{#each group.colors as color (color.id)}
+								{@const value = colorValue(color, colorFormat)}
+								{@const key = `sw-${color.id}-${colorFormat}`}
+								<button
+									class="swatch-tile"
+									style="background:{color.hex}; color:{contrastOnColor(color.hex)}"
+									onclick={() => copyValue(key, value)}
+									aria-label="{color.name}: {t.copy} {value}"
+								>
+									<span class="swatch-tile-name">{color.name}</span>
+									<span class="swatch-tile-value">
+										{#if copiedKey === key}<IconCheck size={14} stroke={2.4} /> {t.copied}{:else}{value}{/if}
+									</span>
+								</button>
+							{/each}
+						</div>
+					</section>
+				{/each}
+			</div>
+		{:else if filteredColors.length}
+			<div class="colors-wrap">
+				{#each colorsByPalette as group, gi (group.palette?.id ?? '__unassigned')}
+					<section class="palette-section" aria-labelledby={block.config.showPaletteNames !== false ? `palette-${block.id}-${gi}` : undefined}>
 						<div class="palette-head">
 							<div class="palette-title-wrap">
 								{#if block.config.showPaletteNames !== false}
-									<h3 id="palette-{gi}" class="palette-name">
-										{group.palette?.name ?? 'Barvy'}
+									<h3 id="palette-{block.id}-{gi}" class="palette-name">
+										{group.palette?.name ?? t.colors}
 									</h3>
 								{/if}
-								<span class="palette-count">{group.colors.length} {group.colors.length === 1 ? 'barva' : group.colors.length < 5 ? 'barvy' : 'barev'}</span>
+								<span class="palette-count">{t.colorCount(group.colors.length)}</span>
 							</div>
 							<div class="palette-strip" aria-hidden="true">
-								{#each group.colors as stripColor}
+							{#each group.colors as stripColor (stripColor.id)}
 									<span class="palette-strip-swatch" style="background:{stripColor.hex}"></span>
 								{/each}
 							</div>
 						</div>
 
 						<div class="color-grid">
-						{#each group.colors as color}
+					{#each group.colors as color (color.id)}
 							{@const hex = color.hex.toUpperCase()}
 							{@const onColor = contrastOnColor(color.hex)}
 							{@const rgbStr = hexToRgbStr(color.hex, color)}
@@ -390,8 +582,8 @@
 									class="color-swatch"
 									style="background:{color.hex}; color:{onColor}"
 									onclick={() => copyValue(`hex-${color.id}`, hex)}
-									title="Kopírovat {hex}"
-									aria-label="Kopírovat {hex}"
+									title="{t.copy} {hex}"
+									aria-label="{t.copy} {hex}"
 								>
 									<span class="swatch-copy-icon" aria-hidden="true">
 										{#if copiedKey === `hex-${color.id}`}
@@ -403,9 +595,9 @@
 									<div class="swatch-bottom">
 										<span class="swatch-hex-val">{hex}</span>
 										{#if copiedKey === `hex-${color.id}`}
-											<span class="copied-flash">Zkopírováno</span>
+											<span class="copied-flash">{t.copied}</span>
 										{:else}
-											<span class="copy-hint">Kopírovat HEX</span>
+											<span class="copy-hint">{t.copyHex}</span>
 										{/if}
 									</div>
 								</button>
@@ -417,28 +609,28 @@
 
 									{#if block.config.showCodes !== false}
 										<div class="color-values">
-											<button class="cv-row" onclick={() => copyValue(`h-${color.id}`, hex)} title="Kopírovat HEX">
+											<button class="cv-row" onclick={() => copyValue(`h-${color.id}`, hex)} title="{t.copy} HEX">
 												<span class="cv-label">HEX</span>
 												<span class="cv-val mono">{hex}</span>
 												<span class="cv-copy" aria-hidden="true">
 													{#if copiedKey === `h-${color.id}`}<IconCheck size={13} stroke={2.5} />{:else}<IconCopy size={13} stroke={1.8} />{/if}
 												</span>
 											</button>
-											<button class="cv-row" onclick={() => copyValue(`r-${color.id}`, rgbStr)} title="Kopírovat RGB">
+											<button class="cv-row" onclick={() => copyValue(`r-${color.id}`, rgbStr)} title="{t.copy} RGB">
 												<span class="cv-label">RGB</span>
 												<span class="cv-val mono">{rgbStr}</span>
 												<span class="cv-copy" aria-hidden="true">
 													{#if copiedKey === `r-${color.id}`}<IconCheck size={13} stroke={2.5} />{:else}<IconCopy size={13} stroke={1.8} />{/if}
 												</span>
 											</button>
-											<button class="cv-row" onclick={() => copyValue(`hsl-${color.id}`, hslStr)} title="Kopírovat HSL">
+											<button class="cv-row" onclick={() => copyValue(`hsl-${color.id}`, hslStr)} title="{t.copy} HSL">
 												<span class="cv-label">HSL</span>
 												<span class="cv-val mono">{hslStr}</span>
 												<span class="cv-copy" aria-hidden="true">
 													{#if copiedKey === `hsl-${color.id}`}<IconCheck size={13} stroke={2.5} />{:else}<IconCopy size={13} stroke={1.8} />{/if}
 												</span>
 											</button>
-											<button class="cv-row" onclick={() => copyValue(`c-${color.id}`, cmykStr)} title="Kopírovat CMYK">
+											<button class="cv-row" onclick={() => copyValue(`c-${color.id}`, cmykStr)} title="{t.copy} CMYK">
 												<span class="cv-label">CMYK</span>
 												<span class="cv-val mono">{cmykStr}</span>
 												<span class="cv-copy" aria-hidden="true">
@@ -446,7 +638,7 @@
 												</span>
 											</button>
 											{#if color.ralRef}
-												<button class="cv-row" onclick={() => copyValue(`rl-${color.id}`, color.ralRef!)} title="Kopírovat RAL">
+												<button class="cv-row" onclick={() => copyValue(`rl-${color.id}`, color.ralRef!)} title="{t.copy} RAL">
 													<span class="cv-label">RAL</span>
 													<span class="cv-val">{color.ralRef}</span>
 													<span class="cv-copy" aria-hidden="true">
@@ -458,13 +650,13 @@
 
 										{#if productionRefs.length}
 											<div class="production-detail">
-												<div class="production-label">Production</div>
+												<div class="production-label">{t.production}</div>
 												<div class="production-list">
-													{#each productionRefs as ref, refIndex}
+											{#each productionRefs as ref, refIndex (`${ref.type}-${ref.value}-${refIndex}`)}
 														<button
 															class="production-row"
 															onclick={() => copyValue(`prod-${color.id}-${refIndex}`, ref.value)}
-															title="Kopírovat {ref.label}"
+															title="{t.copy} {ref.label}"
 														>
 															<span class="production-ref-label">{ref.label}</span>
 															<span class="production-ref-value">{ref.value}</span>
@@ -482,7 +674,7 @@
 												<div class="contrast-pair" class:pass={crWhite >= 4.5} class:warn={crWhite >= 3 && crWhite < 4.5} class:fail={crWhite < 3}>
 													<span class="contrast-sample contrast-sample-white" style="color:{color.hex}">A</span>
 													<span class="contrast-meta">
-														<span class="contrast-bg">na bílé</span>
+														<span class="contrast-bg">{t.onWhite}</span>
 														<strong>{crWhite}:1</strong>
 														{#if badgeWhite}<em>{badgeWhite}</em>{/if}
 													</span>
@@ -490,7 +682,7 @@
 												<div class="contrast-pair" class:pass={crBlack >= 4.5} class:warn={crBlack >= 3 && crBlack < 4.5} class:fail={crBlack < 3}>
 													<span class="contrast-sample contrast-sample-black" style="color:{color.hex}">A</span>
 													<span class="contrast-meta">
-														<span class="contrast-bg">na černé</span>
+														<span class="contrast-bg">{t.onBlack}</span>
 														<strong>{crBlack}:1</strong>
 														{#if badgeBlack}<em>{badgeBlack}</em>{/if}
 													</span>
@@ -503,14 +695,14 @@
 								{#if block.config.showShades}
 									{@const shades = generateShades(color.hex)}
 									<div class="shades-strip">
-										{#each shades as shade}
+						{#each shades as shade (shade.label)}
 											<button
 												class="shade-btn"
 												style="background:{shade.hex}"
 												data-label={shade.label}
 												onclick={() => copyValue(`s-${color.id}-${shade.label}`, shade.hex.toUpperCase())}
 												title="{shade.label}: {shade.hex.toUpperCase()}"
-												aria-label="Kopírovat {shade.label}: {shade.hex.toUpperCase()}"
+												aria-label="{t.copy} {shade.label}: {shade.hex.toUpperCase()}"
 											>
 												{#if copiedKey === `s-${color.id}-${shade.label}`}
 													<span class="shade-flash">✓</span>
@@ -526,36 +718,40 @@
 				{/each}
 			</div>
 		{:else}
-			<div class="muted-block"><span class="placeholder-copy">Žádné barvy zatím nebyly přidány.</span></div>
+			<div class="muted-block"><span class="placeholder-copy">{t.noColors}</span></div>
 		{/if}
 	</ManualBlockShell>
 
 {:else if block.type === 'typography'}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
-		{#if fontFaces}{@html `<style>${fontFaces}</style>`}{/if}
-		{#if fontRows.length}
+		{@const pickedFontIds = list<string>('fontIds')}
+		{@const shownFonts = pickedFontIds.length ? fontRows.filter(f => pickedFontIds.includes(f.id)) : fontRows}
+		{#if shownFonts.length}
 			<div class="typo-fonts">
-				{#each fontRows as font}
+				{#each shownFonts as font (font.id)}
 					{@const styles = styleRows.filter(s => s.fontId === font.id).sort((a,b) => a.order - b.order)}
-					{#if font.sourceUrl}{@html `<link rel="stylesheet" href="${font.sourceUrl}">`}{/if}
 					<div class="typo-font">
-						<div class="typo-specimen" style="font-family:'{font.name}', sans-serif">
-							<div class="specimen-alpha">Aa Bb Cc</div>
-							<div class="specimen-sentence">The quick brown fox jumps over the lazy dog</div>
-						</div>
-						<div class="typo-info">
-							<strong class="font-name">{font.name}</strong>
-							{#if font.foundry}<span class="font-meta">{font.foundry}</span>{/if}
-							{#if font.role}<span class="font-role">{font.role}</span>{/if}
-						</div>
+						<FontSpecimen
+							{font}
+							files={fontFileRows.filter(f => f.fontId === font.id)}
+							blockId={block.id}
+							allowDownload={block.config.allowDownload === true}
+							description={shownFonts.length === 1 ? cfgStr('fontDescription') : ''}
+							sections={{
+								weights: block.config.showWeights !== false,
+								info: block.config.showInfo !== false,
+								glyphs: block.config.showGlyphs !== false,
+								tester: block.config.showTester !== false,
+							}}
+						/>
 						{#if block.config.showStyles !== false && styles.length}
 							<div class="style-table-wrap">
 								<table class="style-table">
 									<thead><tr>
-										<th>Styl</th><th>Velikost</th><th>Řádkování</th><th>Váha</th><th>Tracking</th>
+										<th>{t.style}</th><th>{t.size}</th><th>{t.lineHeight}</th><th>{t.weight}</th><th>{t.tracking}</th>
 									</tr></thead>
 									<tbody>
-										{#each styles as style}
+								{#each styles as style (style.id)}
 											<tr>
 												<td style="font-family:'{font.name}',sans-serif;font-size:{Math.min(style.size ?? 16, 28)}px;font-weight:{style.weight ?? 400};line-height:{style.lineHeight ?? 1.5};letter-spacing:{style.tracking ?? 0}em">{style.name}</td>
 												<td>{style.size ?? '—'}px</td>
@@ -572,7 +768,7 @@
 				{/each}
 			</div>
 		{:else}
-			<div class="muted-block"><span class="placeholder-copy">Žádné fonty zatím nebyly přidány.</span></div>
+			<div class="muted-block"><span class="placeholder-copy">{t.noFonts}</span></div>
 		{/if}
 	</ManualBlockShell>
 
@@ -580,20 +776,31 @@
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
 		{#if block.config.logoUrl}
 			<div class="logo-spec">
-				<div class="logo-preview-wrap">
-					<div class="logo-clearspace" style="padding: calc({block.config.clearspace ?? 1} * 3rem)">
-						<img src={assetSrc(block.config.logoUrl)} alt="Logo" class="logo-preview-img" />
+				<div class="logo-preview-wrap" style="--cz:{Math.min(3, Math.max(0.1, Number(block.config.clearspace ?? 1)))}">
+					<div class="logo-stage">
+						<div class="logo-zone">
+							<span class="logo-zone-label">{t.clearZone}</span>
+							<img src={assetSrc(block.config.logoUrl)} alt="Logo" class="logo-preview-img" />
+						</div>
 					</div>
-					<div class="logo-clearspace logo-clearspace-dark" style="padding: calc({block.config.clearspace ?? 1} * 3rem)">
-						<img src={assetSrc(block.config.logoUrl)} alt="Logo" class="logo-preview-img" />
+					<div class="logo-stage logo-stage-dark">
+						<div class="logo-zone">
+							<span class="logo-zone-label">{t.clearZone}</span>
+							<img
+								src={assetSrc(block.config.logoDarkUrl || block.config.logoUrl)}
+								alt="Logo"
+								class="logo-preview-img"
+								class:auto-invert={!block.config.logoDarkUrl}
+							/>
+						</div>
 					</div>
 				</div>
 				<dl class="logo-specs">
 					{#if block.config.clearspace != null}
-						<div><dt>Ochranná zóna</dt><dd>{block.config.clearspace}× výška X</dd></div>
+						<div><dt>{t.clearspace}</dt><dd>{block.config.clearspace}{t.xHeight}</dd></div>
 					{/if}
 					{#if block.config.minSizePx != null}
-						<div><dt>Min. velikost</dt><dd>{block.config.minSizePx}px / {block.config.minSizeMm ?? '—'}mm</dd></div>
+						<div><dt>{t.minSize}</dt><dd>{block.config.minSizePx}px / {block.config.minSizeMm ?? '—'}mm</dd></div>
 					{/if}
 				</dl>
 				{#if block.config.description}
@@ -606,18 +813,17 @@
 {:else if block.type === 'naming'}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
 		{#if block.config.markdown}
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -- markdownFallback() escapes input before adding paragraph markup. -->
 			<div class="prose">{@html markdownFallback(block.config.markdown)}</div>
 		{/if}
 	</ManualBlockShell>
 
 {:else if block.type === 'text_styles'}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
-		{#if fontFaces}{@html `<style>${fontFaces}</style>`}{/if}
 		{#if styleRows.length}
 			<div class="text-styles">
-				{#each styleRows as style}
+				{#each styleRows as style (style.id)}
 					{@const font = fontRows.find(f => f.id === style.fontId)}
-					{#if font?.sourceUrl}{@html `<link rel="stylesheet" href="${font.sourceUrl}">`}{/if}
 					<div class="ts-row">
 						<div class="ts-preview" style="
 							font-family:'{font?.name ?? 'inherit'}', sans-serif;
@@ -636,7 +842,7 @@
 				{/each}
 			</div>
 		{:else}
-			<div class="muted-block"><span class="placeholder-copy">Žádné typografické styly zatím nejsou definovány.</span></div>
+			<div class="muted-block"><span class="placeholder-copy">{t.noStyles}</span></div>
 		{/if}
 	</ManualBlockShell>
 
@@ -737,7 +943,7 @@
 				<!-- Baseline grid lines -->
 				{#if sBaselineH > 2}
 					{@const blCount = Math.ceil(iH / sBaselineH)}
-					{#each Array(blCount + 1) as _,li}
+					{#each Array(blCount + 1) as _,li (li)}
 						{@const ly = smgT + li * sBaselineH}
 						{#if ly <= smgT + iH + 0.5}
 							<line x1={smgL} y1={ly} x2={smgL + iW} y2={ly}
@@ -748,10 +954,10 @@
 				{/if}
 
 				<!-- Columns / cells -->
-				{#each Array(gcols) as _,ci}
+			{#each Array(gcols) as _,ci (ci)}
 					{@const cx = smgL + ci * (colW + effSgt)}
 					{#if grows > 0}
-						{#each Array(grows) as _,ri}
+					{#each Array(grows) as _,ri (ri)}
 							{@const ry = smgT + ri * (rowH + effSgtR)}
 							<rect x={cx} y={ry} width={colW} height={rowH}
 								fill="color-mix(in srgb,var(--manual-brand) 18%,transparent)"
@@ -827,15 +1033,15 @@
 			</svg>
 
 			<dl class="grid-meta">
-				<div><dt>Sloupce</dt><dd>{gcols}</dd></div>
-				{#if grows > 0}<div><dt>Řádky</dt><dd>{grows}</dd></div>{/if}
-				<div><dt>Gutter</dt><dd>{ggutter} {gunit}</dd></div>
-				{#if grows > 0 && ggutterR !== ggutter}<div><dt>Gutter (řádky)</dt><dd>{ggutterR} {gunit}</dd></div>{/if}
-				<div><dt>Okraje</dt><dd>{marginLabel}</dd></div>
-				{#if gmedium !== 'print'}<div><dt>Max šířka</dt><dd>{block.config.maxWidth ?? 1280} {gunit}</dd></div>{/if}
-				{#if gmedium === 'print'}<div><dt>Formát</dt><dd>{gformat} {gorient === 'portrait' ? '↕' : '↔'}</dd></div>{/if}
+				<div><dt>{t.columns}</dt><dd>{gcols}</dd></div>
+				{#if grows > 0}<div><dt>{t.rows}</dt><dd>{grows}</dd></div>{/if}
+				<div><dt>{t.gutter}</dt><dd>{ggutter} {gunit}</dd></div>
+				{#if grows > 0 && ggutterR !== ggutter}<div><dt>{t.gutterRows}</dt><dd>{ggutterR} {gunit}</dd></div>{/if}
+				<div><dt>{t.margins}</dt><dd>{marginLabel}</dd></div>
+				{#if gmedium !== 'print'}<div><dt>{t.maxWidth}</dt><dd>{block.config.maxWidth ?? 1280} {gunit}</dd></div>{/if}
+				{#if gmedium === 'print'}<div><dt>{t.format}</dt><dd>{gformat} {gorient === 'portrait' ? '↕' : '↔'}</dd></div>{/if}
 				{#if gbaseline > 0}<div><dt>Baseline</dt><dd>{gbaseline} {gunit}</dd></div>{/if}
-				<div><dt>Médium</dt><dd>{gmedium === 'print' ? 'Tisk' : gmedium === 'web' ? 'Web' : gmedium === 'social' ? 'Social' : gmedium}</dd></div>
+				<div><dt>{t.medium}</dt><dd>{gmedium === 'print' ? t.print : gmedium === 'web' ? 'Web' : gmedium === 'social' ? 'Social' : gmedium}</dd></div>
 			</dl>
 			{#if block.config.description}
 				<p class="block-text">{block.config.description}</p>
@@ -847,12 +1053,20 @@
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
 		{#if Array.isArray(block.config.items)}
 			<div class="do-dont-grid">
-				{#each block.config.items as item}
-					<div class="do-dont-item" class:is-do={item.type === 'do'} class:is-dont={item.type === 'dont'}>
-						<span class="do-dont-badge">
-							{#if item.type === 'do'}<IconCheck size={12} stroke={2.5} />Do{:else}<IconX size={12} stroke={2.5} />Don't{/if}
-						</span>
-						<p>{item.text}</p>
+				{#each block.config.items as item, i (i)}
+					<div class="do-dont-item" class:is-do={item.type === 'do'} class:is-dont={item.type === 'dont'} class:has-image={!!item.imageUrl}>
+						{#if item.imageUrl}
+							<figure class="dd-media" style={item.imageBg ? `background:${item.imageBg}` : ''}>
+								<img src={assetSrc(item.imageUrl)} alt={item.text ?? ''} loading="lazy" decoding="async" />
+								{#if item.type === 'dont'}<span class="dd-strike" aria-hidden="true"></span>{/if}
+							</figure>
+						{/if}
+						<div class="dd-body">
+							<span class="do-dont-badge">
+								{#if item.type === 'do'}<IconCheck size={12} stroke={2.5} />{t.do}{:else}<IconX size={12} stroke={2.5} />{t.dont}{/if}
+							</span>
+							{#if item.text}<p>{item.text}</p>{/if}
+						</div>
 					</div>
 				{/each}
 			</div>
@@ -863,9 +1077,9 @@
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
 		{#if Array.isArray(block.config.steps)}
 			<ol class="process-list">
-				{#each block.config.steps as step, i}
+				{#each block.config.steps as step, i (i)}
 					<li class="process-step">
-						<div class="step-num">{i + 1}</div>
+						<div class="step-num">{String(i + 1).padStart(2, '0')}</div>
 						<div>
 							<div class="step-title">{step.title}</div>
 							{#if step.description}<p class="step-desc">{step.description}</p>{/if}
@@ -880,7 +1094,7 @@
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
 		{#if Array.isArray(block.config.cards) && block.config.cards.length}
 			<div class="cards-grid">
-				{#each block.config.cards as card}
+				{#each block.config.cards as card, i (i)}
 					<div class="info-card">
 						{#if card.imageUrl}
 							<div class="card-img-wrap">
@@ -909,7 +1123,7 @@
 			<div class="chart-wrap">
 				<svg class="radar-chart" viewBox="0 0 440 380" aria-label={String(block.config.datasetLabel ?? 'Brand chart')}>
 					<!-- grid rings -->
-					{#each [0.25,0.5,0.75,1] as ring}
+					{#each [0.25,0.5,0.75,1] as ring (ring)}
 						<polygon class="radar-grid"
 							points={Array.from({length:count},(_,i)=>{
 								const angle = (i/count)*Math.PI*2 - Math.PI/2;
@@ -918,7 +1132,7 @@
 						/>
 					{/each}
 					<!-- axes -->
-					{#each entries as _,i}
+					{#each entries as _,i (i)}
 						{@const angle = (i/count)*Math.PI*2 - Math.PI/2}
 						<line class="radar-axis" x1={cx} y1={cy} x2={cx+Math.cos(angle)*r} y2={cy+Math.sin(angle)*r} />
 					{/each}
@@ -930,7 +1144,7 @@
 						}).join(' ')}
 					/>
 					<!-- labels -->
-					{#each entries as {label,value},i}
+					{#each entries as {label},i (`${label}-${i}`)}
 						{@const angle=(i/count)*Math.PI*2-Math.PI/2}
 						{@const lx=cx+Math.cos(angle)*(r+26)}
 						{@const ly=cy+Math.sin(angle)*(r+26)}
@@ -941,7 +1155,7 @@
 					{/each}
 				</svg>
 				<div class="chart-legend">
-					{#each entries as {label,value}}
+					{#each entries as {label,value}, i (`${label}-${i}`)}
 						<div class="legend-row">
 							<span class="legend-label">{label}</span>
 							<div class="legend-bar-wrap"><div class="legend-bar" style="width:{value}%"></div></div>
@@ -957,7 +1171,7 @@
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
 		{#if Array.isArray(block.config.items)}
 			<div class="accordion">
-				{#each block.config.items as item}
+				{#each block.config.items as item, i (i)}
 					<details class="accordion-item">
 						<summary class="accordion-q">
 							{item.question}
@@ -975,11 +1189,11 @@
 		{#if Array.isArray(block.config.headers)}
 			<div class="table-wrap">
 				<table class="block-table">
-					<thead><tr>{#each block.config.headers as h}<th>{h}</th>{/each}</tr></thead>
+					<thead><tr>{#each block.config.headers as h, i (i)}<th>{h}</th>{/each}</tr></thead>
 					<tbody>
 						{#if Array.isArray(block.config.rows)}
-							{#each block.config.rows as row}
-								<tr>{#each row as cell}<td>{cell}</td>{/each}</tr>
+							{#each block.config.rows as row, rowIndex (rowIndex)}
+								<tr>{#each row as cell, cellIndex (cellIndex)}<td>{cell}</td>{/each}</tr>
 							{/each}
 						{/if}
 					</tbody>
@@ -992,7 +1206,7 @@
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
 		{#if block.config.html}
 			{#if block.config.showPreview !== false}
-				<div class="html-preview">{@html block.config.html}</div>
+				<iframe class="html-preview" title={t.htmlPreview} sandbox="" srcdoc={sandboxedHtmlPreview(block.config.html)}></iframe>
 			{/if}
 			<pre class="code-block"><code>{block.config.html}</code></pre>
 		{/if}
@@ -1000,7 +1214,15 @@
 
 {:else if block.type === 'code'}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
-		<pre class="code-block"><code>{block.config.code ?? ''}</code></pre>
+		<div class="code-shell">
+			<div class="code-head">
+				<span class="code-lang">{cfgStr('language') || 'code'}</span>
+				<button class="code-copy" onclick={() => copyValue(`code-${block.id}`, String(block.config.code ?? ''))}>
+					{#if copiedKey === `code-${block.id}`}<IconCheck size={14} stroke={2.4} />{t.copied}{:else}<IconCopy size={14} stroke={1.9} />{t.copy}{/if}
+				</button>
+			</div>
+			<pre class="code-block"><code>{block.config.code ?? ''}</code></pre>
+		</div>
 	</ManualBlockShell>
 
 {:else if block.type === 'typo_rules'}
@@ -1010,7 +1232,7 @@
 			<!-- language tabs -->
 			{#if langs.length > 1}
 				<div class="tr-tabs" role="tablist">
-					{#each langs as tl, i}
+					{#each langs as tl, i (tl.lang)}
 						<button
 							type="button"
 							class="tr-tab"
@@ -1027,13 +1249,13 @@
 				<div class="tr-table-wrap">
 					<table class="tr-table">
 						<thead><tr>
-							<th style="width:140px">Kategorie</th>
-							<th>Pravidlo</th>
-							<th style="width:160px">✓ Správně</th>
-							<th style="width:160px">✗ Špatně</th>
+							<th style="width:140px">{t.category}</th>
+							<th>{t.rule}</th>
+							<th style="width:160px">✓ {t.correct}</th>
+							<th style="width:160px">✗ {t.wrong}</th>
 						</tr></thead>
 						<tbody>
-							{#each activeLang.rules as rule}
+							{#each activeLang.rules as rule, i (`${rule.category}-${i}`)}
 								<tr>
 									<td class="tr-cat">{rule.category}</td>
 									<td>{rule.rule}</td>
@@ -1045,31 +1267,400 @@
 					</table>
 				</div>
 			{:else}
-				<div class="muted-block"><span class="placeholder-copy">Žádná pravidla zatím nejsou definována.</span></div>
+				<div class="muted-block"><span class="placeholder-copy">{t.noRules}</span></div>
 			{/if}
 		{:else}
-			<div class="muted-block"><span class="placeholder-copy">Přidejte jazyky a typografická pravidla v editoru.</span></div>
+			<div class="muted-block"><span class="placeholder-copy">{t.addRules}</span></div>
 		{/if}
 	</ManualBlockShell>
 
 {:else if block.type === 'image_gallery' || block.type === 'carousel'}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
-		<div class="muted-block"><span class="placeholder-copy">Galerie — připojte složku z assetů.</span></div>
+		{@const galleryAssets = assetsForBlock(block.config, true, true)}
+		{#if galleryAssets.length}
+			{@const lbImages = galleryAssets.map((asset) => ({ src: assetSrc(asset.storagePath), alt: asset.filename.replace(/\.[^.]+$/, ''), caption: block.config.showCaptions === false ? undefined : asset.filename, download: assetDownload(asset) }))}
+			<div class="gallery-shell" class:is-carousel={block.type === 'carousel'}>
+				{#if block.type === 'carousel'}
+					<div class="carousel-controls">
+						<button class="carousel-btn" onclick={() => scrollCarousel(-1)} disabled={carouselAtStart} aria-label={t.previous}><IconChevronLeft size={18} stroke={1.9} /></button>
+						<button class="carousel-btn" onclick={() => scrollCarousel(1)} disabled={carouselAtEnd} aria-label={t.next}><IconChevronRight size={18} stroke={1.9} /></button>
+					</div>
+				{/if}
+				<ul
+					class:carousel={block.type === 'carousel'}
+					class="image-gallery"
+					style="--gallery-cols:{Math.min(6, Math.max(1, Number(block.config.columns ?? 3)))}"
+					bind:this={carouselEl}
+					onscroll={block.type === 'carousel' ? updateCarouselEdges : undefined}
+				>
+					{#each galleryAssets as asset, ai (asset.id)}
+						<li class="gallery-card">
+							<button class="gallery-btn" class:graphic={!isPhoto(asset)} onclick={() => openLightbox(lbImages, ai)} aria-label="{t.openImage}: {asset.filename}">
+								<img src={assetPreview(asset)} alt={asset.filename.replace(/\.[^.]+$/, '')} loading="lazy" decoding="async" />
+							</button>
+							{#if block.config.showCaptions !== false}
+								<span class="gallery-caption">
+									<span class="gallery-caption-name">{asset.filename.replace(/\.[^.]+$/, '')}</span>
+									<span class="gallery-caption-ext">{assetExt(asset)}</span>
+								</span>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{:else}
+			<div class="muted-block"><span class="placeholder-copy">{t.noImages}</span></div>
+		{/if}
 	</ManualBlockShell>
 
 {:else if block.type === 'icons'}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
-		<div class="muted-block"><span class="placeholder-copy">Ikony — připojte složku z assetů.</span></div>
+		{@const iconAssets = assetsForBlock(block.config, true, true)}
+		{#if block.config.description}<p class="block-text">{block.config.description}</p>{/if}
+		{#if iconAssets.length}
+			<div class="icon-gallery" style="--icon-size:{Math.min(128, Math.max(16, Number(block.config.size ?? 32)))}px">
+				{#each iconAssets as asset (asset.id)}
+					<a class="icon-card" href={assetDownload(asset)} download={asset.filename}>
+						<img src={assetPreview(asset)} alt="" loading="lazy" decoding="async" />
+						<span>{asset.filename.replace(/\.[^.]+$/, '')}</span>
+					</a>
+				{/each}
+			</div>
+		{:else}
+			<div class="muted-block"><span class="placeholder-copy">{t.noIcons}</span></div>
+		{/if}
 	</ManualBlockShell>
 
 {:else if block.type === 'asset_gallery'}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
-		<div class="muted-block"><span class="placeholder-copy">Asset galerie — připojte složku z assetů.</span></div>
+		{@const galleryAssets = assetsForBlock(block.config)}
+		{#if galleryAssets.length}
+			<div class="asset-gallery" class:list={block.config.layout === 'list'}>
+				{#each galleryAssets as asset (asset.id)}
+					<a class="asset-public-card" href={assetDownload(asset)} download={asset.filename}>
+						<div class="asset-public-preview" class:graphic={!isPhoto(asset)}>
+							{#if assetPreview(asset)}<img src={assetPreview(asset)} alt="" loading="lazy" decoding="async" />{:else}<span>{asset.filename.split('.').pop()?.toUpperCase()}</span>{/if}
+						</div>
+						<div><strong>{asset.filename}</strong><span>{formatBytes(asset.size)}</span></div>
+						<IconDownload size={16} stroke={1.8} />
+					</a>
+				{/each}
+			</div>
+		{:else}
+			<div class="muted-block"><span class="placeholder-copy">{t.noAssets}</span></div>
+		{/if}
 	</ManualBlockShell>
 
 {:else if block.type === 'download'}
 	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
-		<div class="muted-block"><span class="placeholder-copy">Ke stažení — připojte složku nebo tagy z assetů.</span></div>
+		{@const downloadAssets = assetsForBlock(block.config)}
+		{#if block.config.description}<p class="block-text download-description">{block.config.description}</p>{/if}
+		{#if downloadAssets.length}
+			<div class="download-list">
+				{#each downloadAssets as asset (asset.id)}
+					<a class="download-row" href={assetDownload(asset)} download={asset.filename}>
+						<span><strong>{asset.filename}</strong><small>{asset.mime} · {formatBytes(asset.size)}</small></span>
+						<IconDownload size={17} stroke={1.8} />
+					</a>
+				{/each}
+			</div>
+		{:else}
+			<div class="muted-block"><span class="placeholder-copy">{t.noFiles}</span></div>
+		{/if}
+	</ManualBlockShell>
+
+{:else if block.type === 'font_usage'}
+	{@const usageRows = list<{ label: string; fontIds?: string[] }>('rows').filter(r => r?.label)}
+	{@const usageFonts = (() => { const ids = new Set(usageRows.flatMap(r => r.fontIds ?? [])); return fontRows.filter(f => ids.has(f.id)); })()}
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		{#if usageRows.length && usageFonts.length}
+			<div class="table-wrap">
+				<table class="block-table usage-table">
+					<thead><tr>
+						<th>{t.usage}</th>
+						{#each usageFonts as f (f.id)}<th class="usage-font" style="font-family:'{f.name.replace(/'/g, '')}', var(--manual-font)">{f.name}</th>{/each}
+					</tr></thead>
+					<tbody>
+						{#each usageRows as row, ri (ri)}
+							<tr>
+								<td>{row.label}</td>
+								{#each usageFonts as f (f.id)}
+									<td class="usage-cell">
+										{#if row.fontIds?.includes(f.id)}<span class="usage-yes" aria-label="✓"><IconCheck size={15} stroke={2.6} /></span>{:else}<span class="usage-no" aria-label="—">—</span>{/if}
+									</td>
+								{/each}
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{/if}
+	</ManualBlockShell>
+
+{:else if block.type === 'logo_download'}
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		<LogoDownload blockId={block.id} config={block.config} />
+	</ManualBlockShell>
+
+{:else if block.type === 'color_ratio'}
+	{@const ratioItems = list<{ colorId?: string; hex?: string; label?: string; percent: number }>('items')
+		.map((item) => {
+			const color = colorRows.find((c) => c.id === item.colorId);
+			const hex = color?.hex ?? (typeof item.hex === 'string' && /^#[0-9a-f]{6}$/i.test(item.hex) ? item.hex : null);
+			return hex ? { hex, label: item.label || color?.name || hex.toUpperCase(), percent: Math.max(0, Number(item.percent) || 0) } : null;
+		})
+		.filter((item): item is { hex: string; label: string; percent: number } => !!item && item.percent > 0)}
+	{@const ratioTotal = ratioItems.reduce((sum, item) => sum + item.percent, 0) || 1}
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		{#if ratioItems.length}
+			<div class="ratio-block">
+				<div class="ratio-bar" role="img" aria-label={ratioItems.map((i) => `${i.label} ${Math.round(i.percent / ratioTotal * 100)} %`).join(', ')}>
+					{#each ratioItems as item, ri (ri)}
+						<span style="flex:{item.percent} 1 0; background:{item.hex}; color:{contrastOnColor(item.hex)}">
+							{#if item.percent / ratioTotal >= 0.08}<em>{Math.round(item.percent / ratioTotal * 100)} %</em>{/if}
+						</span>
+					{/each}
+				</div>
+				<ul class="ratio-legend">
+					{#each ratioItems as item, ri (ri)}
+						<li><span class="ratio-dot" style="background:{item.hex}"></span>{item.label}<strong>{Math.round(item.percent / ratioTotal * 100)} %</strong></li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+	</ManualBlockShell>
+
+{:else if block.type === 'contrast_checker'}
+	{@const fg = /^#[0-9a-f]{6}$/i.test(contrastFg) ? contrastFg : '#171717'}
+	{@const bg = /^#[0-9a-f]{6}$/i.test(contrastBg) ? contrastBg : '#ffffff'}
+	{@const ratio = wcagContrast(fg, bg)}
+	{@const paletteForChecker = colorRows.length ? colorRows : []}
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		<div class="cc-block">
+			<div class="cc-preview" style="background:{bg}; color:{fg}">
+				<span class="cc-big">Aa</span>
+				<span class="cc-sample">{cfgStr('sample') || 'The quick brown fox jumps over the lazy dog'}</span>
+			</div>
+			<div class="cc-controls">
+				{#each [['fg', t.textColor], ['bg', t.backgroundColor]] as [which, label] (which)}
+					<div class="cc-field">
+						<span class="cc-label">{label}</span>
+						<div class="cc-input">
+							<input type="color" value={which === 'fg' ? fg : bg} oninput={(e) => { const v = (e.target as HTMLInputElement).value; if (which === 'fg') contrastFg = v; else contrastBg = v; }} aria-label={label} />
+							<input type="text" value={(which === 'fg' ? fg : bg).toUpperCase()} maxlength="7" spellcheck="false"
+								oninput={(e) => { let v = (e.target as HTMLInputElement).value.trim(); if (!v.startsWith('#')) v = `#${v}`; if (which === 'fg') contrastFg = v; else contrastBg = v; }} aria-label="{label} HEX" />
+						</div>
+						{#if paletteForChecker.length}
+							<div class="cc-swatches">
+								{#each paletteForChecker as c (c.id)}
+									<button class="cc-swatch" class:active={(which === 'fg' ? fg : bg).toLowerCase() === c.hex.toLowerCase()} style="background:{c.hex}" title={c.name} aria-label="{label}: {c.name}"
+										onclick={() => { if (which === 'fg') contrastFg = c.hex; else contrastBg = c.hex; }}></button>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/each}
+				<button class="cc-swap" onclick={() => { const tmp = contrastFg; contrastFg = contrastBg; contrastBg = tmp; }} aria-label={t.swapColors}><IconArrowsHorizontal size={16} stroke={1.9} /> {t.swapColors}</button>
+			</div>
+			<div class="cc-results">
+				<div class="cc-ratio"><span>{t.contrastRatio}</span><strong>{ratio}:1</strong></div>
+				{#each [[t.smallText, 4.5, 7], [t.largeText, 3, 4.5], [t.uiComponents, 3, null]] as [label, aa, aaa] (label)}
+					{@const level = aaa !== null && ratio >= Number(aaa) ? 'AAA' : ratio >= Number(aa) ? 'AA' : null}
+					<div class="cc-row" class:fail={!level}>
+						<span>{label}</span>
+						<em>{level ?? t.fail}</em>
+					</div>
+				{/each}
+			</div>
+		</div>
+	</ManualBlockShell>
+
+{:else if block.type === 'hotspots'}
+	{@const spots = list<{ x: number; y: number; title?: string; text?: string }>('points').filter((p) => Number.isFinite(Number(p?.x)) && Number.isFinite(Number(p?.y)))}
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		{#if cfgStr('imageUrl')}
+			<figure class="hs-figure">
+				<div class="hs-stage">
+					<img src={assetSrc(cfgStr('imageUrl'))} alt={cfgStr('alt')} loading="lazy" decoding="async" />
+					{#each spots as spot, si (si)}
+						<button
+							class="hs-dot"
+							class:active={activeHotspot === si}
+							style="left:{Math.min(100, Math.max(0, Number(spot.x)))}%; top:{Math.min(100, Math.max(0, Number(spot.y)))}%"
+							onclick={() => (activeHotspot = activeHotspot === si ? null : si)}
+							onmouseenter={() => (activeHotspot = si)}
+							aria-expanded={activeHotspot === si}
+							aria-label={spot.title || `${si + 1}`}
+						>{si + 1}</button>
+						{#if activeHotspot === si && (spot.title || spot.text)}
+							<div class="hs-tip" class:left={Number(spot.x) > 60} style="left:{Number(spot.x)}%; top:{Number(spot.y)}%" role="tooltip">
+								{#if spot.title}<strong>{spot.title}</strong>{/if}
+								{#if spot.text}<span>{spot.text}</span>{/if}
+							</div>
+						{/if}
+					{/each}
+				</div>
+				{#if block.config.showList !== false && spots.some((s) => s.title || s.text)}
+					<ol class="hs-list">
+						{#each spots as spot, si (si)}
+							<li class:active={activeHotspot === si}>
+								<button onclick={() => (activeHotspot = si)}>
+									<span class="hs-num">{si + 1}</span>
+									<span>{#if spot.title}<strong>{spot.title}</strong>{/if}{#if spot.text}<small>{spot.text}</small>{/if}</span>
+								</button>
+							</li>
+						{/each}
+					</ol>
+				{/if}
+			</figure>
+		{/if}
+	</ManualBlockShell>
+
+{:else if block.type === 'quote'}
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		{#if cfgStr('quote').trim()}
+			<figure class="quote-block" class:large={cfgStr('size') !== 'normal'}>
+				<span class="quote-mark" aria-hidden="true"><IconQuote size={30} stroke={1.5} /></span>
+				<blockquote>{cfgStr('quote')}</blockquote>
+				{#if cfgStr('author') || cfgStr('role')}
+					<figcaption>
+						{#if cfgStr('author')}<strong>{cfgStr('author')}</strong>{/if}
+						{#if cfgStr('role')}<span>{cfgStr('role')}</span>{/if}
+					</figcaption>
+				{/if}
+			</figure>
+		{/if}
+	</ManualBlockShell>
+
+{:else if block.type === 'callout'}
+	{@const tone = ['info', 'success', 'warning', 'danger'].includes(cfgStr('tone')) ? cfgStr('tone') : 'info'}
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		{#if cfgStr('title') || cfgStr('text')}
+			<div class="callout-block tone-{tone}" role="note">
+				<span class="callout-block-icon" aria-hidden="true">
+					{#if tone === 'success'}<IconCircleCheck size={20} stroke={1.9} />
+					{:else if tone === 'warning'}<IconAlertTriangle size={20} stroke={1.9} />
+					{:else if tone === 'danger'}<IconCancel size={20} stroke={1.9} />
+					{:else}<IconInfoCircle size={20} stroke={1.9} />{/if}
+				</span>
+				<div class="callout-block-body">
+					{#if cfgStr('title')}<strong>{cfgStr('title')}</strong>{/if}
+					{#if cfgStr('text')}<p>{cfgStr('text')}</p>{/if}
+				</div>
+			</div>
+		{/if}
+	</ManualBlockShell>
+
+{:else if block.type === 'stats'}
+	{@const stats = list<{ value: string; label: string; description?: string }>('items').filter((item) => item?.value || item?.label)}
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		{#if stats.length}
+			<div class="stats-grid" style="--stat-cols:{Math.min(4, stats.length)}">
+				{#each stats as stat, si (si)}
+					<div class="stat">
+						<span class="stat-value">{stat.value}</span>
+						<span class="stat-label">{stat.label}</span>
+						{#if stat.description}<span class="stat-desc">{stat.description}</span>{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</ManualBlockShell>
+
+{:else if block.type === 'embed'}
+	{@const embed = resolveEmbed(block.config.url)}
+	{@const ratio = ['16/9', '4/3', '1/1', '9/16', '21/9'].includes(cfgStr('ratio')) ? cfgStr('ratio') : '16/9'}
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		{#if embed.kind === 'iframe'}
+			<figure class="embed-figure">
+				<div class="embed-frame" style="aspect-ratio:{ratio}">
+					<iframe
+						src={embed.src}
+						title={cfgStr('title') || embed.provider}
+						loading="lazy"
+						allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+						allowfullscreen
+						referrerpolicy="strict-origin-when-cross-origin"
+					></iframe>
+				</div>
+				{#if cfgStr('caption')}<figcaption class="img-caption">{cfgStr('caption')}</figcaption>{/if}
+			</figure>
+		{:else if embed.kind === 'audio'}
+			<figure class="embed-figure">
+				<audio src={embed.src} controls preload="metadata" class="embed-audio"></audio>
+				{#if cfgStr('caption')}<figcaption class="img-caption">{cfgStr('caption')}</figcaption>{/if}
+			</figure>
+		{:else if embed.kind === 'video'}
+			<figure class="embed-figure">
+				<div class="embed-frame" style="aspect-ratio:{ratio}">
+					<video
+						src={embed.src}
+						controls={block.config.controls !== false}
+						autoplay={block.config.autoplay === true}
+						muted={block.config.autoplay === true}
+						loop={block.config.loop === true}
+						playsinline
+						preload="metadata"
+						poster={block.config.poster ? assetSrc(block.config.poster) : undefined}
+					></video>
+				</div>
+				{#if cfgStr('caption')}<figcaption class="img-caption">{cfgStr('caption')}</figcaption>{/if}
+			</figure>
+		{:else if cfgStr('url')}
+			<a class="link-card" href={linkHref(cfgStr('url'))} target="_blank" rel="noopener noreferrer">
+				<span class="link-card-icon"><IconPlayerPlay size={18} stroke={1.8} /></span>
+				<span class="link-card-body"><strong>{cfgStr('title') || t.videoFallback}</strong><small>{hostOf(linkHref(cfgStr('url'))) || cfgStr('url')}</small></span>
+				<span class="link-card-arrow"><IconArrowUpRight size={16} stroke={1.8} /></span>
+			</a>
+		{/if}
+	</ManualBlockShell>
+
+{:else if block.type === 'text_image'}
+	{@const img = cfgStr('imageUrl')}
+	{@const body = richContent(block.config)}
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		<div class="text-image" class:image-left={cfgStr('imagePosition') === 'left'} class:no-image={!img}>
+			<div class="text-image-copy">
+				{#if cfgStr('title')}<h3>{cfgStr('title')}</h3>{/if}
+				{#each body as item, itemIndex (itemIndex)}
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -- richContent() sanitizes this HTML. -->
+					<div class="prose">{@html item.html}</div>
+				{/each}
+				{#if cfgStr('ctaLabel') && cfgStr('ctaUrl')}
+					{@const href = linkHref(cfgStr('ctaUrl'))}
+					<a class="text-image-cta" {href} target={isExternal(href) ? '_blank' : undefined} rel={isExternal(href) ? 'noopener noreferrer' : undefined}>
+						{cfgStr('ctaLabel')} <IconArrowUpRight size={15} stroke={2} />
+					</a>
+				{/if}
+			</div>
+			{#if img}
+				<figure class="text-image-media" style={cfgStr('imageBg') ? `background:${cfgStr('imageBg')}` : ''}>
+					<img src={assetSrc(img)} alt={cfgStr('alt')} loading="lazy" decoding="async" class:contain={cfgStr('fit') === 'contain'} />
+				</figure>
+			{/if}
+		</div>
+	</ManualBlockShell>
+
+{:else if block.type === 'links'}
+	{@const links = list<{ title: string; url: string; description?: string }>('items').filter((item) => item?.url)}
+	<ManualBlockShell id={anchorId} type={block.type} config={block.config}>
+		{#if links.length}
+			<ul class="links-grid">
+				{#each links as link, li (li)}
+					{@const href = linkHref(link.url)}
+					{@const external = isExternal(href)}
+					<li>
+						<a class="link-card" {href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}>
+							<span class="link-card-body">
+								<strong>{link.title || hostOf(href) || link.url}</strong>
+								<small>{link.description || hostOf(href) || link.url}</small>
+							</span>
+							<span class="link-card-arrow"><IconArrowUpRight size={16} stroke={1.5} /></span>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	</ManualBlockShell>
 
 {:else}
@@ -1080,11 +1671,94 @@
 	</ManualBlockShell>
 {/if}
 
+<Lightbox images={lightboxImages} bind:index={lightboxIndex} />
+
 <style>
 	/* ── Shared ──────────────────────────────────────────────────────────────── */
-	.block-text { color: var(--manual-muted); line-height: 1.72; font-size: .93rem; }
+	.block-text { color: var(--manual-muted); line-height: 1.72; font-size: var(--text-md); }
+	.block-text + .icon-gallery { margin-top: 1rem; }
+	/* ── Gallery / carousel ─────────────────────────────────────────────────── */
+	.gallery-shell { position: relative; display: flex; flex-direction: column; gap: .75rem; }
+	.image-gallery {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, max(160px, calc((100% - (var(--gallery-cols) - 1) * 1rem) / var(--gallery-cols)))), 1fr));
+		gap: 1rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.image-gallery.carousel {
+		display: flex;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		scroll-padding: 0;
+		scrollbar-width: none;
+		overscroll-behavior-x: contain;
+	}
+	.image-gallery.carousel::-webkit-scrollbar { display: none; }
+	.image-gallery.carousel .gallery-card { flex: 0 0 min(72%, 440px); scroll-snap-align: start; }
+	.image-gallery.carousel .gallery-btn img { aspect-ratio: 3/2; }
+	.carousel-controls { display: flex; gap: .4rem; justify-content: flex-end; order: 2; }
+	.carousel-btn {
+		display: grid; place-items: center; width: 38px; height: 38px;
+		border: 1px solid var(--manual-border); border-radius: var(--radius-full);
+		background: var(--manual-surface); color: var(--manual-ink); cursor: pointer;
+		transition: background .15s ease, opacity .15s ease, border-color .15s ease;
+	}
+	.carousel-btn:hover:not(:disabled) { border-color: var(--manual-border-strong); background: var(--manual-hover); }
+	.carousel-btn:disabled { opacity: .35; cursor: default; }
+	.gallery-card { display: flex; flex-direction: column; gap: .5rem; min-width: 0; margin: 0; }
+	.gallery-btn, .zoom-btn {
+		display: block; width: 100%; padding: 0; border: 0; background: none;
+		cursor: zoom-in; border-radius: var(--manual-radius); overflow: hidden;
+	}
+	.gallery-btn {
+		position: relative;
+		border: 1px solid var(--manual-border);
+		background: var(--manual-surface);
+		transition: border-color .2s ease;
+	}
+	.gallery-btn:hover { border-color: var(--manual-border-strong); }
+	.gallery-btn img {
+		display: block; width: 100%; aspect-ratio: 4/3; object-fit: cover;
+		transition: transform .6s var(--manual-ease, ease);
+	}
+	.gallery-btn:not(.graphic):hover img { transform: scale(1.025); }
+	/* Graphics sit whole on a quiet transparency grid, like an artboard */
+	.gallery-btn.graphic, .asset-public-preview.graphic {
+		--chk: color-mix(in srgb, var(--manual-ink) 5%, transparent);
+		background-color: var(--manual-surface);
+		background-image:
+			linear-gradient(45deg, var(--chk) 25%, transparent 25%, transparent 75%, var(--chk) 75%),
+			linear-gradient(45deg, var(--chk) 25%, transparent 25%, transparent 75%, var(--chk) 75%);
+		background-size: 16px 16px;
+		background-position: 0 0, 8px 8px;
+	}
+	.gallery-btn.graphic img { object-fit: contain; padding: 14%; }
+	.gallery-caption { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; min-width: 0; color: var(--manual-muted); font-size: var(--text-xs); }
+	.gallery-caption-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--manual-ink); }
+	.gallery-caption-ext { flex: 0 0 auto; font-family: var(--manual-mono); font-size: var(--text-2xs); letter-spacing: .04em; }
+	.icon-gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:.75rem; }
+	.icon-card { display:flex; min-width:0; flex-direction:column; align-items:center; gap:.7rem; padding:1rem .7rem; border:1px solid var(--manual-border); border-radius:var(--manual-radius); color:var(--manual-ink); text-decoration:none; background:var(--manual-surface); }
+	.icon-card:hover { border-color:var(--manual-border-strong); }
+	.icon-card img { width:var(--icon-size); height:var(--icon-size); object-fit:contain; }
+	.icon-card span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size: var(--text-xs); }
+	.asset-gallery { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.75rem; }
+	.asset-gallery.list { grid-template-columns:1fr; }
+	.asset-public-card, .download-row { display:flex; align-items:center; gap:.75rem; min-width:0; padding:.65rem; border:1px solid var(--manual-border); border-radius:var(--manual-radius); color:var(--manual-ink); text-decoration:none; background:var(--manual-surface); }
+	.asset-public-card:hover, .download-row:hover { border-color:var(--manual-border-strong); }
+	.asset-public-preview { display:flex; align-items:center; justify-content:center; width:54px; height:44px; flex:0 0 auto; overflow:hidden; border-radius:calc(var(--manual-radius) * .7); background:var(--manual-paper); color:var(--manual-muted); font-size: var(--text-2xs); font-weight: 600; }
+	.asset-public-preview img { width:100%; height:100%; object-fit:cover; }
+	.asset-public-preview.graphic img { object-fit:contain; padding:6px; }
+	.asset-public-card > div:nth-child(2), .download-row > span { display:flex; flex:1; min-width:0; flex-direction:column; gap:.2rem; }
+	.asset-public-card strong, .download-row strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size: var(--text-sm); }
+	.asset-public-card span, .download-row small { color:var(--manual-muted); font-size: var(--text-xs); }
+	.download-list { display:flex; flex-direction:column; gap:.55rem; }
+	.download-description { margin:0 0 .8rem; }
 
-	hr.divider { border: none; border-top: 1px solid var(--manual-border); }
+	.divider { position: relative; margin: calc(var(--divider-space) / 4) 0; height: 1px; }
+	.divider-line { background: var(--manual-border); }
+	.divider-dots { height: 6px; background: radial-gradient(circle, var(--manual-border-strong) 1.5px, transparent 2px) center / 16px 6px repeat-x; max-width: 120px; margin-inline: auto; }
 
 	.muted-block {
 		display: flex; flex-direction: column; gap: 6px;
@@ -1094,36 +1768,38 @@
 		background: color-mix(in srgb, var(--manual-surface) 62%, transparent);
 		color: var(--manual-muted);
 	}
-	.placeholder-copy { font-size: .88rem; line-height: 1.55; }
+	.placeholder-copy { font-size: var(--text-base); line-height: 1.55; }
 	.block-type-label {
 		display: block; margin-bottom: .4rem; color: var(--manual-brand);
-		font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 780;
+		font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: var(--tracking-eyebrow); font-weight: 600;
 	}
 
 	/* ── Rich text ───────────────────────────────────────────────────────────── */
-	.prose { max-width: 760px; color: var(--manual-ink); line-height: 1.8; font-size: 1rem; }
+	.prose { max-width: 72ch; color: var(--manual-ink); line-height: 1.75; font-size: var(--text-lg); text-wrap: pretty; }
+	.prose :global(h2), .prose :global(h3), .prose :global(h4) { margin: 1.6em 0 .5em; line-height: 1.25; letter-spacing: var(--tracking-snug); font-weight: 600; }
+	.prose :global(h2:first-child), .prose :global(h3:first-child), .prose :global(h4:first-child) { margin-top: 0; }
+	.prose :global(a) { color: var(--manual-brand); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+	.prose :global(strong) { font-weight: 600; }
+	.prose :global(blockquote) { margin: 1rem 0; padding-left: 1rem; border-left: 3px solid var(--manual-border-strong); color: var(--manual-muted); }
+	.prose :global(code) { padding: .12em .35em; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--manual-ink) 7%, transparent); font-family: var(--manual-mono, monospace); font-size: .88em; }
 	.prose :global(p) { margin: 0 0 .9rem; }
 	.prose :global(p:last-child), .prose :global(ul:last-child), .prose :global(ol:last-child) { margin-bottom: 0; }
 	.prose :global(ul), .prose :global(ol) { margin: .4rem 0 .9rem 1.25rem; padding: 0; }
 	.rich-flow { display: flex; flex-direction: column; gap: 1rem; }
 	.content-callout {
 		display: grid; grid-template-columns: 24px minmax(0,1fr); gap: .75rem;
-		padding: .95rem 1rem;
-		/* Thick left stripe gives instant visual identity independent of brand colors */
-		border: 1px solid rgba(234, 179, 8, 0.30);
-		border-left: 3.5px solid #eab308;
+		--tone: var(--manual-warning);
+		padding: .95rem 1.1rem;
+		/* Hairline frame + a 2px tone rule: identifiable without shouting */
+		border: 1px solid var(--manual-border);
 		border-radius: var(--manual-radius);
-		background: rgba(234, 179, 8, 0.07);
+		box-shadow: inset 2px 0 0 var(--tone);
+		background: color-mix(in srgb, var(--tone) 5%, var(--manual-surface));
 		color: var(--manual-ink);
 	}
-	.content-callout.alert {
-		border-color: rgba(239, 68, 68, 0.28);
-		border-left-color: #ef4444;
-		background: rgba(239, 68, 68, 0.07);
-	}
-	.content-callout-icon { width: 24px; height: 24px; display: grid; place-items: center; color: #ca8a04; }
-	.content-callout.alert .content-callout-icon { color: #dc2626; }
-	.content-callout-body { font-size: .92rem; line-height: 1.65; }
+	.content-callout.alert { --tone: var(--manual-danger); }
+	.content-callout-icon { width: 24px; height: 24px; display: grid; place-items: center; color: var(--tone); }
+	.content-callout-body { font-size: var(--text-md); line-height: 1.65; }
 	.content-callout-body :global(p) { margin: 0 0 .65rem; }
 	.content-callout-body :global(p:last-child) { margin-bottom: 0; }
 
@@ -1133,15 +1809,17 @@
 	.img-figure.full-width .block-img { margin: 0 auto; }
 	.img-figure.full-width .img-caption { text-align: center; }
 	.block-img {
-		display: block; max-width: 100%;
+		display: block; max-width: 100%; height: auto;
 	}
+	.zoom-btn { width: auto; max-width: 100%; }
+	.img-figure.full-width .zoom-btn { margin: 0 auto; }
 	.img-figure.framed {
 		/* defaults overridden by inline style from block config */
 		background: #ffffff;
 		border-radius: var(--manual-radius);
 		padding: 1rem;
 	}
-	.img-caption { margin-top: .7rem; color: var(--manual-muted); font-size: .84rem; line-height: 1.5; }
+	.img-caption { margin-top: .7rem; color: var(--manual-muted); font-size: var(--text-sm); line-height: 1.5; }
 
 	/* ── Before / After ──────────────────────────────────────────────────────── */
 	.ba-wrap { display: flex; flex-direction: column; gap: .5rem; }
@@ -1162,19 +1840,25 @@
 	}
 	.ba-handle {
 		position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-		width: 36px; height: 36px; border-radius: 50%;
-		background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.3);
+		width: 40px; height: 40px; border-radius: 50%;
+		background: #fff; color: #171717; box-shadow: 0 4px 14px rgba(0,0,0,.28);
 		display: flex; align-items: center; justify-content: center;
 	}
 	.ba-label {
-		position: absolute; bottom: 10px; padding: 4px 10px; border-radius: 4px;
-		background: rgba(0,0,0,.55); color: #fff; font-size: .75rem; font-weight: 600;
+		position: absolute; bottom: 10px; padding: 4px 10px; border-radius: var(--radius-sm);
+		background: rgba(0,0,0,.55); color: #fff; font-size: var(--text-xs); font-weight: 600;
 	}
 	.ba-label-before { left: 10px; }
 	.ba-label-after  { right: 10px; }
 	.ba-range {
-		width: 100%; accent-color: var(--manual-brand);
-		cursor: ew-resize;
+		position: absolute; inset: 0; z-index: 3;
+		width: 100%; height: 100%; margin: 0;
+		opacity: 0; cursor: ew-resize;
+		-webkit-appearance: none; appearance: none;
+		touch-action: pan-y;
+	}
+	.ba-slider:has(.ba-range:focus-visible) {
+		outline: 2px solid var(--manual-brand); outline-offset: 3px;
 	}
 
 	/* ── Colors ──────────────────────────────────────────────────────────────── */
@@ -1205,14 +1889,14 @@
 	.palette-name {
 		margin: 0;
 		color: var(--manual-ink);
-		font-size: .98rem;
-		font-weight: 800;
+		font-size: var(--text-lg);
+		font-weight: 600;
 		line-height: 1.2;
 	}
 	.palette-count {
 		color: var(--manual-muted);
-		font-size: .74rem;
-		font-weight: 660;
+		font-size: var(--text-xs);
+		font-weight: 600;
 		white-space: nowrap;
 	}
 	.palette-strip {
@@ -1221,7 +1905,7 @@
 		height: 12px;
 		overflow: hidden;
 		border: 1px solid var(--manual-border);
-		border-radius: 999px;
+		border-radius: var(--radius-full);
 		background: var(--manual-surface);
 	}
 	.palette-strip-swatch {
@@ -1280,7 +1964,7 @@
 		width: 30px;
 		height: 30px;
 		place-items: center;
-		border-radius: 999px;
+		border-radius: var(--radius-full);
 		background: color-mix(in srgb, currentColor 12%, transparent);
 		backdrop-filter: blur(8px);
 	}
@@ -1293,14 +1977,14 @@
 	}
 	.swatch-hex-val {
 		font-family: "Fira Code", "SFMono-Regular", Consolas, monospace;
-		font-size: .88rem;
-		font-weight: 780;
+		font-size: var(--text-base);
+		font-weight: 600;
 		letter-spacing: .035em;
 	}
 	.copy-hint,
 	.copied-flash {
-		font-size: .68rem;
-		font-weight: 680;
+		font-size: var(--text-2xs);
+		font-weight: 600;
 		letter-spacing: .01em;
 		opacity: .64;
 	}
@@ -1322,8 +2006,8 @@
 	.color-name {
 		min-width: 0;
 		color: var(--manual-ink);
-		font-size: .94rem;
-		font-weight: 780;
+		font-size: var(--text-md);
+		font-weight: 600;
 		line-height: 1.22;
 	}
 	.color-values {
@@ -1339,7 +2023,7 @@
 		min-height: 30px;
 		padding: .2rem .28rem;
 		border: 0;
-		border-radius: 6px;
+		border-radius: var(--radius);
 		background: transparent;
 		color: inherit;
 		text-align: left;
@@ -1351,16 +2035,16 @@
 	}
 	.cv-label {
 		color: var(--manual-muted);
-		font-size: .62rem;
-		font-weight: 820;
-		letter-spacing: .07em;
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-eyebrow);
 		text-transform: uppercase;
 	}
 	.cv-val {
 		min-width: 0;
 		overflow: hidden;
 		color: var(--manual-ink);
-		font-size: .78rem;
+		font-size: var(--text-xs);
 		line-height: 1.35;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -1386,9 +2070,9 @@
 	}
 	.production-label {
 		color: var(--manual-muted);
-		font-size: .62rem;
-		font-weight: 820;
-		letter-spacing: .07em;
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-eyebrow);
 		text-transform: uppercase;
 	}
 	.production-list {
@@ -1404,7 +2088,7 @@
 		min-height: 30px;
 		padding: .2rem .28rem;
 		border: 0;
-		border-radius: 6px;
+		border-radius: var(--radius);
 		background: transparent;
 		color: inherit;
 		text-align: left;
@@ -1420,8 +2104,8 @@
 		min-width: 0;
 		overflow: hidden;
 		color: var(--manual-muted);
-		font-size: .68rem;
-		font-weight: 760;
+		font-size: var(--text-2xs);
+		font-weight: 600;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -1429,8 +2113,8 @@
 		min-width: 0;
 		overflow: hidden;
 		color: var(--manual-ink);
-		font-size: .78rem;
-		font-weight: 650;
+		font-size: var(--text-xs);
+		font-weight: 600;
 		line-height: 1.35;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -1454,9 +2138,9 @@
 		width: 28px;
 		height: 28px;
 		place-items: center;
-		border-radius: 6px;
-		font-size: .8rem;
-		font-weight: 900;
+		border-radius: var(--radius);
+		font-size: var(--text-sm);
+		font-weight: 600;
 		line-height: 1;
 	}
 	.contrast-sample-white {
@@ -1475,28 +2159,28 @@
 	.contrast-bg {
 		overflow: hidden;
 		color: var(--manual-muted);
-		font-size: .62rem;
-		font-weight: 680;
+		font-size: var(--text-2xs);
+		font-weight: 600;
 		line-height: 1.1;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 	.contrast-meta strong {
 		color: var(--manual-ink);
-		font-size: .74rem;
-		font-weight: 800;
+		font-size: var(--text-xs);
+		font-weight: 600;
 		line-height: 1.2;
 	}
 	.contrast-meta em {
-		color: #16a34a;
-		font-size: .6rem;
+		color: var(--manual-success);
+		font-size: var(--text-2xs);
 		font-style: normal;
-		font-weight: 840;
-		letter-spacing: .05em;
+		font-weight: 600;
+		letter-spacing: var(--tracking-eyebrow);
 		line-height: 1.1;
 	}
-	.contrast-pair.warn .contrast-meta em { color: #d97706; }
-	.contrast-pair.fail .contrast-meta strong { color: #dc2626; }
+	.contrast-pair.warn .contrast-meta em { color: var(--manual-warning); }
+	.contrast-pair.fail .contrast-meta strong { color: var(--manual-danger); }
 	.contrast-pair.fail .contrast-meta em { display: none; }
 	.shades-strip {
 		display: flex;
@@ -1526,12 +2210,12 @@
 		z-index: 5;
 		transform: translateX(-50%);
 		padding: 2px 5px;
-		border-radius: 4px;
+		border-radius: var(--radius-sm);
 		background: #111;
 		color: #fff;
 		font-size: .52rem;
-		font-weight: 760;
-		letter-spacing: .04em;
+		font-weight: 600;
+		letter-spacing: var(--tracking-eyebrow);
 		opacity: 0;
 		pointer-events: none;
 		white-space: nowrap;
@@ -1541,53 +2225,54 @@
 	.shade-btn:focus-visible::after { opacity: 1; }
 	.shade-flash {
 		color: #fff;
-		font-size: .66rem;
-		font-weight: 900;
+		font-size: var(--text-2xs);
+		font-weight: 600;
 		mix-blend-mode: difference;
 	}
 
 	/* ── Typography ──────────────────────────────────────────────────────────── */
 	.typo-fonts { display: flex; flex-direction: column; gap: 2.5rem; }
 	.typo-font { display: flex; flex-direction: column; gap: 1rem; }
-	.typo-specimen {
-		padding: 1.5rem;
-		border: 1px solid var(--manual-border); border-radius: var(--manual-radius);
-		background: var(--manual-surface);
-	}
-	.specimen-alpha { font-size: clamp(2.5rem, 5vw, 4.5rem); font-weight: 700; line-height: 1; color: var(--manual-ink); }
-	.specimen-sentence { margin-top: .5rem; font-size: 1rem; color: var(--manual-muted); line-height: 1.6; }
-	.typo-info { display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; }
-	.font-name { font-size: .95rem; color: var(--manual-ink); }
-	.font-meta { font-size: .8rem; color: var(--manual-muted); }
-	.font-role {
-		padding: 2px 8px; border-radius: 999px;
-		background: color-mix(in srgb, var(--manual-brand) 10%, transparent);
-		color: var(--manual-brand); font-size: .7rem; font-weight: 700; text-transform: uppercase;
-	}
 	.style-table-wrap { overflow-x: auto; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: var(--manual-surface); }
-	.style-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-	.style-table th { padding: .6rem .9rem; text-align: left; font-size: .72rem; font-weight: 760; color: var(--manual-muted); text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--manual-border); background: color-mix(in srgb, var(--manual-ink) 3%, var(--manual-surface)); }
+	.style-table { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
+	.style-table th { padding: .6rem .9rem; text-align: left; font-size: var(--text-xs); font-weight: 600; color: var(--manual-muted); text-transform: uppercase; letter-spacing: var(--tracking-eyebrow); border-bottom: 1px solid var(--manual-border); background: color-mix(in srgb, var(--manual-ink) 3%, var(--manual-surface)); }
 	.style-table td { padding: .75rem .9rem; border-bottom: 1px solid var(--manual-border); color: var(--manual-ink); vertical-align: middle; }
 	.style-table tr:last-child td { border-bottom: none; }
 
 	/* ── Logo spec ───────────────────────────────────────────────────────────── */
 	.logo-spec { display: flex; flex-direction: column; gap: 1.25rem; }
-	.logo-preview-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-	.logo-clearspace {
-		display: flex; align-items: center; justify-content: center;
-		border-radius: var(--manual-radius); border: 1px dashed var(--manual-border);
-		background: var(--manual-surface);
+	.logo-preview-wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+	.logo-stage {
+		--stripe: color-mix(in srgb, #000 5%, transparent);
+		display: grid; place-items: center;
+		min-height: 260px; padding: clamp(1.5rem, 5%, 3rem);
+		border: 1px solid var(--manual-border); border-radius: calc(var(--manual-radius) + 2px);
+		background: repeating-linear-gradient(-45deg, var(--stripe) 0 1px, transparent 1px 9px), #fff;
+	}
+	.logo-stage-dark {
+		--stripe: rgba(255,255,255,.07);
+		background: repeating-linear-gradient(-45deg, var(--stripe) 0 1px, transparent 1px 9px), #111;
+		border-color: rgba(255,255,255,.08);
+	}
+	.logo-zone {
 		position: relative;
+		padding: calc(var(--cz) * 2.25rem);
+		outline: 1px dashed color-mix(in srgb, var(--manual-brand) 75%, transparent);
+		background: #fff;
 	}
-	.logo-clearspace-dark {
-		background: #111; border-color: rgba(255,255,255,.12);
+	.logo-stage-dark .logo-zone { background: #111; outline-color: color-mix(in srgb, var(--manual-brand) 70%, #fff); }
+	.logo-zone-label {
+		position: absolute; left: -1px; bottom: 100%;
+		padding: 2px 7px; border-radius: 4px 4px 0 0;
+		background: var(--manual-brand); color: #fff;
+		font-size: var(--text-2xs); font-weight: 600; letter-spacing: .02em; white-space: nowrap;
 	}
-	.logo-preview-img { max-width: 100%; max-height: 160px; display: block; }
-	.logo-clearspace-dark .logo-preview-img { filter: invert(1) brightness(2); }
+	.logo-preview-img { max-width: 100%; max-height: 96px; display: block; }
+	.logo-preview-img.auto-invert { filter: invert(1) brightness(2); }
 	.logo-specs { display: flex; flex-wrap: wrap; gap: .65rem 1.5rem; }
 	.logo-specs div { display: flex; flex-direction: column; gap: 2px; }
-	.logo-specs dt { font-size: .72rem; color: var(--manual-muted); font-weight: 650; }
-	.logo-specs dd { margin: 0; font-size: .94rem; font-weight: 760; color: var(--manual-ink); }
+	.logo-specs dt { font-size: var(--text-xs); color: var(--manual-muted); font-weight: 600; }
+	.logo-specs dd { margin: 0; font-size: var(--text-md); font-weight: 600; color: var(--manual-ink); }
 
 	/* ── Text styles ─────────────────────────────────────────────────────────── */
 	.text-styles { display: flex; flex-direction: column; }
@@ -1597,8 +2282,8 @@
 	}
 	.ts-row:last-child { border-bottom: none; }
 	.ts-preview { min-width: 0; flex: 1; color: var(--manual-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-	.ts-meta { display: flex; gap: .55rem; flex-shrink: 0; color: var(--manual-muted); font-size: .75rem; }
-	.ts-font { color: var(--manual-brand); }
+	.ts-meta { display: flex; gap: .55rem; flex-shrink: 0; color: var(--manual-muted); font-size: var(--text-xs); }
+	.ts-font { color: var(--manual-ink); }
 
 	/* ── Cards ───────────────────────────────────────────────────────────────── */
 	.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
@@ -1610,8 +2295,8 @@
 	.card-img-wrap { aspect-ratio: 16/9; overflow: hidden; }
 	.card-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
 	.card-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
-	.card-title { font-size: .92rem; font-weight: 760; color: var(--manual-ink); display: block; }
-	.card-desc { margin: 0; font-size: .84rem; color: var(--manual-muted); line-height: 1.55; }
+	.card-title { font-size: var(--text-md); font-weight: 600; color: var(--manual-ink); display: block; }
+	.card-desc { margin: 0; font-size: var(--text-sm); color: var(--manual-muted); line-height: 1.55; }
 
 	/* ── Chart ───────────────────────────────────────────────────────────────── */
 	.chart-wrap { display: grid; grid-template-columns: 380px minmax(0,1fr); gap: 2rem; align-items: center; }
@@ -1622,13 +2307,13 @@
 		fill: color-mix(in srgb, var(--manual-brand) 18%, transparent);
 		stroke: var(--manual-brand); stroke-width: 2;
 	}
-	.radar-label { font-size: 11px; fill: var(--manual-muted); }
+	.radar-label { font-size: var(--text-2xs); fill: var(--manual-muted); }
 	.chart-legend { display: flex; flex-direction: column; gap: .55rem; }
 	.legend-row { display: grid; grid-template-columns: 110px 1fr 28px; align-items: center; gap: .6rem; }
-	.legend-label { font-size: .82rem; color: var(--manual-ink); }
-	.legend-bar-wrap { height: 6px; border-radius: 3px; background: var(--manual-border); overflow: hidden; }
-	.legend-bar { height: 100%; border-radius: 3px; background: var(--manual-brand); }
-	.legend-value { font-size: .78rem; color: var(--manual-muted); text-align: right; }
+	.legend-label { font-size: var(--text-sm); color: var(--manual-ink); }
+	.legend-bar-wrap { height: 6px; border-radius: var(--radius-xs); background: var(--manual-border); overflow: hidden; }
+	.legend-bar { height: 100%; border-radius: var(--radius-xs); background: var(--manual-brand); }
+	.legend-value { font-size: var(--text-xs); color: var(--manual-muted); text-align: right; }
 
 	/* ── Grid ────────────────────────────────────────────────────────────────── */
 	.grid-spec { display: flex; flex-direction: column; gap: 1.25rem; }
@@ -1651,70 +2336,75 @@
 		display: flex; align-items: center; gap: .35rem;
 		padding: .3rem .72rem;
 		border: 1px solid var(--manual-border);
-		border-radius: 999px;
+		border-radius: var(--radius-full);
 		background: color-mix(in srgb, var(--manual-ink) 2.5%, var(--manual-surface));
 	}
 	.grid-meta dt {
-		color: var(--manual-muted); font-size: .68rem; font-weight: 660;
-		text-transform: uppercase; letter-spacing: .05em;
+		color: var(--manual-muted); font-size: var(--text-2xs); font-weight: 600;
+		text-transform: uppercase; letter-spacing: var(--tracking-eyebrow);
 	}
 	.grid-meta dt::after { content: ':'; }
-	.grid-meta dd { margin: 0; color: var(--manual-ink); font-size: .82rem; font-weight: 740; }
+	.grid-meta dd { margin: 0; color: var(--manual-ink); font-size: var(--text-sm); font-weight: 600; }
 
 	/* ── Do / Don't ──────────────────────────────────────────────────────────── */
-	.do-dont-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
-	.do-dont-item { padding: 18px; border-radius: var(--manual-radius); font-size: .92rem; line-height: 1.6; }
+	.do-dont-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 14px; }
+	.do-dont-item { display: flex; flex-direction: column; overflow: hidden; border-radius: calc(var(--manual-radius) + 2px); font-size: var(--text-md); line-height: 1.6; }
+	.dd-body { padding: 16px 18px 18px; }
+	.dd-media { position: relative; margin: 0; aspect-ratio: 4/3; background: #fff; border-bottom: 1px solid var(--manual-border); overflow: hidden; }
+	.dd-media img { width: 100%; height: 100%; object-fit: contain; padding: 10%; }
+	.dd-strike { position: absolute; inset: 0; background: linear-gradient(to top right, transparent calc(50% - 1px), var(--manual-danger) calc(50% - .5px), var(--manual-danger) calc(50% + .5px), transparent calc(50% + 1px)); pointer-events: none; }
 	.do-dont-item p { margin: 0; }
-	.is-do { background: color-mix(in srgb, #22c55e 10%, var(--manual-surface)); border: 1px solid color-mix(in srgb, #22c55e 26%, var(--manual-border)); }
-	.is-dont { background: color-mix(in srgb, #ef4444 9%, var(--manual-surface)); border: 1px solid color-mix(in srgb, #ef4444 24%, var(--manual-border)); }
+	.do-dont-item { background: var(--manual-surface); border: 1px solid var(--manual-border); }
+	.is-do { box-shadow: inset 0 2px 0 var(--manual-success); }
+	.is-dont { box-shadow: inset 0 2px 0 var(--manual-danger); }
 	.do-dont-badge {
 		display: inline-flex; align-items: center; gap: 5px; margin-bottom: .55rem;
-		padding: 4px 8px; border-radius: 999px;
-		background: color-mix(in srgb, var(--manual-surface) 78%, transparent);
-		color: var(--manual-ink); font-size: .7rem; font-weight: 820;
-		text-transform: uppercase; letter-spacing: .06em;
+		padding: 0; border-radius: 0;
+		background: none;
+		color: var(--manual-ink); font-size: var(--text-2xs); font-weight: 500;
+		text-transform: uppercase; letter-spacing: var(--tracking-eyebrow);
 	}
-	.is-do .do-dont-badge { color: #16a34a; }
-	.is-dont .do-dont-badge { color: #dc2626; }
+	.is-do .do-dont-badge { color: var(--manual-success); }
+	.is-dont .do-dont-badge { color: var(--manual-danger); }
 
 	/* ── Process ─────────────────────────────────────────────────────────────── */
 	.process-list { list-style: none; display: flex; flex-direction: column; gap: .9rem; margin: 0; padding: 0; }
 	.process-step { display: flex; gap: 1rem; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--manual-border); }
 	.process-step:last-child { border-bottom: 0; }
-	.step-num { width: 30px; height: 30px; border-radius: 50%; background: var(--manual-brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 800; flex-shrink: 0; }
-	.step-title { margin-bottom: .2rem; color: var(--manual-ink); font-weight: 760; font-size: .96rem; }
-	.step-desc { margin: 0; color: var(--manual-muted); font-size: .9rem; line-height: 1.65; }
+	.step-num { min-width: 2.25rem; padding-top: .2rem; color: var(--manual-brand); font-family: var(--manual-mono); font-size: var(--text-sm); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+	.step-title { margin-bottom: .2rem; color: var(--manual-ink); font-weight: 500; font-size: var(--text-lg); letter-spacing: var(--tracking-snug); }
+	.step-desc { margin: 0; color: var(--manual-muted); font-size: var(--text-base); line-height: 1.65; }
 
 	/* ── Accordion ───────────────────────────────────────────────────────────── */
 	.accordion { display: flex; flex-direction: column; gap: .6rem; }
 	.accordion-item { overflow: hidden; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: var(--manual-surface); }
 	.accordion-q {
 		display: flex; align-items: center; justify-content: space-between;
-		padding: .95rem 1rem; color: var(--manual-ink); font-weight: 720; font-size: .94rem;
+		padding: .95rem 1rem; color: var(--manual-ink); font-weight: 600; font-size: var(--text-md);
 		cursor: pointer; list-style: none;
 	}
 	.accordion-q::-webkit-details-marker { display: none; }
 	:global(.accordion-icon) { flex-shrink: 0; transition: transform .2s; }
 	details[open] :global(.accordion-icon) { transform: rotate(90deg); }
-	.accordion-a { padding: 0 1rem 1rem; color: var(--manual-muted); font-size: .9rem; line-height: 1.72; }
+	.accordion-a { padding: 0 1rem 1rem; color: var(--manual-muted); font-size: var(--text-base); line-height: 1.72; }
 
 	/* ── Table ───────────────────────────────────────────────────────────────── */
 	.table-wrap { overflow-x: auto; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: var(--manual-surface); }
-	.block-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
-	.block-table th { text-align: left; padding: .75rem .9rem; background: color-mix(in srgb, var(--manual-ink) 5%, var(--manual-surface)); border-bottom: 1px solid var(--manual-border); color: var(--manual-ink); font-weight: 760; }
+	.block-table { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
+	.block-table th { text-align: left; padding: .75rem .9rem; background: color-mix(in srgb, var(--manual-ink) 5%, var(--manual-surface)); border-bottom: 1px solid var(--manual-border); color: var(--manual-ink); font-weight: 600; }
 	.block-table td { padding: .75rem .9rem; border-bottom: 1px solid var(--manual-border); color: var(--manual-ink); }
 	.block-table tr:last-child td { border-bottom: none; }
 
 	/* ── HTML / Code ─────────────────────────────────────────────────────────── */
-	.html-preview { margin-bottom: .85rem; padding: 1.5rem; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: var(--manual-surface); }
-	.code-block { overflow-x: auto; margin: 0; padding: 1rem 1.15rem; border-radius: var(--manual-radius); background: #171717; color: #f7f7f7; font-family: "Fira Code", "SFMono-Regular", Consolas, monospace; font-size: .84rem; line-height: 1.65; white-space: pre; }
+	.html-preview { display: block; width: 100%; min-height: 220px; box-sizing: border-box; margin-bottom: .85rem; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: var(--manual-surface); }
+	.code-block { overflow-x: auto; margin: 0; padding: 1rem 1.15rem; border-radius: var(--manual-radius); background: #171717; color: #f7f7f7; font-family: "Fira Code", "SFMono-Regular", Consolas, monospace; font-size: var(--text-sm); line-height: 1.65; white-space: pre; }
 
 	/* ── Typo rules ──────────────────────────────────────────────────────────── */
 	.tr-tabs {
 		display: flex; gap: 2px; border-bottom: 1px solid var(--manual-border); margin-bottom: 1rem;
 	}
 	.tr-tab {
-		padding: 6px 16px; font-size: .84rem; font-weight: 600;
+		padding: 6px 16px; font-size: var(--text-sm); font-weight: 600;
 		border: none; background: transparent; color: var(--manual-muted); cursor: pointer;
 		border-bottom: 2px solid transparent; margin-bottom: -1px;
 		transition: color .14s, border-color .14s;
@@ -1723,11 +2413,11 @@
 	.tr-tab.active { color: var(--manual-brand); border-bottom-color: var(--manual-brand); }
 
 	.tr-table-wrap { overflow-x: auto; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: var(--manual-surface); }
-	.tr-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+	.tr-table { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
 	.tr-table th {
 		text-align: left; padding: .65rem .9rem;
-		font-size: .7rem; font-weight: 760; color: var(--manual-muted);
-		text-transform: uppercase; letter-spacing: .05em;
+		font-size: var(--text-2xs); font-weight: 600; color: var(--manual-muted);
+		text-transform: uppercase; letter-spacing: var(--tracking-eyebrow);
 		border-bottom: 1px solid var(--manual-border);
 		background: color-mix(in srgb, var(--manual-ink) 3%, var(--manual-surface));
 	}
@@ -1736,16 +2426,253 @@
 		color: var(--manual-ink); vertical-align: middle; line-height: 1.55;
 	}
 	.tr-table tr:last-child td { border-bottom: none; }
-	.tr-cat { font-weight: 720; color: var(--manual-ink); white-space: nowrap; }
+	.tr-cat { font-weight: 600; color: var(--manual-ink); white-space: nowrap; }
 	.tr-correct {
-		font-family: "Fira Code", "SFMono-Regular", monospace; font-size: .82rem;
-		color: #16a34a;
+		font-family: "Fira Code", "SFMono-Regular", monospace; font-size: var(--text-sm);
+		color: var(--manual-success);
 		background: color-mix(in srgb, #22c55e 8%, var(--manual-surface));
 	}
 	.tr-wrong {
-		font-family: "Fira Code", "SFMono-Regular", monospace; font-size: .82rem;
-		color: #dc2626;
+		font-family: "Fira Code", "SFMono-Regular", monospace; font-size: var(--text-sm);
+		color: var(--manual-danger);
 		background: color-mix(in srgb, #ef4444 8%, var(--manual-surface));
+	}
+
+	/* ── Colour swatches (Visualbook-style variants) ────────────────────────── */
+	.format-tabs {
+		display: inline-flex; align-self: flex-start; gap: 2px; padding: 3px;
+		border: 1px solid var(--manual-border); border-radius: var(--radius-full); background: var(--manual-surface);
+		max-width: 100%; overflow-x: auto; scrollbar-width: none;
+	}
+	.format-tabs button {
+		height: 30px; padding: 0 14px; border: 0; border-radius: var(--radius-full); background: transparent;
+		color: var(--manual-muted); font-family: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; white-space: nowrap;
+		transition: background .15s ease, color .15s ease;
+	}
+	.format-tabs button:hover { color: var(--manual-ink); }
+	.format-tabs button.active { background: var(--manual-ink); color: var(--manual-paper); }
+	.swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 12px; }
+	.swatch-compact {
+		display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+		overflow: hidden; border: 1px solid var(--manual-border); border-radius: calc(var(--manual-radius) + 2px);
+	}
+	.swatch-tile {
+		position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 2rem;
+		min-height: 168px; padding: 1rem 1.1rem; border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+		border-radius: calc(var(--manual-radius) + 2px); text-align: left; font-family: inherit; cursor: copy;
+		transition: transform .18s var(--manual-ease, ease), box-shadow .18s ease;
+	}
+	.swatch-tile:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -18px rgba(0,0,0,.45); }
+	.swatch-compact .swatch-tile { min-height: 64px; gap: .15rem; justify-content: center; border: 0; border-radius: 0; }
+	.swatch-compact .swatch-tile:hover { transform: none; box-shadow: none; filter: brightness(1.04); }
+	.swatch-tile-name { font-size: var(--text-base); font-weight: 500; opacity: .88; }
+	.swatch-tile-value { display: inline-flex; align-items: center; gap: .3rem; font-family: var(--manual-mono, monospace); font-size: var(--text-base); font-weight: 600; letter-spacing: .02em; }
+
+	/* ── Font usage ──────────────────────────────────────────────────────────── */
+	.usage-font { font-size: var(--text-lg); font-weight: 600; text-align: center !important; }
+	.usage-cell { text-align: center; }
+	.usage-yes { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: color-mix(in srgb, var(--manual-success, #16a34a) 14%, transparent); color: var(--manual-success, #16a34a); }
+	.usage-no { color: var(--manual-muted); opacity: .6; }
+
+	/* ── Colour ratio ────────────────────────────────────────────────────────── */
+	.ratio-block { display: flex; flex-direction: column; gap: 1.1rem; }
+	.ratio-bar { display: flex; height: clamp(120px, 18vw, 180px); overflow: hidden; border-radius: calc(var(--manual-radius) + 2px); border: 1px solid var(--manual-border); }
+	.ratio-bar span { position: relative; display: flex; align-items: flex-end; min-width: 6px; padding: .7rem; overflow: hidden; }
+	.ratio-bar em { font-style: normal; font-size: var(--text-sm); font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+	.ratio-legend { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: 0; padding: 0; list-style: none; font-size: var(--text-base); color: var(--manual-ink); }
+	.ratio-legend li { display: inline-flex; align-items: center; gap: .45rem; }
+	.ratio-legend strong { color: var(--manual-muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+	.ratio-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--manual-border); }
+
+	/* ── Contrast checker ────────────────────────────────────────────────────── */
+	.cc-block {
+		display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+		overflow: hidden; border: 1px solid var(--manual-border); border-radius: calc(var(--manual-radius) + 4px); background: var(--manual-surface);
+	}
+	.cc-preview { grid-row: span 2; display: flex; flex-direction: column; justify-content: center; gap: .75rem; min-height: 280px; padding: clamp(1.25rem, 4%, 2.5rem); transition: background .2s ease, color .2s ease; }
+	.cc-big { font-size: clamp(3.5rem, 8vw, 6rem); font-weight: 600; line-height: 1; letter-spacing: var(--tracking-display); }
+	.cc-sample { max-width: 32ch; font-size: var(--text-lg); line-height: 1.5; }
+	.cc-controls { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem; border-bottom: 1px solid var(--manual-border); }
+	.cc-field { display: flex; flex-direction: column; gap: .4rem; }
+	.cc-label { font-size: var(--text-xs); font-weight: 600; color: var(--manual-ink); }
+	.cc-input { display: flex; align-items: center; gap: .5rem; }
+	.cc-input input[type="color"] { width: 38px; height: 38px; padding: 0; border: 1px solid var(--manual-border); border-radius: var(--radius); background: none; cursor: pointer; }
+	.cc-input input[type="text"] {
+		flex: 1; min-width: 0; height: 38px; padding: 0 .7rem; border: 1px solid var(--manual-border); border-radius: var(--radius);
+		background: var(--manual-paper); color: var(--manual-ink); font-family: var(--manual-mono, monospace); font-size: var(--text-base);
+	}
+	.cc-swatches { display: flex; flex-wrap: wrap; gap: 5px; }
+	.cc-swatch { width: 22px; height: 22px; padding: 0; border: 1px solid var(--manual-border-strong); border-radius: 50%; cursor: pointer; }
+	.cc-swatch.active { outline: 2px solid var(--manual-ink); outline-offset: 2px; }
+	.cc-swap {
+		display: inline-flex; align-items: center; gap: .35rem; align-self: flex-start; height: 32px; padding: 0 .8rem;
+		border: 1px solid var(--manual-border); border-radius: var(--radius-full); background: transparent; color: var(--manual-ink);
+		font-family: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer;
+	}
+	.cc-swap:hover { background: var(--manual-hover); }
+	.cc-results { display: flex; flex-direction: column; gap: .15rem; padding: 1rem 1.25rem 1.25rem; }
+	.cc-ratio { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: .5rem; font-size: var(--text-sm); color: var(--manual-muted); }
+	.cc-ratio strong { color: var(--manual-ink); font-size: 1.9rem; font-weight: 600; letter-spacing: var(--tracking-tight); font-variant-numeric: tabular-nums; }
+	.cc-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .45rem 0; border-top: 1px solid var(--manual-border); font-size: var(--text-base); color: var(--manual-ink); }
+	.cc-row em { padding: 3px 9px; border-radius: var(--radius-full); background: color-mix(in srgb, var(--manual-success, #16a34a) 14%, transparent); color: var(--manual-success, #16a34a); font-size: var(--text-xs); font-style: normal; font-weight: 600; }
+	.cc-row.fail em { background: color-mix(in srgb, var(--manual-danger, #dc2626) 12%, transparent); color: var(--manual-danger, #dc2626); }
+	@container manual-blocks (max-width: 640px) {
+		.cc-block { grid-template-columns: minmax(0, 1fr); }
+		.cc-preview { grid-row: auto; min-height: 200px; }
+	}
+
+	/* ── Hotspots ────────────────────────────────────────────────────────────── */
+	.hs-figure { display: flex; flex-direction: column; gap: 1rem; margin: 0; }
+	.hs-stage { position: relative; width: fit-content; max-width: 100%; margin-inline: auto; border-radius: calc(var(--manual-radius) + 2px); }
+	.hs-stage img { display: block; width: auto; max-width: 100%; height: auto; max-height: min(80vh, 760px); border-radius: inherit; border: 1px solid var(--manual-border); }
+	.hs-dot {
+		position: absolute; z-index: 2; display: grid; place-items: center; width: 30px; height: 30px; transform: translate(-50%, -50%);
+		border: 2px solid #fff; border-radius: 50%; background: var(--manual-brand); color: #fff;
+		font-family: inherit; font-size: var(--text-xs); font-weight: 600; cursor: pointer;
+		box-shadow: 0 0 0 0 color-mix(in srgb, var(--manual-brand) 45%, transparent), 0 4px 12px rgba(0,0,0,.3);
+		animation: hs-pulse 2.4s ease-out infinite;
+		transition: transform .15s ease;
+	}
+	.hs-dot:hover, .hs-dot.active { transform: translate(-50%, -50%) scale(1.12); animation: none; }
+	@keyframes hs-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--manual-brand) 45%, transparent), 0 4px 12px rgba(0,0,0,.3); } 70%, 100% { box-shadow: 0 0 0 12px transparent, 0 4px 12px rgba(0,0,0,.3); } }
+	.hs-tip {
+		position: absolute; z-index: 3; display: flex; flex-direction: column; gap: .2rem;
+		width: max-content; max-width: min(280px, 70vw); margin: 0 0 0 22px; transform: translateY(-50%);
+		padding: .7rem .85rem; border-radius: var(--radius-lg); background: var(--manual-ink); color: var(--manual-paper);
+		font-size: var(--text-sm); line-height: 1.45; box-shadow: 0 12px 32px rgba(0,0,0,.28); pointer-events: none;
+	}
+	.hs-tip.left { margin: 0 22px 0 0; transform: translate(-100%, -50%); }
+	.hs-tip strong { font-weight: 600; }
+	.hs-tip span { opacity: .82; }
+	.hs-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: .4rem 1rem; margin: 0; padding: 0; list-style: none; }
+	.hs-list button { display: flex; align-items: flex-start; gap: .6rem; width: 100%; padding: .5rem; border: 0; border-radius: var(--radius); background: transparent; color: var(--manual-ink); font-family: inherit; text-align: left; cursor: pointer; }
+	.hs-list li.active button, .hs-list button:hover { background: var(--manual-hover); }
+	.hs-list strong { display: block; font-size: var(--text-base); font-weight: 600; }
+	.hs-list small { display: block; color: var(--manual-muted); font-size: var(--text-sm); line-height: 1.45; }
+	.hs-num { display: grid; place-items: center; flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; background: var(--manual-brand); color: #fff; font-size: var(--text-2xs); font-weight: 600; }
+
+	/* ── Code shell ──────────────────────────────────────────────────────────── */
+	.code-shell { overflow: hidden; border-radius: var(--manual-radius); background: #161616; border: 1px solid rgba(255,255,255,.06); }
+	.code-head {
+		display: flex; align-items: center; justify-content: space-between;
+		padding: .45rem .5rem .45rem 1rem; border-bottom: 1px solid rgba(255,255,255,.08);
+	}
+	.code-lang { color: rgba(255,255,255,.5); font-size: var(--text-xs); font-weight: 600; letter-spacing: var(--tracking-eyebrow); text-transform: uppercase; }
+	.code-copy {
+		display: inline-flex; align-items: center; gap: .35rem; height: 28px; padding: 0 .6rem;
+		border: 0; border-radius: var(--radius); background: transparent; color: rgba(255,255,255,.72);
+		font-family: inherit; font-size: var(--text-xs); font-weight: 500; cursor: pointer;
+	}
+	.code-copy:hover { background: rgba(255,255,255,.08); color: #fff; }
+	.code-shell .code-block { border-radius: 0; background: transparent; }
+
+	/* ── Quote ───────────────────────────────────────────────────────────────── */
+	.quote-block { position: relative; margin: 0; padding: clamp(1.5rem, 3vw, 2.25rem) 0; border-top: 1px solid var(--manual-border-strong); border-bottom: 1px solid var(--manual-border); }
+	.quote-mark { display: block; margin-bottom: 1rem; color: var(--manual-brand); }
+	.quote-block blockquote {
+		margin: 0; color: var(--manual-ink);
+		font-size: clamp(1.15rem, 2vw, 1.4rem); font-weight: 500; line-height: 1.45;
+		letter-spacing: var(--tracking-snug); text-wrap: pretty;
+	}
+	.quote-block.large blockquote { max-width: 26ch; font-size: clamp(1.6rem, 3.4vw, 2.6rem); font-weight: 400; line-height: 1.14; letter-spacing: var(--tracking-tight); text-wrap: balance; }
+	.quote-block figcaption { display: flex; flex-wrap: wrap; gap: .25rem .6rem; margin-top: 1.5rem; font-size: var(--text-sm); }
+	.quote-block figcaption strong { color: var(--manual-ink); font-weight: 500; }
+	.quote-block figcaption span { color: var(--manual-muted); }
+
+	/* ── Callout ─────────────────────────────────────────────────────────────── */
+	.callout-block {
+		--tone: var(--manual-info, #2563eb);
+		display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: .8rem;
+		padding: .95rem 1.1rem;
+		border: 1px solid var(--manual-border);
+		border-radius: var(--manual-radius);
+		box-shadow: inset 2px 0 0 var(--tone);
+		background: color-mix(in srgb, var(--tone) 5%, var(--manual-surface));
+	}
+	.callout-block.tone-success { --tone: var(--manual-success, #16a34a); }
+	.callout-block.tone-warning { --tone: var(--manual-warning, #d97706); }
+	.callout-block.tone-danger  { --tone: var(--manual-danger, #dc2626); }
+	.callout-block-icon { display: grid; place-items: center; height: 22px; color: var(--tone); }
+	.callout-block-body { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+	.callout-block-body strong { color: var(--manual-ink); font-size: var(--text-md); font-weight: 500; line-height: 1.4; }
+	.callout-block-body p { margin: 0; color: color-mix(in srgb, var(--manual-ink) 82%, transparent); font-size: var(--text-md); line-height: 1.6; white-space: pre-line; }
+
+	/* ── Stats ───────────────────────────────────────────────────────────────── */
+	.stats-grid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1px;
+		margin: 0;
+		overflow: hidden;
+		border: 1px solid var(--manual-border);
+		border-radius: calc(var(--manual-radius) + 2px);
+		background: var(--manual-border);
+	}
+	.stat { flex: 1 1 max(170px, calc(100% / var(--stat-cols) - 1px)); display: flex; flex-direction: column; gap: .35rem; padding: clamp(1.1rem, 2.4vw, 1.6rem); background: var(--manual-surface); }
+	.stat-value {
+		color: var(--manual-brand);
+		font-size: clamp(2.25rem, 4.2vw, 3.25rem); font-weight: 400; line-height: 1;
+		letter-spacing: var(--tracking-display); font-variant-numeric: tabular-nums;
+	}
+	.stat-label { margin-top: .5rem; color: var(--manual-ink); font-size: var(--text-base); font-weight: 500; }
+	.stat-desc { color: var(--manual-muted); font-size: var(--text-sm); line-height: 1.5; }
+
+	/* ── Embed ───────────────────────────────────────────────────────────────── */
+	.embed-figure { margin: 0; }
+	.embed-frame {
+		position: relative; width: 100%; overflow: hidden;
+		border: 1px solid var(--manual-border); border-radius: var(--manual-radius);
+		background: #000;
+	}
+	.embed-audio { display: block; width: 100%; }
+	.embed-frame iframe, .embed-frame video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; object-fit: contain; }
+
+	/* ── Text + image ────────────────────────────────────────────────────────── */
+	.text-image { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3.5rem); align-items: center; }
+	.text-image.no-image { grid-template-columns: minmax(0, 1fr); }
+	.text-image.image-left .text-image-media { order: -1; }
+	.text-image-copy { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+	.text-image-copy h3 { margin: 0; color: var(--manual-ink); font-size: clamp(1.25rem, 2vw, 1.6rem); font-weight: 600; letter-spacing: var(--tracking-tight); line-height: 1.2; text-wrap: balance; }
+	.text-image-cta {
+		display: inline-flex; align-items: center; gap: .35rem; align-self: flex-start;
+		height: 40px; padding: 0 1rem; border-radius: var(--radius-full);
+		background: var(--manual-ink); color: var(--manual-paper);
+		font-size: var(--text-base); font-weight: 600; text-decoration: none;
+		transition: opacity .15s ease;
+	}
+	.text-image-cta:hover { opacity: .86; }
+	.text-image-media {
+		margin: 0; overflow: hidden; border-radius: calc(var(--manual-radius) + 2px);
+		background: color-mix(in srgb, var(--manual-ink) 4%, var(--manual-surface));
+		aspect-ratio: 4/3;
+	}
+	.text-image-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+	.text-image-media img.contain { object-fit: contain; padding: clamp(1rem, 4%, 2.5rem); }
+
+	/* ── Links ───────────────────────────────────────────────────────────────── */
+	.links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: .75rem; margin: 0; padding: 0; list-style: none; }
+	.links-grid li { display: flex; }
+	.link-card {
+		display: flex; flex: 1; align-items: center; gap: .85rem; min-width: 0;
+		padding: .9rem 1rem; border: 1px solid var(--manual-border);
+		border-radius: calc(var(--manual-radius) + 2px); background: var(--manual-surface);
+		color: var(--manual-ink); text-decoration: none;
+		transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+	}
+	.link-card:hover { border-color: var(--manual-border-strong); box-shadow: 0 10px 28px -16px rgba(0,0,0,.18); }
+	.link-card-icon {
+		display: grid; place-items: center; flex: 0 0 auto; width: 36px; height: 36px;
+		border-radius: var(--radius-lg); background: color-mix(in srgb, var(--manual-brand) 10%, transparent); color: var(--manual-brand);
+	}
+	.link-card-body { display: flex; flex: 1; flex-direction: column; gap: .15rem; min-width: 0; }
+	.link-card-body strong { overflow: hidden; font-size: var(--text-md); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+	.link-card-body small { overflow: hidden; color: var(--manual-muted); font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
+	.link-card-arrow { display: grid; color: var(--manual-muted); transition: color .15s ease, transform .15s ease; }
+	.link-card:hover .link-card-arrow { color: var(--manual-brand); transform: translate(2px, -2px); }
+
+	@container manual-blocks (max-width: 640px) {
+		.text-image { grid-template-columns: minmax(0, 1fr); }
+		.text-image.image-left .text-image-media { order: 0; }
 	}
 
 	/* ── Responsive ──────────────────────────────────────────────────────────── */

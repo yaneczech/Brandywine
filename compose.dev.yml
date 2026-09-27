@@ -1,13 +1,19 @@
-# Development overrides — used automatically when running `docker-compose up`
+# Explicit development overlay. Production is the safe default:
+#   docker compose up -d --build
+# Development:
+#   docker compose -f docker-compose.yml -f compose.dev.yml up --build
 services:
   app:
     build:
       target: builder
+    entrypoint: []
     command: npm run dev -- --host 0.0.0.0
     ports:
-      - "3000:3000"
+      - "3000:5173"
     environment:
       NODE_ENV: development
+    healthcheck:
+      disable: true
     volumes:
       - ./app/src:/app/src
       - uploads:/uploads

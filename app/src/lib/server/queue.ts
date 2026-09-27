@@ -1,25 +1,34 @@
 import { Queue } from 'bullmq';
-import { REDIS_URL } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
-const connection = { url: REDIS_URL };
+const connection = { url: env.REDIS_URL ?? 'redis://127.0.0.1:6379' };
 
-export const thumbnailQueue  = new Queue('thumbnail',   { connection });
-export const svgProcessQueue = new Queue('svg-process', { connection });
-export const logoExportQueue = new Queue('logo-export', { connection });
-export const convertQueue    = new Queue('convert',     { connection });
+const queues = new Map<string, Queue>();
+
+function getQueue(name: string): Queue {
+	const existing = queues.get(name);
+	if (existing) return existing;
+	const queue = new Queue(name, { connection });
+	queues.set(name, queue);
+	return queue;
+}
 
 export async function enqueueThumbnail(assetId: string, storagePath: string, mime: string) {
-	await thumbnailQueue.add('generate', { assetId, storagePath, mime });
+	await getQueue('thumbnail').add('generate', { assetId, storagePath, mime });
 }
 
 export async function enqueueSvgProcess(assetId: string, storagePath: string) {
-	await svgProcessQueue.add('process', { assetId, storagePath });
+	await getQueue('svg-process').add('process', { assetId, storagePath });
 }
 
 export async function enqueueLogoExport(assetId: string, storagePath: string) {
-	await logoExportQueue.add('export', { assetId, storagePath });
+	await getQueue('logo-export').add('export', { assetId, storagePath });
 }
 
 export async function enqueueConvert(assetId: string, storagePath: string, format: 'webp' | 'avif') {
-	await convertQueue.add('convert', { assetId, storagePath, format });
+	await getQueue('convert').add('convert', { assetId, storagePath, format });
+}
+
+export async function enqueueVideo(assetId: string, storagePath: string) {
+	await getQueue('video').add('generate', { assetId, storagePath });
 }

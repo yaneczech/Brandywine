@@ -44,8 +44,14 @@ export async function getSession(sessionId: string): Promise<SessionUser | null>
 
 	if (!row || row.expiresAt < new Date()) return null;
 
-	const { expiresAt: _, ...user } = row;
-	return user as SessionUser;
+	return {
+		id: row.id,
+		email: row.email,
+		name: row.name,
+		role: row.role,
+		createdAt: row.createdAt,
+		updatedAt: row.updatedAt
+	};
 }
 
 export async function deleteSession(sessionId: string) {

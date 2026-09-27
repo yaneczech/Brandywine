@@ -2,11 +2,11 @@ import { canEdit } from '$server/permissions';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
-import { assets, folders } from '$db/schema';
+import { assets } from '$db/schema';
 import { inArray, isNull, or, desc, like, and, eq } from 'drizzle-orm';
 import { accessibleResources } from '$server/permissions';
 import { saveFile } from '$lib/server/storage';
-import { enqueueThumbnail, enqueueSvgProcess } from '$lib/server/queue';
+import { enqueueThumbnail, enqueueSvgProcess, enqueueVideo } from '$lib/server/queue';
 import { createHash } from 'crypto';
 
 const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200 MB
@@ -38,6 +38,17 @@ function detectMime(buf: Buffer, filename: string): string {
 				if (buf.length < 12) continue;
 				const webp = buf.slice(8, 12).toString('ascii');
 				if (webp !== 'WEBP') continue;
+			}
+			// ISO Base Media files all contain `ftyp` at offset 4. Inspect the
+			// major brand so MP4/MOV files are not accidentally stored as AVIF.
+			if (sig.mime === 'image/avif') {
+				const brand = buf.slice(8, 12).toString('ascii');
+				if (brand !== 'avif' && brand !== 'avis') continue;
+			}
+			if (sig.mime === 'video/mp4') {
+				const brand = buf.slice(8, 12).toString('ascii');
+				if (brand === 'avif' || brand === 'avis') continue;
+				if (brand === 'qt  ') return 'video/quicktime';
 			}
 			return sig.mime;
 		}
@@ -81,7 +92,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		return conditions.length ? and(...conditions) : undefined;
 	}
 
-	if (locals.user.role === 'admin') {
+	if (canEdit(locals.user.role)) {
 		const rows = await db.select().from(assets)
 			.where(buildWhere())
 			.orderBy(desc(assets.createdAt))
@@ -159,6 +170,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Hash for dedup detection
 	const hash = createHash('sha256').update(buffer).digest('hex');
+	const [duplicate] = await db
+		.select({ id: assets.id, filename: assets.filename, folderId: assets.folderId })
+		.from(assets)
+		.where(eq(assets.hash, hash))
+		.limit(1);
+	if (duplicate) {
+		return json(
+			{ message: `This file already exists as “${duplicate.filename}”.`, duplicate },
+			{ status: 409 }
+		);
+	}
 
 	// Save to disk
 	const storagePath = await saveFile(file.name, buffer, 'assets');
@@ -183,6 +205,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 		if (mime === 'image/svg+xml') {
 			await enqueueSvgProcess(inserted.id, storagePath).catch(() => {});
+		}
+		if (mime.startsWith('video/')) {
+			await enqueueVideo(inserted.id, storagePath).catch(() => {});
 		}
 
 		return json(inserted, { status: 201 });

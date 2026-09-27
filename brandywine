@@ -1,0 +1,196 @@
+#!/bin/sh
+set -eu
+
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$ROOT_DIR"
+
+compose() {
+	docker compose "$@"
+}
+
+fail() {
+	printf 'Error: %s\n' "$1" >&2
+	exit 1
+}
+
+require_docker() {
+	command -v docker >/dev/null 2>&1 || fail 'Docker is not installed.'
+	docker info >/dev/null 2>&1 || fail 'Docker is not running or is not accessible.'
+	docker compose version >/dev/null 2>&1 || fail 'Docker Compose v2 is required.'
+}
+
+random_secret() {
+	if command -v openssl >/dev/null 2>&1; then
+		openssl rand -hex 32
+	else
+		fail 'OpenSSL is required to generate secure installation secrets.'
+	fi
+}
+
+env_value() {
+	key=$1
+	sed -n "s/^${key}=//p" .env | tail -n 1
+}
+
+validate_env() {
+	[ -f .env ] || fail 'Missing .env. Run ./brandywine install first.'
+	postgres_password=$(env_value POSTGRES_PASSWORD)
+	session_secret=$(env_value SESSION_SECRET)
+	[ -n "$postgres_password" ] || fail 'POSTGRES_PASSWORD is empty.'
+	[ "$postgres_password" != 'changeme_in_production' ] || fail 'POSTGRES_PASSWORD still uses the example value.'
+	[ "${#session_secret}" -ge 32 ] || fail 'SESSION_SECRET must contain at least 32 characters.'
+	[ "$session_secret" != 'changeme_in_production' ] || fail 'SESSION_SECRET still uses the example value.'
+	compose config --quiet
+}
+
+wait_for_app() {
+	printf 'Waiting for Brandywine'
+	attempt=1
+	while [ "$attempt" -le 60 ]; do
+		if compose exec -T app wget --spider -q http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
+			printf ' ready.\n'
+			return 0
+		fi
+		printf '.'
+		sleep 2
+		attempt=$((attempt + 1))
+	done
+	printf '\n' >&2
+	compose logs --tail=100 app >&2 || true
+	fail 'The application did not become ready in time.'
+}
+
+install_cmd() {
+	require_docker
+	domain=${1:-localhost}
+	case "$domain" in
+		''|*[!A-Za-z0-9.-]*) fail 'Domain must be a hostname without a scheme, path, port or whitespace.' ;;
+	esac
+	if [ ! -f .env ]; then
+		umask 077
+		cp .env.example .env
+		postgres_password=$(random_secret)
+		session_secret=$(random_secret)
+		app_url="https://${domain}"
+		tmp_env=".env.tmp.$$"
+		sed \
+			-e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${postgres_password}|" \
+			-e "s|^SESSION_SECRET=.*|SESSION_SECRET=${session_secret}|" \
+			-e "s|^APP_DOMAIN=.*|APP_DOMAIN=${domain}|" \
+			-e "s|^APP_URL=.*|APP_URL=${app_url}|" \
+			.env > "$tmp_env"
+		mv "$tmp_env" .env
+		printf 'Created .env with secure random secrets.\n'
+	else
+		printf 'Using existing .env.\n'
+	fi
+	validate_env
+	compose up -d --build --remove-orphans
+	wait_for_app
+	public_url=$(env_value APP_URL)
+	[ -n "$public_url" ] || public_url="https://$(env_value APP_DOMAIN)"
+	printf 'Brandywine is ready at %s\n' "$public_url"
+	printf 'Create the first administrator at %s/admin/setup\n' "$public_url"
+}
+
+doctor_cmd() {
+	require_docker
+	validate_env
+	printf 'Configuration: OK\n'
+	compose ps
+	compose exec -T db pg_isready -U brandywine >/dev/null || fail 'PostgreSQL is not ready.'
+	compose exec -T redis redis-cli ping | grep -q PONG || fail 'Redis is not ready.'
+	compose exec -T app wget --spider -q http://127.0.0.1:3000/api/health || fail 'Application readiness check failed.'
+	[ -n "$(compose ps --status running -q worker)" ] || fail 'Media worker is not running.'
+	compose exec -T proxy caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1 || fail 'Reverse proxy configuration is invalid.'
+	migration_count=$(compose exec -T db psql -U brandywine -d brandywine -Atc 'SELECT count(*) FROM drizzle.__drizzle_migrations')
+	[ "$migration_count" -ge 23 ] || fail "Database is behind (${migration_count}/23 migrations)."
+	printf 'Database migrations: %s/23\n' "$migration_count"
+	printf 'Disk usage:\n'
+	compose exec -T db df -h /var/lib/postgresql/data | tail -n 1
+	compose exec -T app df -h /uploads | tail -n 1
+	printf 'Doctor result: healthy\n'
+}
+
+backup_cmd() {
+	require_docker
+	validate_env
+	destination=${1:-"backups/$(date -u +%Y%m%dT%H%M%SZ)"}
+	[ ! -e "$destination" ] || fail "Backup destination already exists: $destination"
+	mkdir -p "$destination"
+	compose exec -T db pg_dump -U brandywine -d brandywine -Fc > "$destination/database.dump"
+	compose exec -T app tar -czf - -C /uploads . > "$destination/uploads.tar.gz"
+	{
+		printf 'created_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+		printf 'migration_count=%s\n' "$(compose exec -T db psql -U brandywine -d brandywine -Atc 'SELECT count(*) FROM drizzle.__drizzle_migrations')"
+		printf 'app_image=%s\n' "$(docker inspect -f '{{.Image}}' "$(compose ps -q app)")"
+	} > "$destination/manifest.txt"
+	if command -v sha256sum >/dev/null 2>&1; then
+		(cd "$destination" && sha256sum database.dump uploads.tar.gz > SHA256SUMS)
+	elif command -v shasum >/dev/null 2>&1; then
+		(cd "$destination" && shasum -a 256 database.dump uploads.tar.gz > SHA256SUMS)
+	fi
+	printf 'Backup created: %s\n' "$destination"
+}
+
+restore_cmd() {
+	require_docker
+	validate_env
+	source_dir=${1:-}
+	[ -n "$source_dir" ] || fail 'Usage: ./brandywine restore BACKUP_DIRECTORY [--yes]'
+	[ -f "$source_dir/database.dump" ] || fail 'Backup is missing database.dump.'
+	[ -f "$source_dir/uploads.tar.gz" ] || fail 'Backup is missing uploads.tar.gz.'
+	if [ "${2:-}" != '--yes' ]; then
+		printf 'This replaces the current database and uploads. Type RESTORE to continue: '
+		read -r confirmation
+		[ "$confirmation" = 'RESTORE' ] || fail 'Restore cancelled.'
+	fi
+	safety_backup="backups/pre-restore-$(date -u +%Y%m%dT%H%M%SZ)"
+	backup_cmd "$safety_backup"
+	compose stop app worker
+	compose exec -T db pg_restore -U brandywine -d brandywine --clean --if-exists --no-owner < "$source_dir/database.dump"
+	compose run --rm --no-deps -T --entrypoint sh app -c 'find /uploads -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +; tar -xzf - -C /uploads' < "$source_dir/uploads.tar.gz"
+	compose up -d app worker proxy
+	wait_for_app
+	printf 'Restore complete. Safety backup: %s\n' "$safety_backup"
+}
+
+update_cmd() {
+	require_docker
+	validate_env
+	backup_path="backups/pre-update-$(date -u +%Y%m%dT%H%M%SZ)"
+	backup_cmd "$backup_path"
+	compose pull db redis proxy
+	compose up -d --build --remove-orphans
+	wait_for_app
+	printf 'Update complete. Safety backup: %s\n' "$backup_path"
+}
+
+usage() {
+	printf '%s\n' \
+		'Brandywine self-hosting utility' \
+		'' \
+		'  ./brandywine install [domain]       Generate config and start the stack' \
+		'  ./brandywine doctor                 Validate config, services and storage' \
+		'  ./brandywine backup [directory]     Back up database and uploads' \
+		'  ./brandywine restore directory      Restore with a safety backup' \
+		'  ./brandywine update                 Back up, rebuild and restart' \
+		'  ./brandywine start|stop|restart     Control services' \
+		'  ./brandywine logs                   Follow service logs'
+}
+
+command_name=${1:-help}
+shift || true
+case "$command_name" in
+	install) install_cmd "$@" ;;
+	doctor) doctor_cmd ;;
+	backup) backup_cmd "$@" ;;
+	restore) restore_cmd "$@" ;;
+	update) update_cmd ;;
+	start) require_docker; validate_env; compose up -d; wait_for_app ;;
+	stop) require_docker; compose stop ;;
+	restart) require_docker; validate_env; compose restart; wait_for_app ;;
+	logs) require_docker; compose logs -f --tail=200 ;;
+	help|-h|--help) usage ;;
+	*) usage; fail "Unknown command: $command_name" ;;
+esac

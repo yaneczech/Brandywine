@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import * as m from '$lib/paraglide/messages';
+	import { readableOn } from '$lib/ui/contrast';
+	import Toaster from '$lib/components/ui/Toaster.svelte';
+	import DialogHost from '$lib/components/ui/DialogHost.svelte';
 	import {
 		IconLayoutDashboard,
 		IconRosette,
@@ -22,12 +25,13 @@
 	const primaryColor = $derived(brand?.primaryColor ?? '#4A1204');
 
 	$effect(() => {
-		document.documentElement.style.setProperty('--brand', primaryColor);
-		document.documentElement.style.setProperty('--brand-light', primaryColor + 'cc');
+		const root = document.documentElement.style;
+		root.setProperty('--brand', primaryColor);
+		root.setProperty('--brand-light', primaryColor + 'cc');
+		root.setProperty('--color-accent-contrast', readableOn(primaryColor));
 	});
 
 	let mobileOpen = $state(false);
-	$effect(() => { mobileOpen = false; });
 
 	import type { ComponentType } from 'svelte';
 	type NavItem = { href: string; label: string; icon: ComponentType };
@@ -69,24 +73,24 @@
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -->
 {#snippet iconSnippet(Icon: NavItem['icon'])}
-	<Icon size={15} stroke={1.75} />
+	<Icon size={16} stroke={1.5} />
 {/snippet}
 
 <!-- Mobile overlay -->
 {#if mobileOpen}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="mobile-overlay" onclick={() => (mobileOpen = false)}></div>
+	<button class="mobile-overlay" type="button" aria-label={m.layout_close_nav()} onclick={() => (mobileOpen = false)}></button>
 {/if}
 
 <!-- Mobile topbar -->
 <div class="mobile-topbar">
 	<button class="hamburger" onclick={() => (mobileOpen = !mobileOpen)} aria-label="Menu">
-		<IconMenu2 size={18} stroke={1.75} />
+		<IconMenu2 size={18} stroke={1.5} />
 	</button>
 	<span class="mobile-brand">{systemName}</span>
 </div>
 
-<div class="shell">
+<!-- brand vars inline too, so SSR paints the right accent before hydration -->
+<div class="shell brand-scope" style="--brand:{primaryColor}; --color-accent-contrast:{readableOn(primaryColor)}">
 	<aside class="sidebar" class:mobile-open={mobileOpen}>
 		<!-- Logo -->
 		<div class="sidebar-logo">
@@ -110,9 +114,6 @@
 						>
 							<span class="nav-icon">{@render iconSnippet(item.icon)}</span>
 							<span>{item.label}</span>
-							{#if isActive(item.href)}
-								<span class="nav-dot"></span>
-							{/if}
 						</a>
 					{/each}
 				</div>
@@ -122,9 +123,9 @@
 		<!-- View manual -->
 		<div class="sidebar-manual-link">
 			<a href="/" target="_blank" rel="noreferrer" class="manual-link">
-				<IconBook2 size={14} stroke={1.75} />
+				<IconBook2 size={16} stroke={1.5} />
 				<span>{m.layout_view_manual()}</span>
-				<IconExternalLink size={12} stroke={2} class="ext-icon" />
+				<IconExternalLink size={13} stroke={1.5} class="ext-icon" />
 			</a>
 		</div>
 
@@ -140,8 +141,8 @@
 						<div class="user-role">{data.user.role}</div>
 					</div>
 					<form method="POST" action="/api/auth/logout" class="logout-form">
-						<button type="submit" class="logout-btn" title="Sign out">
-							<IconLogout size={15} stroke={1.75} />
+						<button type="submit" class="logout-btn" title={m.layout_sign_out()} aria-label={m.layout_sign_out()}>
+							<IconLogout size={16} stroke={1.5} />
 						</button>
 					</form>
 				</div>
@@ -154,6 +155,9 @@
 	</main>
 </div>
 
+<Toaster />
+<DialogHost />
+
 <style>
 	.shell {
 		display: flex;
@@ -164,7 +168,7 @@
 	.sidebar {
 		width: var(--sidebar-width);
 		flex-shrink: 0;
-		background: var(--color-surface);
+		background: var(--color-bg);
 		border-right: 1px solid var(--color-border);
 		display: flex;
 		flex-direction: column;
@@ -177,41 +181,43 @@
 
 	/* Logo */
 	.sidebar-logo {
-		height: 56px;
+		height: 64px;
 		display: flex;
 		align-items: center;
-		padding: 0 1rem;
-		border-bottom: 1px solid var(--color-border);
+		padding: 0 var(--space-5);
 		flex-shrink: 0;
 	}
 	.logo-link {
 		display: flex;
 		align-items: center;
-		gap: 9px;
+		gap: 10px;
+		min-width: 0;
+		border-radius: var(--radius-sm);
 	}
 	.logo-img {
-		height: 26px;
+		height: 22px;
 		width: auto;
+		max-width: 120px;
+		object-fit: contain;
 	}
 	.logo-text {
-		font-size: 0.9375rem;
-		font-weight: 700;
-		letter-spacing: -0.025em;
-		color: var(--brand);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		letter-spacing: var(--tracking-snug);
+		color: var(--color-text);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	/* Nav */
 	.sidebar-nav {
 		flex: 1;
-		padding: 1rem 0.5rem;
+		padding: var(--space-2) var(--space-3) var(--space-6);
 		overflow-y: auto;
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
-
-		/* Thin custom scrollbar */
-		scrollbar-width: thin;
-		scrollbar-color: var(--color-border) transparent;
+		gap: var(--space-6);
 	}
 
 	.nav-group {
@@ -221,91 +227,110 @@
 	}
 
 	.nav-group-label {
-		font-size: 0.6875rem;
-		font-weight: 600;
-		letter-spacing: 0.08em;
+		font-size: var(--text-2xs);
+		font-weight: 500;
+		letter-spacing: var(--tracking-eyebrow);
 		text-transform: uppercase;
 		color: var(--color-muted);
-		padding: 0 0.75rem;
-		margin-bottom: 3px;
-		opacity: 0.6;
+		padding: 0 var(--space-2);
+		margin-bottom: var(--space-2);
 	}
 
 	.nav-item {
 		position: relative;
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		padding: 0.4rem 0.75rem;
-		border-radius: 6px;
-		font-size: 0.875rem;
-		font-weight: 450;
-		color: var(--color-muted);
-		transition: background 0.1s, color 0.1s;
-		cursor: pointer;
+		gap: 10px;
+		height: 32px;
+		padding: 0 var(--space-2);
+		border-radius: var(--radius);
+		font-size: var(--text-sm);
+		font-weight: 400;
+		letter-spacing: var(--tracking-snug);
+		color: var(--color-text-secondary);
+		transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 	}
 	.nav-item:hover {
-		background: var(--color-surface-raised);
+		background: var(--color-hover);
 		color: var(--color-text);
 	}
 	.nav-item.active {
-		background: rgba(74,18,4,.07);
-		color: var(--brand);
-		font-weight: 550;
+		background: var(--color-surface);
+		color: var(--color-text);
+		font-weight: 500;
+		box-shadow: 0 0 0 1px var(--color-border), var(--shadow-xs);
 	}
 
 	.nav-icon {
-		width: 15px;
-		height: 15px;
+		width: 16px;
+		height: 16px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		flex-shrink: 0;
-		opacity: 0.8;
+		color: var(--color-muted);
+		transition: color var(--dur-fast) var(--ease);
 	}
-	.nav-item.active .nav-icon { opacity: 1; }
+	.nav-item:hover .nav-icon { color: var(--color-text); }
+	.nav-item.active .nav-icon { color: var(--color-accent); }
 
-	.nav-dot {
-		width: 5px;
-		height: 5px;
-		border-radius: 50%;
-		background: var(--brand);
-		margin-left: auto;
-		opacity: 0.6;
+	/* View manual link */
+	.sidebar-manual-link {
+		padding: var(--space-2) var(--space-3);
+		flex-shrink: 0;
 	}
+	.manual-link {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		height: 32px;
+		padding: 0 var(--space-2);
+		border-radius: var(--radius);
+		font-size: var(--text-sm);
+		letter-spacing: var(--tracking-snug);
+		color: var(--color-text-secondary);
+		transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+	}
+	.manual-link :global(svg) { color: var(--color-muted); }
+	.manual-link:hover {
+		background: var(--color-hover);
+		color: var(--color-text);
+	}
+	.manual-link :global(.ext-icon) { margin-left: auto; }
 
 	/* User block */
 	.sidebar-user {
 		border-top: 1px solid var(--color-border);
-		padding: 0.75rem;
+		padding: var(--space-3);
 		flex-shrink: 0;
 	}
 	.user-block {
 		display: flex;
 		align-items: center;
-		gap: 9px;
-		padding: 0.375rem 0.25rem;
+		gap: 10px;
+		padding: var(--space-1) var(--space-2);
 	}
 	.user-avatar {
 		width: 28px;
 		height: 28px;
-		border-radius: 7px;
-		background: var(--brand);
-		color: #fff;
+		border-radius: var(--radius-full);
+		background: var(--color-surface);
+		box-shadow: inset 0 0 0 1px var(--color-border-strong);
+		color: var(--color-text);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.75rem;
-		font-weight: 700;
+		font-size: var(--text-xs);
+		font-weight: 500;
 		flex-shrink: 0;
-		letter-spacing: 0;
 	}
 	.user-meta {
 		flex: 1;
 		min-width: 0;
+		line-height: var(--leading-snug);
 	}
 	.user-name {
-		font-size: 0.8125rem;
+		font-size: var(--text-sm);
 		font-weight: 500;
 		white-space: nowrap;
 		overflow: hidden;
@@ -313,36 +338,9 @@
 		color: var(--color-text);
 	}
 	.user-role {
-		font-size: 0.6875rem;
+		font-size: var(--text-xs);
 		color: var(--color-muted);
 		text-transform: capitalize;
-		margin-top: 1px;
-	}
-
-	/* View manual link */
-	.sidebar-manual-link {
-		padding: 0.5rem 0.75rem;
-		border-top: 1px solid var(--color-border);
-		flex-shrink: 0;
-	}
-	.manual-link {
-		display: flex;
-		align-items: center;
-		gap: 7px;
-		padding: 0.4rem 0.5rem;
-		border-radius: 6px;
-		font-size: 0.8125rem;
-		font-weight: 450;
-		color: var(--color-muted);
-		transition: background 0.1s, color 0.1s;
-	}
-	.manual-link:hover {
-		background: var(--color-surface-raised);
-		color: var(--color-text);
-	}
-	.manual-link :global(.ext-icon) {
-		margin-left: auto;
-		opacity: 0.5;
 	}
 
 	.logout-form { margin-left: auto; }
@@ -352,17 +350,16 @@
 		justify-content: center;
 		width: 28px;
 		height: 28px;
-		border-radius: 6px;
+		border-radius: var(--radius);
 		border: none;
 		background: none;
 		color: var(--color-muted);
-		cursor: pointer;
-		transition: background 0.1s, color 0.1s;
+		transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 		flex-shrink: 0;
 	}
 	.logout-btn:hover {
-		background: var(--color-surface-raised);
-		color: var(--color-danger);
+		background: var(--color-hover);
+		color: var(--color-text);
 	}
 
 	/* ── Main ────────────────────────────── */
@@ -380,25 +377,28 @@
 		position: fixed;
 		top: 0; left: 0; right: 0;
 		height: 52px;
-		background: var(--color-surface);
+		background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+		-webkit-backdrop-filter: saturate(180%) blur(12px);
+		backdrop-filter: saturate(180%) blur(12px);
 		border-bottom: 1px solid var(--color-border);
 		align-items: center;
-		padding: 0 1rem;
-		gap: 12px;
+		padding: 0 var(--space-3);
+		gap: var(--space-2);
 		z-index: 30;
 	}
 	.hamburger {
 		display: flex; align-items: center; justify-content: center;
 		width: 36px; height: 36px; border: none; background: none;
-		cursor: pointer; color: var(--color-text); border-radius: 8px;
-		transition: background 0.1s;
+		color: var(--color-text); border-radius: var(--radius);
+		transition: background var(--dur-fast) var(--ease);
 	}
-	.hamburger:hover { background: var(--color-surface-raised); }
-	.mobile-brand { font-weight: 700; font-size: 0.9375rem; letter-spacing: -0.02em; color: var(--brand); }
+	.hamburger:hover { background: var(--color-hover); }
+	.mobile-brand { font-weight: 600; font-size: var(--text-sm); letter-spacing: var(--tracking-snug); color: var(--color-text); }
 	.mobile-overlay {
 		display: none;
 		position: fixed; inset: 0;
-		background: rgba(0,0,0,0.35);
+		padding: 0; border: 0; cursor: pointer;
+		background: rgba(20, 20, 20, 0.28);
 		z-index: 19;
 	}
 
@@ -408,7 +408,7 @@
 		}
 		.sidebar {
 			transform: translateX(-100%);
-			transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+			transition: transform var(--dur-slow) var(--ease);
 			box-shadow: none;
 		}
 		.sidebar.mobile-open {
@@ -430,35 +430,36 @@
 	/* ap = admin page                                                        */
 
 	:global(.ap) {
-		padding: 2rem;
+		padding: var(--space-10) var(--space-12) var(--space-16);
 	}
 	/* topbar: title/sub on left, actions on right */
 	:global(.ap-topbar) {
 		display: flex;
-		align-items: flex-start;
+		align-items: flex-end;
 		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: 1.5rem;
+		gap: var(--space-4);
+		margin-bottom: var(--space-8);
 		flex-wrap: wrap;
 	}
 	:global(.ap-title) {
-		margin: 0 0 .15rem;
-		font-size: 1.5rem;
-		font-weight: 650;
-		letter-spacing: -0.025em;
-		line-height: 1.2;
+		margin: 0 0 6px;
+		font-size: var(--text-2xl);
+		font-weight: 600;
+		letter-spacing: var(--tracking-tight);
+		line-height: var(--leading-tight);
 		color: var(--color-text);
 	}
 	:global(.ap-sub) {
 		margin: 0;
-		font-size: 0.875rem;
+		max-width: 64ch;
+		font-size: var(--text-base);
 		color: var(--color-muted);
-		line-height: 1.4;
+		line-height: var(--leading-normal);
 	}
 	:global(.ap-actions) {
 		display: flex;
 		align-items: center;
-		gap: .5rem;
+		gap: var(--space-2);
 		flex-shrink: 0;
 		flex-wrap: wrap;
 	}
@@ -467,18 +468,23 @@
 		padding: 0;
 	}
 	:global(.ap-split .ap-topbar) {
-		padding: 2rem 2rem 0;
+		padding: var(--space-10) var(--space-12) 0;
 		margin-bottom: 0;
 	}
 	:global(.ap-content) {
-		padding: 0 2rem 3rem;
+		padding: 0 var(--space-12) var(--space-16);
 	}
 
+	@media (max-width: 1200px) {
+		:global(.ap) { padding: var(--space-8) var(--space-8) var(--space-12); }
+		:global(.ap-split .ap-topbar) { padding: var(--space-8) var(--space-8) 0; }
+		:global(.ap-content) { padding: 0 var(--space-8) var(--space-12); }
+	}
 	@media (max-width: 900px) {
-		:global(.ap) { padding: 1rem; }
-		:global(.ap-split .ap-topbar) { padding: 1rem 1rem 0; }
-		:global(.ap-content) { padding: 0 1rem 2rem; }
-		:global(.ap-topbar) { margin-bottom: 1rem; }
-		:global(.ap-title) { font-size: 1.25rem; }
+		:global(.ap) { padding: var(--space-5) var(--space-4) var(--space-10); }
+		:global(.ap-split .ap-topbar) { padding: var(--space-5) var(--space-4) 0; }
+		:global(.ap-content) { padding: 0 var(--space-4) var(--space-10); }
+		:global(.ap-topbar) { margin-bottom: var(--space-5); align-items: flex-start; }
+		:global(.ap-title) { font-size: var(--text-xl); }
 	}
 </style>

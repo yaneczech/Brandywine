@@ -2,6 +2,7 @@ import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/db';
 import { brandSettings } from '$lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { withoutManualSecrets } from '$server/brand-settings';
 
 const DEFAULT_BRAND = {
 	systemName: 'Brandywine',
@@ -22,5 +23,8 @@ const DEFAULT_BRAND = {
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	const [brand] = await db.select().from(brandSettings).where(eq(brandSettings.id, 1));
-	return { user: locals.user, brand: brand ?? DEFAULT_BRAND };
+	const safeBrand = brand
+		? withoutManualSecrets(brand)
+		: DEFAULT_BRAND;
+	return { user: locals.user, brand: safeBrand };
 };

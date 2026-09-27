@@ -3,7 +3,7 @@ import { db } from '$db';
 import { colors, typographyFonts, typographyStyles, typographyFontFiles } from '$db/schema';
 import { asc } from 'drizzle-orm';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async () => {
 	const [fonts, styles, files, brandColors] = await Promise.all([
 		db.select().from(typographyFonts).orderBy(asc(typographyFonts.order)),
 		db.select().from(typographyStyles).orderBy(asc(typographyStyles.order)),

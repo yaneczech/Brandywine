@@ -5,8 +5,11 @@ import { assets } from '$db/schema';
 import { eq } from 'drizzle-orm';
 import { createReadStream, statSync } from 'fs';
 import { join, resolve } from 'path';
-import { UPLOAD_DIR } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { can } from '$server/permissions';
+import { canEdit } from '$server/permissions';
+
+const UPLOAD_DIR = env.UPLOAD_DIR ?? './uploads';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
@@ -14,7 +17,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const [asset] = await db.select().from(assets).where(eq(assets.id, params.id)).limit(1);
 	if (!asset) error(404, 'Asset not found');
 
-	const allowed = await can(locals.user, 'download', 'folder', asset.folderId ?? '__root__');
+	const allowed = canEdit(locals.user.role) ||
+		await can(locals.user, 'download', 'folder', asset.folderId ?? '__root__');
 	if (!allowed) error(403, 'Forbidden');
 
 	// Ověř, že storagePath neuniká z UPLOAD_DIR

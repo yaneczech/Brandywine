@@ -38,7 +38,10 @@ export async function can(
 	resourceType: ResourceType,
 	resourceId: string
 ): Promise<boolean> {
-	if (user.role === 'admin') return true;
+	// Global editors manage all brand content. Team permissions only narrow
+	// read-only members; applying them to editors made uploaded assets disappear
+	// from the editor and prevented their download.
+	if (canEdit(user.role)) return true;
 
 	// Najdi všechny týmy, ve kterých je user členem
 	const memberships = await db
@@ -74,7 +77,7 @@ export async function accessibleResources(
 	resourceType: ResourceType,
 	action: Action = 'read'
 ): Promise<string[]> {
-	if (user.role === 'admin') return ['*']; // wildcard = vše
+	if (canEdit(user.role)) return ['*']; // wildcard = vše
 
 	const memberships = await db
 		.select({ teamId: teamMembers.teamId })

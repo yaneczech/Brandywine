@@ -7,7 +7,9 @@ import { eq, and } from 'drizzle-orm';
 import { deleteFile } from '$lib/server/storage';
 import { readFile } from 'fs/promises';
 import { join, resolve } from 'path';
-import { UPLOAD_DIR } from '$env/static/private';
+import { env } from '$env/dynamic/private';
+
+const UPLOAD_DIR = env.UPLOAD_DIR ?? './uploads';
 
 const MIME: Record<string, string> = {
 	woff2: 'font/woff2',
@@ -19,7 +21,7 @@ const MIME: Record<string, string> = {
 
 /** Sanitize a filename for use in Content-Disposition header */
 function safeFilename(name: string): string {
-	return name.replace(/[^\w.\-]/g, '_').replace(/^\.+/, '_');
+	return name.replace(/[^\w.-]/g, '_').replace(/^\.+/, '_');
 }
 
 export const GET: RequestHandler = async ({ params, locals, url }) => {

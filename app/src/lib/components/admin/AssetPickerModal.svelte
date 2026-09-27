@@ -1,14 +1,21 @@
 <!--
-  AssetPickerModal — inline modal for picking a single asset from the asset library.
+  AssetPickerModal — pick a single asset from the library (or upload one).
   Props:
-    open       — whether the modal is visible
-    mimeFilter — 'image' | 'all' (default 'image')
-    onPick     — called with asset URL when user selects an asset
-    onClose    — called when user closes without selecting
+    open        — whether the modal is visible
+    mimeFilter  — 'image' | 'all' (default 'image')
+    title       — optional heading (defaults to "Choose an asset")
+    description — optional helper line under the heading
+    onPick      — called with the asset URL (and the asset) when chosen
+    onClose     — called when closed without choosing
 -->
 <script lang="ts">
-	import { IconSearch, IconX, IconPhoto, IconCheck, IconUpload } from '@tabler/icons-svelte';
+	import * as m from '$lib/paraglide/messages';
+	import { IconSearch, IconX, IconUpload, IconPhoto } from '@tabler/icons-svelte';
 	import AssetThumb from '$lib/components/admin/AssetThumb.svelte';
+	import Modal from '$lib/components/ui/Modal.svelte';
+	import Tabs from '$lib/components/ui/Tabs.svelte';
+	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import { toast } from '$lib/ui/toast.svelte';
 
 	type Asset = {
 		id: string;
@@ -25,446 +32,199 @@
 	const {
 		open = false,
 		mimeFilter = 'image',
+		title,
+		description,
 		onPick,
 		onClose
 	}: {
 		open?: boolean;
 		mimeFilter?: 'image' | 'all';
-		onPick: (url: string, asset: Asset) => void;
+		title?: string;
+		description?: string;
+		onPick: (...args: [string, Asset]) => void;
 		onClose: () => void;
 	} = $props();
 
-	let assets      = $state<Asset[]>([]);
-	let loading     = $state(false);
-	let uploading   = $state(false);
-	let search      = $state('');
-	let typeFilter  = $state<string>(mimeFilter === 'all' ? 'all' : 'image');
-	let hoveredId   = $state<string | null>(null);
+	type TypeKey = 'all' | 'image' | 'document' | 'video' | 'other';
+
+	let assets = $state<Asset[]>([]);
+	let loading = $state(false);
+	let uploading = $state(false);
+	let search = $state('');
+	// svelte-ignore state_referenced_locally
+	let typeFilter = $state<TypeKey>(mimeFilter === 'all' ? 'all' : 'image');
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 
-	// Fetch assets when modal opens
 	$effect(() => {
-		if (open) {
-			loadAssets();
-		}
+		void typeFilter;
+		if (open) loadAssets();
 	});
 
 	async function loadAssets() {
 		loading = true;
 		try {
-			const params = new URLSearchParams({ limit: '200' });
-			if (typeFilter !== 'all') params.set('type', typeFilter);
-			const res = await fetch(`/api/assets?${params}`);
-			if (res.ok) {
-				const body = await res.json();
-				assets = body.data ?? [];
-			}
+			const query = typeFilter === 'all' ? 'limit=200' : `limit=200&type=${encodeURIComponent(typeFilter)}`;
+			const res = await fetch(`/api/assets?${query}`);
+			if (res.ok) assets = (await res.json()).data ?? [];
 		} finally {
 			loading = false;
 		}
 	}
 
-	// Re-fetch when type filter changes
-	$effect(() => {
-		typeFilter;
-		if (open) loadAssets();
-	});
-
-	function thumbUrl(a: Asset): string | null {
-		if (a.thumbnailPath) return `/uploads/${a.thumbnailPath.replace(/\\/g, '/')}`;
-		if (a.mime.startsWith('image/')) return `/api/assets/${a.id}/download`;
-		return null;
-	}
-
 	function assetUrl(a: Asset): string {
-		return `/api/assets/${a.id}/download`;
+		return `/uploads/${a.storagePath.replace(/\\/g, '/')}`;
 	}
 
-	function mimeCategory(mime: string) {
-		if (mime.startsWith('image/')) return 'image';
-		if (mime.startsWith('video/')) return 'video';
-		if (mime.startsWith('font/'))  return 'font';
-		if (mime.includes('pdf') || mime === 'application/postscript') return 'document';
-		return 'other';
-	}
 
-	const filtered = $derived(assets.filter(a => {
-		if (search) {
-			const q = search.toLowerCase();
-			if (!a.filename.toLowerCase().includes(q) && !(a.tags ?? []).some(t => t.includes(q))) return false;
-		}
-		return true;
+	const filtered = $derived(assets.filter((a) => {
+		if (!search) return true;
+		const q = search.toLowerCase();
+		return a.filename.toLowerCase().includes(q) || (a.tags ?? []).some((t) => t.includes(q));
 	}));
 
-	const TYPE_TABS = mimeFilter === 'image'
-		? [{ key: 'image', label: 'Obrázky' }]
-		: [
-			{ key: 'all',      label: 'Vše' },
-			{ key: 'image',    label: 'Obrázky' },
-			{ key: 'document', label: 'Dokumenty' },
-			{ key: 'video',    label: 'Video' },
-			{ key: 'other',    label: 'Ostatní' },
-		];
+	const typeTabs = $derived<{ id: TypeKey; label: string }[]>([
+		{ id: 'all', label: m.common_all() },
+		{ id: 'image', label: m.picker_images() },
+		{ id: 'document', label: m.picker_documents() },
+		{ id: 'video', label: m.picker_video() },
+		{ id: 'other', label: m.common_other() },
+	]);
 
 	async function handleUpload(e: Event) {
 		const input = e.target as HTMLInputElement;
 		const file = input.files?.[0];
 		if (!file) return;
 		input.value = '';
-
 		uploading = true;
 		try {
 			const fd = new FormData();
 			fd.append('file', file);
 			const res = await fetch('/api/assets', { method: 'POST', body: fd });
-			if (res.ok) {
-				await loadAssets();
-			}
+			if (!res.ok) { toast.error(m.typo_upload_failed()); return; }
+			const uploaded = (await res.json()) as Asset;
+			// An upload from inside the picker is an explicit choice
+			onPick(assetUrl(uploaded), uploaded);
 		} finally {
 			uploading = false;
 		}
 	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') onClose();
-	}
-
-	function handleBackdrop(e: MouseEvent) {
-		if ((e.target as HTMLElement).classList.contains('picker-backdrop')) onClose();
-	}
 </script>
 
-{#if open}
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<div class="picker-backdrop" role="dialog" aria-modal="true" onkeydown={handleKeydown} onclick={handleBackdrop}>
-		<div class="picker-modal">
-			<div class="picker-header">
-				<span class="picker-title">Vybrat asset</span>
-				<button type="button" class="picker-close" onclick={onClose} aria-label="Zavřít">
-					<IconX size={16} />
-				</button>
-			</div>
-
-			<div class="picker-toolbar">
-				<div class="picker-search">
-					<IconSearch size={13} />
-					<input
-						type="text"
-						bind:value={search}
-						placeholder="Hledat…"
-						autofocus
-					/>
-					{#if search}
-						<button type="button" onclick={() => (search = '')} aria-label="Vymazat"><IconX size={12} /></button>
-					{/if}
-				</div>
-
-				{#if TYPE_TABS.length > 1}
-					<div class="type-tabs">
-						{#each TYPE_TABS as tab}
-							<button
-								type="button"
-								class="type-tab"
-								class:active={typeFilter === tab.key}
-								onclick={() => (typeFilter = tab.key)}
-							>{tab.label}</button>
-						{/each}
-					</div>
-				{/if}
-			</div>
-
-			<div class="picker-grid-wrap">
-				{#if loading}
-					<div class="picker-empty">Načítám…</div>
-				{:else if filtered.length === 0}
-					<div class="picker-empty">Žádné assetyy nenalezeny</div>
-				{:else}
-					<div class="picker-grid">
-						{#each filtered as asset (asset.id)}
-							<button
-								type="button"
-								class="asset-tile"
-								class:hovered={hoveredId === asset.id}
-								title={asset.filename}
-								onmouseenter={() => (hoveredId = asset.id)}
-								onmouseleave={() => (hoveredId = null)}
-								onclick={() => onPick(assetUrl(asset), asset)}
-							>
-								<div class="tile-thumb">
-									<AssetThumb
-										mime={asset.mime}
-										thumbnailPath={asset.thumbnailPath}
-										assetId={asset.id}
-										filename={asset.filename}
-									/>
-								</div>
-								<div class="asset-name">{asset.filename}</div>
-								<div class="asset-check"><IconCheck size={14} /></div>
-							</button>
-						{/each}
-					</div>
-				{/if}
-			</div>
-
-			<div class="picker-footer">
-				<span class="picker-count">{filtered.length} {filtered.length === 1 ? 'asset' : 'assetů'}</span>
-				<div class="footer-actions">
-					<label class="btn-upload" class:uploading>
-						<input
-							bind:this={fileInputEl}
-							type="file"
-							accept={mimeFilter === 'image' ? 'image/*' : undefined}
-							onchange={handleUpload}
-							style="display:none"
-						/>
-						<IconUpload size={14} />
-						{uploading ? 'Nahrávám…' : 'Nahrát soubor'}
-					</label>
-					<button type="button" class="btn-cancel" onclick={onClose}>Zrušit</button>
-				</div>
-			</div>
-		</div>
+<Modal {open} title={title ?? m.picker_title()} {description} size="xl" {onClose} initialFocus=".picker-search input">
+	<div class="picker-toolbar">
+		<label class="picker-search">
+			<IconSearch size={15} stroke={1.5} />
+			<input type="text" bind:value={search} placeholder={m.assets_search()} />
+			{#if search}
+				<button type="button" onclick={() => (search = '')} aria-label={m.common_close()}><IconX size={13} stroke={1.75} /></button>
+			{/if}
+		</label>
+		{#if mimeFilter === 'all'}
+			<Tabs variant="segmented" size="sm" label={m.picker_title()} items={typeTabs} bind:value={typeFilter} />
+		{/if}
 	</div>
-{/if}
+
+	{#if loading}
+		<div class="picker-grid" aria-busy="true">
+			{#each Array(8) as _, i (i)}
+				<div class="asset-tile skeleton"><div class="tile-thumb ui-skeleton"></div><div class="ui-skeleton sk-line"></div></div>
+			{/each}
+		</div>
+	{:else if filtered.length === 0}
+		<EmptyState compact icon={search ? IconSearch : IconPhoto} title={m.picker_empty()} />
+	{:else}
+		<div class="picker-grid">
+			{#each filtered as asset (asset.id)}
+				<button type="button" class="asset-tile" title={asset.filename} onclick={() => onPick(assetUrl(asset), asset)}>
+					<div class="tile-thumb">
+						<AssetThumb mime={asset.mime} thumbnailPath={asset.thumbnailPath} assetId={asset.id} filename={asset.filename} />
+					</div>
+					<span class="asset-name">{asset.filename}</span>
+				</button>
+			{/each}
+		</div>
+	{/if}
+
+	{#snippet footer()}
+		<span class="picker-count ui-modal-foot-start">
+			{filtered.length === 1 ? m.picker_count_one() : m.picker_count({ count: String(filtered.length) })}
+		</span>
+		<label class="btn btn-secondary" class:disabled={uploading}>
+			<input bind:this={fileInputEl} type="file" accept={mimeFilter === 'image' ? 'image/*,.svg' : undefined} onchange={handleUpload} hidden />
+			{#if uploading}<span class="ui-spinner" aria-hidden="true"></span>{m.common_uploading()}{:else}<IconUpload size={15} stroke={1.5} /> {m.picker_upload()}{/if}
+		</label>
+		<button type="button" class="btn btn-secondary" onclick={onClose}>{m.common_cancel()}</button>
+	{/snippet}
+</Modal>
 
 <style>
-.picker-backdrop {
-	position: fixed;
-	inset: 0;
-	z-index: 1000;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: rgba(0,0,0,.45);
-	backdrop-filter: blur(2px);
-}
-.picker-modal {
-	display: flex;
-	flex-direction: column;
-	width: min(780px, 96vw);
-	max-height: min(640px, 90vh);
-	border-radius: 14px;
-	border: 1px solid var(--color-border);
-	background: var(--color-surface);
-	box-shadow: 0 24px 64px rgba(0,0,0,.22);
-	overflow: hidden;
-}
-.picker-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: .9rem 1rem .7rem;
-	border-bottom: 1px solid var(--color-border);
-	flex-shrink: 0;
-}
-.picker-title {
-	font-size: .95rem;
-	font-weight: 650;
-	color: var(--color-text);
-}
-.picker-close {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 28px;
-	height: 28px;
-	border: 0;
-	border-radius: 7px;
-	background: transparent;
-	color: var(--color-muted);
-	cursor: pointer;
-}
-.picker-close:hover {
-	background: var(--color-surface-raised);
-	color: var(--color-text);
-}
-.picker-toolbar {
-	display: flex;
-	align-items: center;
-	gap: .75rem;
-	padding: .65rem 1rem;
-	border-bottom: 1px solid var(--color-border);
-	flex-shrink: 0;
-	flex-wrap: wrap;
-}
-.picker-search {
-	position: relative;
-	display: flex;
-	align-items: center;
-	flex: 1;
-	min-width: 160px;
-}
-.picker-search :global(svg:first-child) {
-	position: absolute;
-	left: 9px;
-	color: var(--color-muted);
-	pointer-events: none;
-}
-.picker-search input {
-	width: 100%;
-	height: 32px;
-	padding: 0 30px 0 30px;
-	border: 1.5px solid var(--color-border);
-	border-radius: 7px;
-	background: var(--color-surface-raised);
-	color: var(--color-text);
-	font-size: .84rem;
-	outline: none;
-	font-family: inherit;
-}
-.picker-search input:focus { border-color: var(--brand); }
-.picker-search button {
-	position: absolute;
-	right: 7px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 18px;
-	height: 18px;
-	border: 0;
-	background: none;
-	color: var(--color-muted);
-	cursor: pointer;
-}
-.type-tabs {
-	display: flex;
-	gap: .2rem;
-}
-.type-tab {
-	padding: .3rem .7rem;
-	border: 1px solid transparent;
-	border-radius: 6px;
-	background: transparent;
-	color: var(--color-muted);
-	font-size: .78rem;
-	font-family: inherit;
-	cursor: pointer;
-}
-.type-tab:hover { background: var(--color-surface-raised); color: var(--color-text); }
-.type-tab.active {
-	background: color-mix(in srgb, var(--brand) 10%, transparent);
-	border-color: color-mix(in srgb, var(--brand) 30%, transparent);
-	color: var(--brand);
-	font-weight: 600;
-}
-.picker-grid-wrap {
-	flex: 1;
-	overflow-y: auto;
-	padding: .75rem 1rem;
-}
-.picker-empty {
-	padding: 3rem;
-	text-align: center;
-	color: var(--color-muted);
-	font-size: .875rem;
-}
-.picker-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-	gap: .5rem;
-}
-.asset-tile {
-	position: relative;
-	display: flex;
-	flex-direction: column;
-	gap: .35rem;
-	padding: .45rem;
-	border: 1.5px solid var(--color-border);
-	border-radius: 8px;
-	background: var(--color-surface-raised);
-	cursor: pointer;
-	text-align: left;
-	transition: border-color .12s, box-shadow .12s;
-}
-.asset-tile:hover,
-.asset-tile.hovered {
-	border-color: var(--brand);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent);
-}
-/* Square thumbnail container for the picker grid */
-.tile-thumb {
-	width: 100%;
-	aspect-ratio: 1;
-	overflow: hidden;
-	border-radius: 5px;
-	background: color-mix(in srgb, var(--color-border) 40%, transparent);
-	position: relative;
-}
-.asset-name {
-	font-size: .7rem;
-	color: var(--color-muted);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	line-height: 1.3;
-}
-.asset-check {
-	position: absolute;
-	top: 5px;
-	right: 5px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 20px;
-	height: 20px;
-	border-radius: 50%;
-	background: var(--brand);
-	color: #fff;
-	opacity: 0;
-	transition: opacity .12s;
-}
-.asset-tile:hover .asset-check,
-.asset-tile.hovered .asset-check {
-	opacity: 1;
-}
-.picker-footer {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: .65rem 1rem;
-	border-top: 1px solid var(--color-border);
-	flex-shrink: 0;
-	gap: .5rem;
-}
-.picker-count {
-	font-size: .8rem;
-	color: var(--color-muted);
-}
-.footer-actions {
-	display: flex;
-	align-items: center;
-	gap: .5rem;
-}
-.btn-upload {
-	display: inline-flex;
-	align-items: center;
-	gap: .4rem;
-	padding: .4rem .9rem;
-	border: 1px solid var(--brand);
-	border-radius: 7px;
-	background: color-mix(in srgb, var(--brand) 8%, transparent);
-	color: var(--brand);
-	font-size: .84rem;
-	font-family: inherit;
-	font-weight: 600;
-	cursor: pointer;
-	transition: background .12s;
-}
-.btn-upload:hover { background: color-mix(in srgb, var(--brand) 16%, transparent); }
-.btn-upload.uploading {
-	opacity: .6;
-	cursor: default;
-	pointer-events: none;
-}
-.btn-cancel {
-	padding: .4rem .9rem;
-	border: 1px solid var(--color-border);
-	border-radius: 7px;
-	background: transparent;
-	color: var(--color-text);
-	font-size: .84rem;
-	font-family: inherit;
-	cursor: pointer;
-}
-.btn-cancel:hover { background: var(--color-surface-raised); }
+	.picker-toolbar {
+		position: sticky;
+		top: calc(-1 * var(--space-5));
+		z-index: 1;
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-6)) var(--space-5);
+		padding: var(--space-5) var(--space-6) var(--space-4);
+		background: var(--color-surface);
+	}
+	.picker-search {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex: 1;
+		height: var(--control-h);
+		padding: 0 10px 0 12px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-surface);
+		color: var(--color-muted);
+		box-shadow: var(--shadow-xs);
+		transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+	}
+	.picker-search:focus-within { border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
+	.picker-search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--color-text); font-size: var(--text-base); }
+	.picker-search button { display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--color-muted); }
+	.picker-search button:hover { background: var(--color-hover); color: var(--color-text); }
+
+	.picker-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+		gap: var(--space-4) var(--space-3);
+	}
+	.asset-tile {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		min-width: 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		text-align: left;
+	}
+	.tile-thumb {
+		position: relative;
+		aspect-ratio: 4 / 3;
+		overflow: hidden;
+		border-radius: var(--radius);
+		background: var(--color-surface-raised);
+		box-shadow: 0 0 0 1px var(--color-border);
+		transition: box-shadow var(--dur-fast) var(--ease);
+	}
+	.asset-tile:hover .tile-thumb,
+	.asset-tile:focus-visible .tile-thumb { box-shadow: 0 0 0 2px var(--color-accent); }
+	.asset-tile:focus-visible { outline: none; }
+	.asset-name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+	}
+	.skeleton .tile-thumb { box-shadow: none; }
+	.sk-line { height: 10px; width: 70%; }
+	.picker-count { font-size: var(--text-xs); color: var(--color-muted); font-variant-numeric: tabular-nums; }
+	label.btn { cursor: pointer; }
+	label.btn.disabled { opacity: 0.5; pointer-events: none; }
 </style>
