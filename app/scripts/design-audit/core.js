@@ -185,7 +185,7 @@
 
 	// ── 10. Off-scale type and radii
 	const vars = getComputedStyle(document.documentElement);
-	const scale = new Set([...Array(12)].flatMap((_, i) => []).concat(
+	const scale = new Set([].concat(
 		['--text-2xs','--text-xs','--text-sm','--text-base','--text-md','--text-lg','--text-xl','--text-2xl','--text-3xl','--text-4xl','--text-5xl']
 			.map((v) => Math.round(parseFloat(vars.getPropertyValue(v)) * 16 * 10) / 10)));
 	const offType = new Map();

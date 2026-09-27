@@ -20,7 +20,7 @@ try {
 	try {
 		browser = await chromium.launch({ channel: 'chrome' });
 	} catch (chromeError) {
-		throw new AggregateError([bundledError, chromeError], 'Design audit could not launch bundled Chromium or system Chrome.');
+		throw new AggregateError([bundledError, chromeError], 'Design audit could not launch bundled Chromium or system Chrome.', { cause: chromeError });
 	}
 }
 const discover = await browser.newPage();

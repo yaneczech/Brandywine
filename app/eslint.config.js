@@ -28,6 +28,14 @@ export default [
 	},
 	...svelte.configs['flat/recommended'],
 	{
+		// Svelte 5 rune modules (*.svelte.ts) need the Svelte parser with TS inside
+		files: ['**/*.svelte.ts'],
+		languageOptions: {
+			parser: svelte.configs['flat/recommended'].find((c) => c.languageOptions?.parser)?.languageOptions.parser,
+			parserOptions: { parser: tsParser }
+		}
+	},
+	{
 		files: ['**/*.svelte'],
 		plugins: { '@typescript-eslint': ts },
 		languageOptions: {

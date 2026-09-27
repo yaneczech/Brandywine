@@ -4,7 +4,7 @@
 	import { getLocale, setLocale } from '$lib/paraglide/runtime';
 	import * as m from '$lib/paraglide/messages';
 	import {
-		IconCheck, IconAlertTriangle, IconScale, IconLock, IconInfoCircle, IconRefresh
+		IconAlertTriangle, IconScale, IconLock, IconInfoCircle, IconRefresh
 	} from '$lib/icons';
 	import type { UnitDigital, UnitPrint, UnitType } from '$lib/db/schema/brand';
 

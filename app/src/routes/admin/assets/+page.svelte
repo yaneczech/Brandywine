@@ -6,7 +6,6 @@
 	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { focusTrap } from '$lib/actions/focus-trap';
 	import * as m from '$lib/paraglide/messages';
 	import Breadcrumbs, { type BreadcrumbItem } from '$lib/components/admin/Breadcrumbs.svelte';
 	import FolderPicker from '$lib/components/admin/FolderPicker.svelte';

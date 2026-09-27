@@ -1,42 +1,32 @@
-# sv
+# Brandywine — web app
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+The SvelteKit application: the admin, the public brand manual and the HTTP API.
+Project overview, installation and contribution guide live in the
+[repository README](../README.md) and [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-## Creating a project
+## Develop
 
-If you're seeing this, you've probably already done this step. Congrats!
+```bash
+# Postgres + Redis with published ports
+docker compose -f ../docker-compose.yml -f ../compose.dev.yml up -d db redis
 
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.15.4 create --template minimal --types ts --install npm app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+cp ../.env.example .env   # set DATABASE_URL, SESSION_SECRET
+npm install
+npm run db:migrate
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+## Scripts
 
-To create a production version of your app:
+| Script | What it does |
+| --- | --- |
+| `npm run dev` | Vite dev server |
+| `npm run check` | Svelte + TypeScript type check |
+| `npm run lint` | ESLint |
+| `npm test` | Unit tests (Vitest) |
+| `npm run test:e2e` | End-to-end tests (Playwright) |
+| `npm run build` | Production build (adapter-node) |
+| `npm run db:generate` | Generate a migration from schema changes |
+| `npm run db:migrate` | Apply pending migrations |
 
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+See [docs/architecture.md](../docs/architecture.md) for how the code is organised.

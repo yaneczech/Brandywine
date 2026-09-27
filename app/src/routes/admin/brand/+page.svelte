@@ -17,17 +17,14 @@
 		IconPhoto,
 		IconRefresh,
 		IconRosette,
-		IconSearch,
 		IconSparkles,
 		IconSun,
 		IconMoon,
 		IconDeviceDesktop,
 		IconArrowsExchange,
-		IconX,
 		IconTypography
 	} from '$lib/icons';
 	import ManualThemeColorField from '$lib/components/admin/ManualThemeColorField.svelte';
-	import AssetThumb from '$lib/components/admin/AssetThumb.svelte';
 	import AssetPickerModal from '$lib/components/admin/AssetPickerModal.svelte';
 	import { generateShades, contrastRatio } from '$lib/utils/colors';
 
@@ -75,13 +72,6 @@
 	let accessPassword = $state('');
 	// svelte-ignore state_referenced_locally
 	let whitelistText = $state((s.emailWhitelist ?? []).join('\n'));
-	type BrandAsset = {
-		id: string;
-		filename: string;
-		mime: string;
-		storagePath: string | null;
-		thumbnailPath: string | null;
-	};
 	let assetPickerTarget = $state<'logo' | 'logoDark' | 'favicon' | null>(null);
 
 	// svelte-ignore state_referenced_locally

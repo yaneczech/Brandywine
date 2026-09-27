@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./brandywine-logo-n.svg" alt="Brandywine" width="32" />
+  <img src="./docs/assets/logo.svg" alt="Brandywine" width="32" />
 </p>
 
 <h1 align="center">Brandywine</h1>
@@ -198,11 +198,11 @@ npm run dev
 
 Brandywine is under active development. The core product direction is clear: a beautiful, self-hosted brand CMS for designers, brand teams, and agencies. Expect rapid iteration around manual page building, asset workflows, typography, permissions, and polish.
 
-See the [professional product and self-hosting roadmap](./PRODUCT_ROADMAP.md) for
+See the [professional product and self-hosting roadmap](./docs/ROADMAP.md) for
 the release milestones, DAM workflows, governance, integrations, and the next
 steps beyond the included WordPress-like install/update/backup experience.
 
-The [product audit](./PRODUCT_AUDIT.md) records what is fully usable today,
+The [product audit](./docs/internal/PRODUCT_AUDIT.md) records what is fully usable today,
 what is only partial, and which release gates should precede a `1.0` label.
 
 ## License
