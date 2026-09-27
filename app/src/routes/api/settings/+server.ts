@@ -6,6 +6,7 @@ import type { RequestHandler } from './$types';
 import { invalidateLangCache } from '$lib/server/lang-cache';
 import { hashPassword } from '$server/auth';
 import { withoutManualPassword } from '$server/brand-settings';
+import { emit } from '$server/events';
 
 type BrandSettingsInsert = typeof brandSettings.$inferInsert;
 type BrandSettingsUpdate = Partial<Omit<BrandSettingsInsert, 'id'>>;
@@ -180,6 +181,9 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 
 	// Invalidate in-memory language cache if the default language was changed
 	if ('defaultLanguage' in body) invalidateLangCache();
+
+	// Key names only — values such as the manual password never leave the server
+	emit('settings.changed', { keys: Object.keys(update), userId: locals.user.id });
 
 	return json({ ...withoutManualPassword(row), accessPasswordConfigured: Boolean(row.accessPassword) });
 };

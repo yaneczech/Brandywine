@@ -7,14 +7,23 @@
 import * as m from '$lib/paraglide/messages';
 import { hasRole } from '$lib/auth/roles';
 import { MODULE_GROUPS, type AdminModule, type ModuleGroup } from './types';
+import { plugins } from '$lib/plugins';
 
 const found = import.meta.glob<{ default: AdminModule }>('./*/index.ts', { eager: true });
+
+/** Plugin sections are served by routes/admin/x/[plugin]/[module] */
+export function pluginModuleHref(pluginId: string, moduleId: string): string {
+	return `/admin/x/${pluginId}/${moduleId}`;
+}
 
 function load(): AdminModule[] {
 	const seen = new Map<string, string>();
 	const list: AdminModule[] = [];
-	for (const [path, mod] of Object.entries(found)) {
-		const def = mod.default;
+	const pluginModules: [string, AdminModule][] = plugins.flatMap((p) => (p.modules ?? []).map((mod) => [
+		`plugin ${p.id}`,
+		{ id: `${p.id}/${mod.id}`, href: pluginModuleHref(p.id, mod.id), group: mod.group, order: mod.order, icon: mod.icon, label: mod.label, minRole: mod.minRole },
+	] as [string, AdminModule]));
+	for (const [path, def] of [...Object.entries(found).map(([path, mod]) => [path, mod.default] as [string, AdminModule]), ...pluginModules]) {
 		if (!def?.id || !def.href?.startsWith('/admin')) throw new Error(`${path} must default-export defineModule({ id, href: '/admin…', ... })`);
 		const clash = seen.get(def.id);
 		if (clash) throw new Error(`Admin module "${def.id}" is defined twice (${clash}, ${path})`);

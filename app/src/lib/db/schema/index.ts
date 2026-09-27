@@ -7,3 +7,4 @@ export * from './sections';
 export * from './assets';
 export * from './shareLinks';
 export * from './analytics';
+export * from './webhooks';

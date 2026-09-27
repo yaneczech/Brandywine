@@ -9,6 +9,7 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
 import { manualPages } from '$db/schema';
 import { eq, isNull, and, ne } from 'drizzle-orm';
+import { emit } from '$server/events';
 
 // ── GET ────────────────────────────────────────────────────────────────────────
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -86,6 +87,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 		.where(eq(manualPages.id, params.id))
 		.returning();
 
+	emit('page.saved', { page: { id: updated.id, title: updated.title, slug: updated.slug, parentId: updated.parentId }, created: false, userId: locals.user.id });
 	return json(updated);
 };
 
@@ -94,11 +96,12 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
 	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
-	const [existing] = await db.select({ id: manualPages.id, isLanding: manualPages.isLanding })
+	const [existing] = await db.select({ id: manualPages.id, title: manualPages.title, isLanding: manualPages.isLanding })
 		.from(manualPages).where(eq(manualPages.id, params.id));
 	if (!existing) error(404, 'Page not found');
 	if (existing.isLanding) error(400, 'Cannot delete the landing page');
 
 	await db.delete(manualPages).where(eq(manualPages.id, params.id));
+	emit('page.deleted', { page: { id: existing.id, title: existing.title }, userId: locals.user.id });
 	return new Response(null, { status: 204 });
 };

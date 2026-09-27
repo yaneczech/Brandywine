@@ -8,6 +8,7 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
 import { manualBlocks } from '$db/schema';
 import { eq, asc, and, ne } from 'drizzle-orm';
+import { emit } from '$server/events';
 
 // ── PATCH ──────────────────────────────────────────────────────────────────────
 export const PATCH: RequestHandler = async ({ params, locals, request }) => {
@@ -66,6 +67,8 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 		.where(eq(manualBlocks.id, params.id))
 		.returning();
 
+	emit('block.saved', { block: { id: updated.id, pageId: updated.pageId, type: updated.type }, created: false, userId: locals.user.id });
+
 	// Renumber if we repositioned
 	if (body.beforeId || body.afterId) {
 		await renumberBlocks(existing.pageId);
@@ -81,13 +84,14 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) error(401, 'Unauthorized');
 	if (!canEdit(locals.user.role)) error(403, 'Forbidden');
 
-	const [existing] = await db.select({ id: manualBlocks.id, pageId: manualBlocks.pageId })
+	const [existing] = await db.select({ id: manualBlocks.id, pageId: manualBlocks.pageId, type: manualBlocks.type })
 		.from(manualBlocks).where(eq(manualBlocks.id, params.id));
 	if (!existing) error(404, 'Block not found');
 
 	await db.delete(manualBlocks).where(eq(manualBlocks.id, params.id));
 	await renumberBlocks(existing.pageId);
 
+	emit('block.deleted', { block: existing, userId: locals.user.id });
 	return new Response(null, { status: 204 });
 };
 

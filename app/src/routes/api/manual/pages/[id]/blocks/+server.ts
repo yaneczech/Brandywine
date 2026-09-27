@@ -10,6 +10,7 @@ import { manualPages, manualBlocks } from '$db/schema';
 import { eq, asc, max } from 'drizzle-orm';
 import { BLOCK_TYPES } from '$lib/blocks';
 import { createId } from '$lib/db/id';
+import { emit } from '$server/events';
 
 // ── GET ────────────────────────────────────────────────────────────────────────
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -87,6 +88,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	await renumberBlocks(params.id);
 	const [fresh] = await db.select().from(manualBlocks).where(eq(manualBlocks.id, block.id));
 
+	emit('block.saved', { block: { id: fresh.id, pageId: fresh.pageId, type: fresh.type }, created: true, userId: locals.user.id });
 	return json(fresh, { status: 201 });
 };
 

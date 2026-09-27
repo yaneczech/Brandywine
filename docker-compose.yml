@@ -3,6 +3,9 @@ services:
     build:
       context: ./app
       dockerfile: Dockerfile
+      # Installed plugins (plugins/) are compiled into the app
+      additional_contexts:
+        plugins: ./plugins
     restart: unless-stopped
     init: true
     environment:

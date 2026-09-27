@@ -6,6 +6,7 @@ import { assets, folders } from '$db/schema';
 import { eq } from 'drizzle-orm';
 import { deleteFiles } from '$lib/server/storage';
 import { can } from '$server/permissions';
+import { emit } from '$server/events';
 
 async function loadAndAuthorise(
 	assetId: string,
@@ -97,6 +98,8 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		.delete(assets)
 		.where(eq(assets.id, params.id))
 		.returning({
+			id: assets.id,
+			filename: assets.filename,
 			storagePath: assets.storagePath,
 			thumbnailPath: assets.thumbnailPath,
 			convertedPaths: assets.convertedPaths,
@@ -113,5 +116,6 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		...Object.values(deleted.convertedPaths ?? {}),
 		...pageThumbs
 	]);
+	emit('asset.deleted', { asset: { id: deleted.id, filename: deleted.filename }, userId: locals.user.id });
 	return json({ ok: true });
 };

@@ -8,6 +8,7 @@ import { accessibleResources } from '$server/permissions';
 import { saveFile } from '$lib/server/storage';
 import { enqueueThumbnail, enqueueSvgProcess, enqueueVideo } from '$lib/server/queue';
 import { createHash } from 'crypto';
+import { emit } from '$server/events';
 
 const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200 MB
 
@@ -210,6 +211,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			await enqueueVideo(inserted.id, storagePath).catch(() => {});
 		}
 
+		emit('asset.uploaded', {
+			asset: { id: inserted.id, filename: inserted.filename, mime: inserted.mime, size: inserted.size, url: `/uploads/${inserted.storagePath}`, folderId: inserted.folderId },
+			userId: locals.user.id,
+		});
 		return json(inserted, { status: 201 });
 	} catch (e) {
 		// Best-effort cleanup on DB failure

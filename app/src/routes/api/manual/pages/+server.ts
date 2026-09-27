@@ -8,6 +8,7 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
 import { manualPages } from '$db/schema';
 import { asc, isNull, eq } from 'drizzle-orm';
+import { emit } from '$server/events';
 
 // ── GET — return all pages (admin builds the tree client-side) ─────────────────
 export const GET: RequestHandler = async ({ locals }) => {
@@ -65,5 +66,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		})
 		.returning();
 
+	emit('page.saved', { page: { id: page.id, title: page.title, slug: page.slug, parentId: page.parentId }, created: true, userId: locals.user.id });
 	return json(page, { status: 201 });
 };
