@@ -17,6 +17,8 @@ const DEFAULT_BRAND = {
 	manualMutedColor: '#737373',
 	manualAccentColor: null as string | null,
 	manualBorderRadius: 8,
+	manualTypographyPreset: 'neutral',
+	manualLandingLayout: 'grid',
 	showAttribution: true,
 	customFooterText: null as string | null
 };

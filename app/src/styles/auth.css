@@ -12,7 +12,9 @@
 .auth-root .brand-panel {
 	width: min(44vw, 560px);
 	flex-shrink: 0;
-	background: var(--brand);
+	/* Neutral ink panel: the brand shows in its logo and the primary action,
+	   not as a painted surface (DESIGN.md › Barva) */
+	background: #141414;
 	color: #fff;
 	position: relative;
 	overflow: hidden;
@@ -23,7 +25,7 @@
 	content: '';
 	position: absolute;
 	inset: 0;
-	background: linear-gradient(180deg, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.18) 100%);
+	background: none;
 	pointer-events: none;
 }
 .auth-root .brand-panel-inner {
@@ -99,7 +101,7 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 10px 14px;
+	padding: 8px 16px;
 	background: var(--color-danger-subtle);
 	border: 1px solid var(--color-danger-border);
 	border-radius: var(--radius);
@@ -115,7 +117,7 @@
 .auth-root .field {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 8px;
 }
 .auth-root .field-label-row {
 	display: flex;
@@ -134,7 +136,7 @@
 }
 .auth-root .field input {
 	height: var(--control-h-lg);
-	padding: 0 14px;
+	padding: 0 16px;
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius);
 	background: var(--color-surface);

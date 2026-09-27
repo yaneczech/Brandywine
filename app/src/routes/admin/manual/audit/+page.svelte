@@ -75,7 +75,6 @@
 			<div class="score-text"><strong>{Math.round(score)}</strong><span>/ 100</span></div>
 		</div>
 		<Tabs
-			variant="segmented"
 			label={m.audit_filter_label()}
 			bind:value={filter}
 			items={[
@@ -128,19 +127,19 @@
 </div>
 
 <style>
-.audit { max-width: 920px; padding: 1.5rem 2rem 4rem; }
-.back { display: inline-flex; align-items: center; gap: .35rem; color: var(--color-muted); font-size: var(--text-base); }
+.audit { max-width: 920px; padding: 24px 32px 64px; }
+.back { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; color: var(--color-muted); font-size: var(--text-base); }
 .back:hover { color: var(--color-text); }
-.audit-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-top: .75rem; }
+.audit-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-top: 12px; }
 h1 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: var(--tracking-snug); }
 .muted { color: var(--color-muted); }
-.audit-title-row p { margin: .3rem 0 0; font-size: var(--text-base); }
+.audit-title-row p { margin: 4px 0 0; font-size: var(--text-base); }
 
 
 :global(.spin) { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.summary { display: flex; align-items: center; gap: 1.5rem; margin: 1.5rem 0; padding: 1rem 1.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); flex-wrap: wrap; }
+.summary { display: flex; align-items: center; gap: 24px; margin: 24px 0; padding: 16px 20px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); flex-wrap: wrap; }
 .score { position: relative; width: 72px; height: 72px; flex: 0 0 auto; --c: var(--color-danger); }
 .score.mid { --c: var(--color-warning); }
 .score.good { --c: var(--color-success); }
@@ -152,13 +151,13 @@ h1 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: var(--track
 .score-text strong { font-size: var(--text-xl); font-weight: 600; }
 .score-text span { font-size: var(--text-2xs); color: var(--color-muted); }
 
-.count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--radius-sm); background: color-mix(in srgb, currentColor 12%, transparent); font-size: var(--text-xs); font-weight: 600; }
+.count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 8px; border-radius: var(--radius-sm); background: color-mix(in srgb, currentColor 12%, transparent); font-size: var(--text-xs); font-weight: 600; }
 
-.groups { display: flex; flex-direction: column; gap: 1.5rem; }
-.group-title { display: flex; align-items: center; gap: .5rem; margin: 0 0 .5rem; font-size: var(--text-md); font-weight: 600; }
+.groups { display: flex; flex-direction: column; gap: 24px; }
+.group-title { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: var(--text-md); font-weight: 600; }
 .group ul { margin: 0; padding: 0; list-style: none; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); overflow: hidden; }
 .group li + li { border-top: 1px solid var(--color-border); }
-.issue { display: flex; align-items: center; gap: .75rem; padding: .8rem 1rem; color: var(--color-text); transition: background .12s ease; }
+.issue { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: var(--color-text); transition: background .12s ease; }
 .issue:hover { background: var(--color-hover); }
 .sev-icon { display: grid; place-items: center; flex: 0 0 auto; }
 .issue.sev-error .sev-icon { color: var(--color-danger); }
@@ -171,7 +170,7 @@ h1 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: var(--track
 
 
 @media (max-width: 640px) {
-	.audit { padding: 1rem 1rem 3rem; }
+	.audit { padding: 16px 16px 48px; }
 	.audit-title-row { flex-direction: column; }
 }
 </style>

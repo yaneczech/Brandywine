@@ -199,7 +199,7 @@
 	   hairline index underneath — no card. */
 	.fs { display: flex; flex-direction: column; }
 	.fs-hero {
-		display: flex; flex-direction: column; align-items: center; gap: .35rem;
+		display: flex; flex-direction: column; align-items: center; gap: 4px;
 		padding: clamp(2.5rem, 7vw, 4.5rem) 1.25rem clamp(1.75rem, 4vw, 2.5rem);
 		border-radius: var(--manual-radius);
 		background: var(--manual-stage);
@@ -209,41 +209,41 @@
 	}
 	.fs-aa { font-size: clamp(5rem, 14vw, 9rem); font-weight: 500; line-height: .95; letter-spacing: var(--tracking-display); }
 	.fs-name { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 500; letter-spacing: -.02em; }
-	.fs-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem .8rem; margin-top: .35rem; font-family: var(--manual-font); color: var(--manual-muted); font-size: var(--text-sm); }
+	.fs-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 12px; margin-top: 4px; font-family: var(--manual-font); color: var(--manual-muted); font-size: var(--text-sm); }
 	.fs-role { color: var(--manual-muted); font-size: var(--manual-label-size); font-weight: 500; text-transform: uppercase; letter-spacing: var(--manual-label-tracking); }
-	.fs-desc { max-width: 60ch; margin: 0; padding: 1rem 0 0; color: var(--manual-muted); font-size: var(--text-md); line-height: 1.6; }
-	.fs-rows { margin-top: 1.25rem; border-top: 1px solid var(--manual-border); }
+	.fs-desc { max-width: 60ch; margin: 0; padding: 16px 0 0; color: var(--manual-muted); font-size: var(--text-md); line-height: 1.6; }
+	.fs-rows { margin-top: 20px; border-top: 1px solid var(--manual-border); }
 	.fs-row { border-bottom: 1px solid var(--manual-border); }
 	.fs-row-action, .fs-row summary {
-		display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-		min-height: 52px; padding: .5rem 0; color: var(--manual-ink); font-size: var(--text-md); font-weight: 500;
+		display: flex; align-items: center; justify-content: space-between; gap: 16px;
+		min-height: 52px; padding: 8px 0; color: var(--manual-ink); font-size: var(--text-md); font-weight: 500;
 	}
 	.fs-row summary { list-style: none; cursor: pointer; transition: color .15s ease; }
 	.fs-row summary::-webkit-details-marker { display: none; }
 	.fs-row summary:hover { color: color-mix(in srgb, var(--manual-ink) 72%, transparent); }
-	.fs-summary-end { display: inline-flex; align-items: center; gap: .5rem; color: var(--manual-muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+	.fs-summary-end { display: inline-flex; align-items: center; gap: 8px; color: var(--manual-muted); font-weight: 500; font-variant-numeric: tabular-nums; }
 	.fs-summary-end :global(svg) { transition: transform .25s var(--manual-ease, ease); }
 	details[open] > summary .fs-summary-end :global(svg) { transform: rotate(180deg); }
 	.fs-btn {
-		display: inline-flex; align-items: center; gap: .4rem; height: 32px; padding: 0 .75rem;
-		border: 1px solid var(--manual-border); border-radius: var(--manual-radius);
+		display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px;
+		border: 1px solid var(--manual-border); border-radius: var(--manual-control-radius);
 		color: var(--manual-ink); font-size: var(--text-sm); font-weight: 500; text-decoration: none; white-space: nowrap;
 		transition: border-color .15s ease;
 	}
 	.fs-btn:hover { border-color: var(--manual-border-strong); }
 	.fs-btn small { color: var(--manual-muted); font-weight: 500; }
 
-	.fs-weights { margin: 0; padding: 0 0 1rem; list-style: none; font-family: var(--fs-family); }
-	.fs-weights li { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: .55rem 0; border-top: 1px solid var(--manual-border); color: var(--manual-ink); font-size: clamp(1.1rem, 2.2vw, 1.5rem); }
+	.fs-weights { margin: 0; padding: 0 0 16px; list-style: none; font-family: var(--fs-family); }
+	.fs-weights li { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 8px 0; border-top: 1px solid var(--manual-border); color: var(--manual-ink); font-size: clamp(1.1rem, 2.2vw, 1.5rem); }
 	.fs-weight-sample { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.fs-weight-num { flex: 0 0 auto; color: var(--manual-muted); font-family: var(--manual-font); font-size: var(--text-xs); font-weight: 500; font-variant-numeric: tabular-nums; }
 
-	.fs-info { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: .9rem 1.5rem; margin: 0; padding: .25rem 0 1.25rem; }
+	.fs-info { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 16px 24px; margin: 0; padding: 4px 0 20px; }
 	.fs-info dt { color: var(--manual-muted); font-size: var(--manual-label-size); font-weight: 500; text-transform: uppercase; letter-spacing: var(--manual-label-tracking); }
 	.fs-info dd { margin: .15rem 0 0; color: var(--manual-ink); font-size: var(--text-base); overflow-wrap: anywhere; }
 	.fs-info code { font-family: var(--manual-mono, monospace); font-size: var(--text-sm); }
 
-	.fs-glyphs { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr); gap: 1rem; padding: .25rem 0 1.25rem; font-family: var(--fs-family); }
+	.fs-glyphs { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr); gap: 16px; padding: 4px 0 20px; font-family: var(--fs-family); }
 	.fs-glyph-big {
 		position: sticky; top: calc(var(--manual-topbar, 60px) + 16px); align-self: start;
 		display: grid; place-items: center; aspect-ratio: 1; border-radius: var(--manual-radius);
@@ -252,20 +252,21 @@
 	}
 	.fs-glyph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 2px; }
 	.fs-glyph-grid button {
-		aspect-ratio: 1; padding: 0; border: 0; border-radius: var(--radius); background: transparent; color: var(--manual-ink);
+		aspect-ratio: 1; padding: 0; border: 0; border-radius: var(--manual-control-radius); background: transparent; color: var(--manual-ink);
 		font-family: inherit; font-size: var(--text-xl); cursor: default;
 	}
 	.fs-glyph-grid button:hover, .fs-glyph-grid button.active { background: var(--manual-ink); color: var(--manual-paper); }
 
-	.fs-tester { display: flex; flex-direction: column; gap: .75rem; padding: .25rem 0 1.25rem; }
-	.fs-tester-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.5rem; color: var(--manual-muted); font-size: var(--text-sm); }
-	.fs-tester-controls label { display: inline-flex; align-items: center; gap: .5rem; }
-	.fs-tester-controls input[type="range"] { width: 140px; accent-color: var(--manual-brand); }
+	.fs-tester { display: flex; flex-direction: column; gap: 12px; padding: 4px 0 20px; }
+	.fs-tester-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; color: var(--manual-muted); font-size: var(--text-sm); }
+	.fs-tester-controls label { display: inline-flex; align-items: center; gap: 8px; }
+	.fs-tester-controls input[type="range"] { width: 140px; height: 24px; accent-color: var(--manual-brand); }
 	.fs-tester-controls output { min-width: 3.5em; color: var(--manual-ink); font-weight: 500; font-variant-numeric: tabular-nums; }
-	.fs-tester-controls select { height: 30px; padding: 0 .5rem; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: transparent; color: var(--manual-ink); font-family: inherit; }
-	.fs-check input { accent-color: var(--manual-brand); }
+	.fs-tester-controls select { height: 30px; padding: 0 8px; border: 1px solid var(--manual-border); border-radius: var(--manual-control-radius); background: transparent; color: var(--manual-ink); font-family: inherit; }
+	.fs-check { min-height: 24px; }
+	.fs-check input { width: 16px; height: 16px; accent-color: var(--manual-brand); }
 	.fs-tester-text {
-		width: 100%; min-height: 1.6em; padding: .5rem 0; border: 0; border-bottom: 1px solid var(--manual-border);
+		width: 100%; min-height: 1.6em; padding: 8px 0; border: 0; border-bottom: 1px solid var(--manual-border);
 		background: transparent; color: var(--manual-ink); font-family: var(--fs-family); line-height: 1.15;
 		resize: vertical; outline: none; field-sizing: content;
 	}

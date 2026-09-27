@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { ensureContrast } from '$lib/ui/contrast';
+	import { pageNumbers } from '$lib/manual/numbering';
 	import type { LayoutData } from './$types';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -25,7 +27,9 @@
 	};
 
 	const brand = $derived(data.settings);
+	const chapterNumbers = $derived(brand?.manualNumbering ? pageNumbers(data.pages ?? [], data.sectionCounts ?? {}) : new Map<string, string>());
 	const brandName = $derived(brand?.name ?? 'Brand Manual');
+	const typographyPreset = $derived(brand?.manualTypographyPreset ?? 'neutral');
 	const manualLanguage = $derived((brand?.defaultLanguage === 'cs' ? 'cs' : 'en') as ManualLanguage);
 	const t = $derived(manualStrings(manualLanguage));
 	setManualStrings(() => t);
@@ -49,11 +53,17 @@
 		light: { paper: '#FBFAF8', surface: '#FFFFFF', ink: '#171717', muted: '#737373' },
 		dark: { paper: '#101010', surface: '#171717', ink: '#F4F4F4', muted: '#A3A3A3' }
 	};
+	// The accent marks UI (active item, focus, sliders), so it must stay
+	// visible on the paper it sits on — ≥ 3:1, same hue (DESIGN.md › Přístupnost)
+	const paperLight = $derived(brand?.manualBackgroundColor || themeDefaults.light.paper);
+	const paperDark  = $derived(brand?.manualBackgroundColorDark || themeDefaults.dark.paper);
+	const uiAccentLight = $derived(ensureContrast(manualAccentLight, paperLight));
+	const uiAccentDark  = $derived(ensureContrast(manualAccentDark, paperDark));
 	const manualShellStyle = $derived.by(() => {
 		const mode = isDark ? 'dark' : 'light';
 		const pairs = [
-			`--manual-brand:${isDark ? manualAccentDark : manualAccentLight}`,
-			`--manual-brand-dark:${manualAccentDark}`,
+			`--manual-brand:${isDark ? uiAccentDark : uiAccentLight}`,
+			`--manual-brand-dark:${uiAccentDark}`,
 			`--manual-radius:${radiusValue(brand?.manualBorderRadius)}px`,
 		];
 		const pick = (light: string | null | undefined, dark: string | null | undefined) =>
@@ -66,6 +76,8 @@
 		add('--manual-surface', pick(brand?.manualSurfaceColor,    brand?.manualSurfaceColorDark),    'surface');
 		add('--manual-ink',     pick(brand?.manualTextColor,       brand?.manualTextColorDark),       'ink');
 		add('--manual-muted',   pick(brand?.manualMutedColor,      brand?.manualMutedColorDark),      'muted');
+		if (data.manualFonts?.body) pairs.push(`--manual-font:${data.manualFonts.body}`);
+		if (data.manualFonts?.heading) pairs.push(`--manual-font-heading:${data.manualFonts.heading}`);
 		return pairs.join(';');
 	});
 
@@ -316,11 +328,20 @@
 	<meta property="og:title" content={currentPathLabel} />
 	<meta property="og:site_name" content={brandName} />
 	<meta name="theme-color" content={isDark ? '#101010' : '#fbfaf8'} />
+	{#each data.manualFonts?.stylesheets ?? [] as href (href)}
+		<link rel="stylesheet" {href} />
+	{/each}
+	{#if data.manualFonts?.css}
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -- generated server-side from escaped font metadata -->
+		{@html `<style>${data.manualFonts.css}</style>`}
+	{/if}
 </svelte:head>
 
 <div
 	class="manual-shell"
 	class:is-dark={isDark}
+	class:typography-editorial={typographyPreset === 'editorial'}
+	class:typography-technical={typographyPreset === 'technical'}
 	class:follows-system={effectiveThemeMode === 'system' || (manualThemeMode === 'toggle' && !userTheme)}
 	style={manualShellStyle}
 	lang={manualLanguage}
@@ -354,20 +375,20 @@
 			</a>
 
 			<div class="topbar-right">
-				<button class="search-trigger" onclick={openSearch} aria-label="{t.search} ({isMac ? '⌘' : 'Ctrl'}K)">
-					<IconSearch size={15} stroke={1.9} />
+				<button class="search-trigger header-action" onclick={openSearch} aria-label="{t.search} ({isMac ? '⌘' : 'Ctrl'}K)">
+					<IconSearch size={18} />
 					<span class="search-trigger-label">{t.searchPlaceholder}</span>
 					<kbd class="search-kbd">{isMac ? '⌘' : 'Ctrl'} K</kbd>
 				</button>
 
 				{#if manualThemeMode === 'toggle'}
 					<button
-						class="icon-btn"
+						class="icon-btn header-action"
 						onclick={() => setTheme(isDark ? 'light' : 'dark')}
 						aria-label={isDark ? t.themeLight : t.themeDark}
 						title={isDark ? t.themeLight : t.themeDark}
 					>
-						{#if isDark}<IconSun size={17} stroke={1.8} />{:else}<IconMoon size={17} stroke={1.8} />{/if}
+						{#if isDark}<IconSun size={18} />{:else}<IconMoon size={18} />{/if}
 					</button>
 				{/if}
 
@@ -514,6 +535,7 @@
 					class:active={exactActive}
 					class:ancestor={isActive(href) && !exactActive}
 					aria-current={exactActive ? 'page' : undefined}>
+					{#if chapterNumbers.get(p.id)}<span class="chapter-num">{chapterNumbers.get(p.id)}</span>{/if}
 					<span>{p.title}</span>
 				</a>
 				{#if kids.length}
@@ -552,13 +574,19 @@
 		--manual-border-strong: color-mix(in srgb, var(--manual-ink) 16%, transparent);
 		--manual-hover: color-mix(in srgb, var(--manual-ink) 5%, transparent);
 		--manual-radius: 8px;
+		/* Controls follow the brand radius but stay concentric: never a pill */
+		--manual-control-radius: min(var(--manual-radius), 10px);
 		/* Rhythm & stage — the frame around the brand's own material */
-		--manual-section-gap: clamp(4rem, 7vw, 6.5rem);
-		--manual-section-gap-inner: clamp(2rem, 3.2vw, 3rem);
-		--manual-flow-gap: clamp(1.75rem, 2.6vw, 2.5rem);
+		/* Stepped, not fluid: rhythm stays on the 4px grid (DESIGN.md › Rytmus) */
+		--manual-section-gap: 64px;
+		--manual-section-gap-inner: 32px;
+		--manual-flow-gap: 32px;
 		--manual-stage: color-mix(in srgb, var(--manual-ink) 3.5%, var(--manual-paper));
 		--manual-label-size: .6875rem;
-		--manual-label-tracking: .08em;
+			--manual-label-tracking: .08em;
+			--manual-display-weight: 500;
+			--manual-heading-tracking: -.028em;
+			--manual-body-leading: 1.6;
 		--manual-info: #2563eb;
 		--manual-success: #16a34a;
 		--manual-warning: #d97706;
@@ -567,6 +595,7 @@
 		--manual-shadow-lg: 0 24px 64px -12px rgba(0,0,0,.22), 0 4px 12px rgba(0,0,0,.06);
 		--manual-ease: cubic-bezier(.2, .7, .2, 1);
 		--manual-font: var(--font-sans);
+		--manual-font-heading: var(--manual-font);
 		--manual-mono: var(--font-mono);
 		min-height: 100vh;
 		min-height: 100dvh;
@@ -596,6 +625,28 @@
 		--manual-shadow-lg: 0 24px 64px -12px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.06);
 		color-scheme: dark;
 	}
+	.manual-shell.typography-editorial {
+		--manual-display-weight: 400;
+		--manual-heading-tracking: -.04em;
+		--manual-body-leading: 1.7;
+		--manual-label-tracking: .1em;
+	}
+	.manual-shell.typography-technical {
+		--manual-display-weight: 600;
+		--manual-heading-tracking: -.012em;
+		--manual-body-leading: 1.52;
+		--manual-label-tracking: .06em;
+		--manual-section-gap: 56px;
+		--manual-section-gap-inner: 28px;
+		--manual-flow-gap: 24px;
+	}
+	@media (min-width: 900px) {
+		.manual-shell {
+			--manual-section-gap: 96px;
+			--manual-section-gap-inner: 48px;
+			--manual-flow-gap: 40px;
+		}
+	}
 	@media (prefers-color-scheme: dark) {
 		.manual-shell.follows-system {
 			--manual-brand: var(--manual-brand-dark);
@@ -617,7 +668,7 @@
 	.manual-shell :global(:focus-visible) {
 		outline: 2px solid var(--manual-brand);
 		outline-offset: 2px;
-		border-radius: var(--radius-sm);
+		border-radius: var(--manual-control-radius);
 	}
 	.manual-shell :global(kbd) {
 		display: inline-flex;
@@ -625,10 +676,10 @@
 		justify-content: center;
 		min-width: 20px;
 		height: 20px;
-		padding: 0 5px;
+		padding: 0 4px;
 		border: 1px solid var(--manual-border-strong);
 		border-bottom-width: 2px;
-		border-radius: var(--radius-sm);
+		border-radius: var(--manual-control-radius);
 		background: var(--manual-surface);
 		color: var(--manual-muted);
 		font: 600 .68rem/1 var(--manual-font);
@@ -639,8 +690,8 @@
 		top: 10px;
 		left: 10px;
 		z-index: 300;
-		padding: 10px 14px;
-		border-radius: var(--radius);
+		padding: 8px 16px;
+		border-radius: var(--manual-control-radius);
 		background: var(--manual-ink);
 		color: var(--manual-paper);
 		font-size: var(--text-base);
@@ -674,12 +725,12 @@
 	.wordmark {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		min-width: 0;
 		margin-right: auto;
 		color: inherit;
 		text-decoration: none;
-		border-radius: var(--radius);
+		border-radius: var(--manual-control-radius);
 	}
 	.logo-img { display: block; width: auto; height: auto; max-width: 140px; max-height: 32px; }
 	.logo-fallback {
@@ -711,13 +762,15 @@
 		width: 36px;
 		height: 36px;
 		border: 1px solid transparent;
-		border-radius: var(--radius-full);
+		border-radius: var(--manual-control-radius);
 		background: transparent;
 		color: var(--manual-ink);
 		cursor: pointer;
 		transition: background .15s ease, border-color .15s ease;
 	}
 	.icon-btn:hover { background: var(--manual-hover); }
+	.header-action { color: var(--manual-muted); }
+	.header-action:hover { color: var(--manual-ink); }
 	.mobile-menu-btn { display: none; margin-left: -8px; }
 
 	.search-trigger {
@@ -726,9 +779,9 @@
 		gap: 8px;
 		width: clamp(200px, 22vw, 280px);
 		height: 36px;
-		padding: 0 6px 0 12px;
+		padding: 0 8px 0 12px;
 		border: 1px solid var(--manual-border);
-		border-radius: var(--manual-radius);
+		border-radius: var(--manual-control-radius);
 		background: transparent;
 		color: var(--manual-muted);
 		font: inherit;
@@ -739,17 +792,17 @@
 	}
 	.search-trigger:hover { border-color: var(--manual-border-strong); color: var(--manual-ink); }
 	.search-trigger-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-	.search-trigger .search-kbd { padding: 0 6px; border: 0; background: var(--manual-hover); }
+	.search-trigger .search-kbd { padding: 0 8px; border: 0; background: var(--manual-hover); }
 	.search-trigger :global(svg) { flex: 0 0 auto; }
 
 	.pill-link {
 		height: 36px;
 		display: inline-flex;
 		align-items: center;
-		gap: 6px;
-		padding: 0 13px;
+		gap: 8px;
+		padding: 0 12px;
 		border: 1px solid var(--manual-border);
-		border-radius: var(--manual-radius);
+		border-radius: var(--manual-control-radius);
 		color: var(--manual-ink);
 		font-size: var(--text-sm);
 		font-weight: 500;
@@ -791,10 +844,10 @@
 	.search-header {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		flex: 0 0 auto;
 		height: 56px;
-		padding: 0 12px 0 18px;
+		padding: 0 12px 0 16px;
 		border-bottom: 1px solid var(--manual-border);
 	}
 	:global(.search-icon) { color: var(--manual-muted); flex-shrink: 0; }
@@ -815,7 +868,7 @@
 		height: 24px;
 		padding: 0 8px;
 		border: 1px solid var(--manual-border-strong);
-		border-radius: var(--radius);
+		border-radius: var(--manual-control-radius);
 		background: transparent;
 		color: var(--manual-muted);
 		font: 600 .7rem/1 var(--manual-font);
@@ -833,8 +886,8 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		padding: 10px 12px;
-		border-radius: var(--manual-radius);
+		padding: 8px 12px;
+		border-radius: var(--manual-control-radius);
 		text-decoration: none;
 		color: inherit;
 	}
@@ -842,13 +895,13 @@
 	.search-result-main { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
 	.search-result-crumbs { color: var(--manual-muted); font-size: var(--text-xs); font-weight: 500; }
 	.search-result-title { font-size: var(--text-md); font-weight: 500; color: var(--manual-ink); }
-	.search-result-title mark { background: color-mix(in srgb, var(--manual-brand) 20%, transparent); color: inherit; border-radius: var(--radius-xs); padding: 0 1px; }
+	.search-result-title mark { background: color-mix(in srgb, var(--manual-brand) 20%, transparent); color: inherit; border-radius: min(var(--manual-control-radius), 3px); padding: 0 1px; }
 	.search-result-desc { font-size: var(--text-sm); color: var(--manual-muted); line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	:global(.search-result-arrow) { flex: 0 0 auto; color: var(--manual-muted); opacity: 0; transition: opacity .12s ease; }
 	.search-result-item.active :global(.search-result-arrow) { opacity: 1; color: var(--manual-ink); }
 	.search-empty {
 		margin: 0;
-		padding: 36px 18px;
+		padding: 36px 16px;
 		color: var(--manual-muted);
 		font-size: var(--text-base);
 		text-align: center;
@@ -857,7 +910,7 @@
 		display: flex;
 		gap: 16px;
 		flex: 0 0 auto;
-		padding: 10px 16px;
+		padding: 8px 16px;
 		border-top: 1px solid var(--manual-border);
 		background: color-mix(in srgb, var(--manual-ink) 2%, var(--manual-surface));
 		color: var(--manual-muted);
@@ -886,10 +939,10 @@
 		scrollbar-color: var(--manual-border-strong) transparent;
 		border-right: 1px solid var(--manual-border);
 	}
-	.sidebar-nav { padding-right: 18px; display: flex; flex-direction: column; gap: 2px; }
+	.sidebar-nav { padding-right: 16px; display: flex; flex-direction: column; gap: 2px; }
 	.nav-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
 	.nav-list.nested {
-		margin: 2px 0 6px 13px;
+		margin: 2px 0 8px 12px;
 		padding-left: 8px;
 		border-left: 1px solid var(--manual-border);
 	}
@@ -901,7 +954,7 @@
 		flex: 1;
 		min-width: 0;
 		min-height: 34px;
-		padding: 7px 34px 7px 11px;
+		padding: 8px 32px 8px 12px;
 		color: var(--manual-muted);
 		text-decoration: none;
 		font-size: var(--text-base);
@@ -910,6 +963,16 @@
 		transition: color .14s ease;
 	}
 	.nav-item span { overflow-wrap: anywhere; }
+	/* Chapter numbers: quiet, tabular, aligned as a column */
+	.chapter-num {
+		flex: 0 0 auto;
+		min-width: 1.9em;
+		margin-right: 4px;
+		color: var(--manual-muted);
+		font-size: var(--text-sm);
+		font-variant-numeric: tabular-nums;
+		font-weight: 400;
+	}
 	.nav-item:hover { color: var(--manual-ink); }
 	/* Current page: ink text with a short brand rule — located, not highlighted */
 	.nav-item.active { color: var(--manual-ink); font-weight: 500; }
@@ -925,7 +988,7 @@
 		transform: translateY(-50%);
 	}
 	.nav-item.ancestor { color: var(--manual-ink); font-weight: 500; }
-	.root-item { margin-bottom: 10px; padding-right: 11px; color: var(--manual-ink); font-weight: 500; }
+	.root-item { margin-bottom: 8px; padding-right: 12px; color: var(--manual-ink); font-weight: 500; }
 	.nav-toggle {
 		position: absolute;
 		right: 4px;
@@ -934,7 +997,7 @@
 		width: 26px;
 		height: 26px;
 		border: 0;
-		border-radius: var(--radius);
+		border-radius: var(--manual-control-radius);
 		background: transparent;
 		color: var(--manual-muted);
 		cursor: pointer;
@@ -962,7 +1025,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: stretch;
-		gap: 10px;
+		gap: 8px;
 		margin-bottom: 24px;
 		padding-bottom: 24px;
 		border-bottom: 1px solid var(--manual-border);
@@ -970,8 +1033,8 @@
 	.ai-tools-label {
 		display: inline-flex;
 		align-items: center;
-		gap: 6px;
-		margin-right: 6px;
+		gap: 8px;
+		margin-right: 8px;
 		color: var(--manual-ink);
 		font-weight: 500;
 	}
@@ -979,7 +1042,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-		padding: 0 1.5rem 0 0;
+		padding: 0 24px 0 0;
 		border: 0;
 		background: none;
 		color: var(--manual-ink);
@@ -990,7 +1053,7 @@
 	}
 	.ai-tool strong { text-decoration: underline; text-decoration-color: var(--manual-border-strong); text-underline-offset: 3px; transition: text-decoration-color .15s ease; }
 	.ai-tool:hover strong { text-decoration-color: currentColor; }
-	.ai-tool strong { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 500; }
+	.ai-tool strong { display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-sm); font-weight: 500; }
 	.ai-tool small { color: var(--manual-muted); font-size: var(--text-xs); }
 	.footer-inner {
 		display: flex;

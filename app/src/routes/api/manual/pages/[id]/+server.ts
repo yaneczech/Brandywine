@@ -39,6 +39,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 		heroBgSize: string | null;
 		bgColor: string | null;
 		textColor: string | null;
+		subpagesPosition: 'start' | 'end';
 	}>;
 
 	// Slug uniqueness check if slug or parentId changed
@@ -72,6 +73,10 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	if ('heroBgSize' in body)           updates.heroBgSize   = body.heroBgSize   ?? null;
 	if ('bgColor' in body)              updates.bgColor      = body.bgColor ?? null;
 	if ('textColor' in body)            updates.textColor    = body.textColor ?? null;
+	if (body.subpagesPosition !== undefined) {
+		if (body.subpagesPosition !== 'start' && body.subpagesPosition !== 'end') error(400, 'subpagesPosition must be start or end');
+		updates.subpagesPosition = body.subpagesPosition;
+	}
 
 	const [updated] = await db
 		.update(manualPages)

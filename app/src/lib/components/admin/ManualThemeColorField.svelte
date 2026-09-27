@@ -74,8 +74,8 @@
 <style>
 	.theme-color-field {
 		display: grid;
-		gap: .55rem;
-		padding: .75rem;
+		gap: 8px;
+		padding: 12px;
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
 		background: var(--color-bg);
@@ -85,7 +85,7 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: .7rem;
+		gap: 12px;
 		min-width: 0;
 	}
 	.theme-color-label {
@@ -115,14 +115,14 @@
 	.contrast-checks {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: .35rem;
+		gap: 4px;
 	}
 	.contrast-check {
 		display: flex;
 		align-items: center;
-		gap: .35rem;
+		gap: 4px;
 		min-width: 0;
-		padding: .34rem .45rem;
+		padding: 4px 8px;
 		border: 1px solid color-mix(in srgb, var(--color-success) 30%, var(--color-border));
 		border-radius: var(--radius);
 		background: color-mix(in srgb, var(--color-success) 7%, var(--color-bg));
@@ -155,7 +155,7 @@
 		justify-self: start;
 		display: inline-flex;
 		align-items: center;
-		gap: .35rem;
+		gap: 4px;
 		border: 0;
 		background: transparent;
 		color: var(--color-muted);

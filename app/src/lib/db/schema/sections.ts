@@ -20,6 +20,7 @@ export const manualPages = pgTable('manual_pages', {
 	heroBgSize:   text('hero_bg_size'),    // 'cover' | 'contain' | 'tile' — default cover when null
 	bgColor:      text('bg_color'),        // hex — full card + hero background
 	textColor:    text('text_color'),      // hex — text on bgColor (WCAG-checked)
+	subpagesPosition: text('subpages_position').$type<'start' | 'end'>().notNull().default('end'), // child-page cards before or after blocks
 	createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

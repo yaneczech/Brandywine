@@ -56,7 +56,7 @@
 		height: 40px;
 		padding: 0 16px 0 12px;
 		border: 1px solid var(--manual-border-strong);
-		border-radius: var(--radius-full);
+		border-radius: var(--manual-radius);
 		color: var(--manual-ink);
 		font-size: var(--text-sm);
 		font-weight: 500;

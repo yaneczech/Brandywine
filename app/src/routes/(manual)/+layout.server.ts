@@ -1,7 +1,7 @@
 import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/db';
-import { brandSettings, manualPages } from '$lib/db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { brandSettings, manualBlocks, manualPages } from '$lib/db/schema';
+import { eq, asc, and, ne, sql } from 'drizzle-orm';
 import { error, redirect } from '@sveltejs/kit';
 import {
 	hasManualAccessGrant,
@@ -9,6 +9,7 @@ import {
 	MANUAL_ACCESS_COOKIE
 } from '$server/manual-access';
 import { withoutManualSecrets } from '$server/brand-settings';
+import { loadManualFonts } from '$server/manual-fonts';
 
 export const load: LayoutServerLoad = async ({ locals, cookies, url }) => {
 	const [settings] = await db.select().from(brandSettings).where(eq(brandSettings.id, 1));
@@ -46,11 +47,29 @@ export const load: LayoutServerLoad = async ({ locals, cookies, url }) => {
 			sortOrder: manualPages.sortOrder,
 			enabled: manualPages.enabled,
 			isLanding: manualPages.isLanding,
+			subpagesPosition: manualPages.subpagesPosition,
 		})
 		.from(manualPages)
 		.where(eq(manualPages.enabled, true))
 		.orderBy(asc(manualPages.sortOrder), asc(manualPages.title));
 
-	if (!settings) return { settings: null, pages };
-	return { settings: withoutManualSecrets(settings), pages };
+	// Titled sections per page — chapter numbering puts a page's own sections
+	// before its subpages (1.1, 1.2 sections → 1.3 first subpage)
+	let sectionCounts: Record<string, number> = {};
+	if (settings?.manualNumbering) {
+		const rows = await db
+			.select({ pageId: manualBlocks.pageId, n: sql<number>`count(*)::int` })
+			.from(manualBlocks)
+			.where(and(
+				eq(manualBlocks.enabled, true),
+				ne(manualBlocks.type, 'divider'),
+				sql`coalesce(trim(${manualBlocks.config}->>'heading'), '') <> ''`
+			))
+			.groupBy(manualBlocks.pageId);
+		sectionCounts = Object.fromEntries(rows.map((r) => [r.pageId, r.n]));
+	}
+
+	if (!settings) return { settings: null, pages, sectionCounts, manualFonts: await loadManualFonts(null, null) };
+	const manualFonts = await loadManualFonts(settings.manualHeadingFontId, settings.manualBodyFontId);
+	return { settings: withoutManualSecrets(settings), pages, sectionCounts, manualFonts };
 };

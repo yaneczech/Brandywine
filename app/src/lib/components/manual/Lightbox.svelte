@@ -8,6 +8,7 @@
 <script lang="ts">
 	import { IconX, IconChevronLeft, IconChevronRight, IconDownload } from '$lib/icons';
 	import { focusTrap } from '$lib/actions/focus-trap';
+	import { portal } from '$lib/actions/portal';
 	import { useManualStrings } from '$lib/manual/ui-strings';
 
 	let {
@@ -48,6 +49,7 @@
 		aria-modal="true"
 		aria-label={current.alt || t.openImage}
 		tabindex="-1"
+		use:portal={'.manual-shell'}
 		use:focusTrap={{ onEscape: close }}
 		ontouchstart={(e) => { touchX = e.touches[0].clientX; }}
 		ontouchend={(e) => {
@@ -101,9 +103,8 @@
 		position: absolute;
 		inset: 0;
 		border: 0;
-		background: rgba(10, 10, 10, .92);
-		-webkit-backdrop-filter: blur(6px);
-		backdrop-filter: blur(6px);
+		/* opaque: the page (often the same image) must not show through */
+		background: #0c0c0c;
 		cursor: zoom-out;
 	}
 	.lb-toolbar {
@@ -116,19 +117,19 @@
 		align-items: center;
 		justify-content: space-between;
 		height: 60px;
-		padding: 0 14px 0 20px;
+		padding: 0 16px 0 20px;
 		color: rgba(255,255,255,.8);
 		font-size: var(--text-sm);
 		font-variant-numeric: tabular-nums;
 	}
-	.lb-actions { display: flex; gap: 6px; margin-left: auto; }
+	.lb-actions { display: flex; gap: 8px; margin-left: auto; }
 	.lb-btn, .lb-nav {
 		display: grid;
 		place-items: center;
-		width: 42px;
-		height: 42px;
+		width: 40px;
+		height: 40px;
 		border: 0;
-		border-radius: var(--radius-full);
+		border-radius: var(--manual-control-radius, var(--radius));
 		background: rgba(255,255,255,.08);
 		color: #fff;
 		cursor: pointer;
@@ -141,7 +142,7 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 14px;
+		gap: 16px;
 		max-width: 100%;
 		max-height: 100%;
 		margin: 0;
@@ -152,7 +153,7 @@
 		max-width: min(1600px, 100%);
 		max-height: calc(100dvh - 150px);
 		object-fit: contain;
-		border-radius: var(--radius-sm);
+		border-radius: var(--manual-control-radius);
 		pointer-events: auto;
 		animation: lb-img .22s cubic-bezier(.2,.7,.2,1);
 	}

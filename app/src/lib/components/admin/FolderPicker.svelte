@@ -96,7 +96,7 @@
 		position: relative;
 		display: flex;
 		align-items: center;
-		margin: 0 1rem;
+		margin: 0 16px;
 	}
 	.folder-search :global(svg) {
 		position: absolute;
@@ -107,7 +107,7 @@
 	.folder-search input {
 		width: 100%;
 		height: 34px;
-		padding: 0 34px;
+		padding: 0 32px;
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius);
 		background: var(--color-surface);
@@ -136,7 +136,7 @@
 		gap: 2px;
 		max-height: 320px;
 		overflow-y: auto;
-		padding: 0 0.5rem 0.25rem;
+		padding: 0 8px 4px;
 	}
 	.folder-row {
 		display: flex;
@@ -177,7 +177,7 @@
 	.folder-count {
 		flex: 0 0 auto;
 		min-width: 20px;
-		padding: 0 6px;
+		padding: 0 8px;
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
 		background: var(--color-surface-raised);
@@ -188,7 +188,7 @@
 	}
 	.empty {
 		margin: 0;
-		padding: 1rem;
+		padding: 16px;
 		color: var(--color-muted);
 		font-size: var(--text-sm);
 		text-align: center;

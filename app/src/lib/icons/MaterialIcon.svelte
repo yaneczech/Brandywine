@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { SVGAttributes } from 'svelte/elements';
 
-	// Renders one Material Symbols glyph (Outlined, weight 300) from its raw SVG.
+	// Renders one Material Symbols glyph (Outlined, weight 400) from its raw SVG.
 	// `stroke` is accepted for call-site compatibility and ignored: the weight is
 	// baked into the glyph set, so every icon in the product draws the same.
 	type Props = Omit<SVGAttributes<SVGSVGElement>, 'stroke'> & {

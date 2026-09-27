@@ -79,10 +79,10 @@
 	.ui-menu :global(.ui-menu-item) {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		width: 100%;
 		height: 32px;
-		padding: 0 10px;
+		padding: 0 8px;
 		border: 0;
 		border-radius: var(--radius);
 		background: none;

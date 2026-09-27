@@ -162,6 +162,34 @@
       "when": 1780817683291,
       "tag": "0021_fix_asset_urls",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1780817683292,
+      "tag": "0022_manual_numbering",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1780817683293,
+      "tag": "0023_manual_art_direction",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1780817683294,
+      "tag": "0024_subpages_position",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1780817683295,
+      "tag": "0025_manual_fonts",
+      "breakpoints": true
     }
   ]
 }

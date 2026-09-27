@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import * as m from '$lib/paraglide/messages';
-	import { readableOn } from '$lib/ui/contrast';
+	import { ensureContrast, readableOn } from '$lib/ui/contrast';
 	import Toaster from '$lib/components/ui/Toaster.svelte';
 	import DialogHost from '$lib/components/ui/DialogHost.svelte';
 	import {
@@ -34,6 +34,8 @@
 	let mobileOpen = $state(false);
 
 	import type { IconComponent } from '$lib/icons';
+	// Brand as UI accent on the admin background: same hue, ≥ 3:1
+	const uiBrand = $derived(ensureContrast(primaryColor, '#f7f7f5'));
 	type NavItem = { href: string; label: string; icon: IconComponent };
 
 	const isAdminUser = $derived(data.user?.role === 'admin');
@@ -90,7 +92,7 @@
 </div>
 
 <!-- brand vars inline too, so SSR paints the right accent before hydration -->
-<div class="shell brand-scope" style="--brand:{primaryColor}; --color-accent-contrast:{readableOn(primaryColor)}">
+<div class="shell brand-scope" style="--brand:{uiBrand}; --color-accent-contrast:{readableOn(uiBrand)}">
 	<aside class="sidebar" class:mobile-open={mobileOpen}>
 		<!-- Logo -->
 		<div class="sidebar-logo">
@@ -190,7 +192,7 @@
 	.logo-link {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		min-width: 0;
 		border-radius: var(--radius-sm);
 	}
@@ -240,7 +242,7 @@
 		position: relative;
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		height: 32px;
 		padding: 0 var(--space-2);
 		border-radius: var(--radius);
@@ -282,7 +284,7 @@
 	.manual-link {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		height: 32px;
 		padding: 0 var(--space-2);
 		border-radius: var(--radius);
@@ -307,7 +309,7 @@
 	.user-block {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		padding: var(--space-1) var(--space-2);
 	}
 	.user-avatar {
@@ -442,7 +444,7 @@
 		flex-wrap: wrap;
 	}
 	:global(.ap-title) {
-		margin: 0 0 6px;
+		margin: 0 0 8px;
 		font-size: var(--text-2xl);
 		font-weight: 600;
 		letter-spacing: var(--tracking-tight);

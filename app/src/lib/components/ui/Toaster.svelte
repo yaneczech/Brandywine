@@ -44,9 +44,9 @@
 	.ui-toast {
 		display: flex;
 		align-items: flex-start;
-		gap: 10px;
+		gap: 8px;
 		width: 100%;
-		padding: 11px 10px 11px 14px;
+		padding: 12px 8px 12px 16px;
 		border-radius: var(--radius-lg);
 		background: #1c1c1b;
 		color: #f4f4f2;

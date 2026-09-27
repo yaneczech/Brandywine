@@ -5,13 +5,14 @@
 	import PageCards from '$lib/components/manual/PageCards.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { useManualStrings, type ManualLanguage } from '$lib/manual/ui-strings';
+	import { pageNumbers, sectionNumbers } from '$lib/manual/numbering';
 	import { IconArrowLeft, IconArrowRight, IconChevronDown, IconChevronRight } from '$lib/icons';
 
 	const { data }: { data: PageData } = $props();
 	const strings = useManualStrings();
 	const t = $derived(strings());
 
-	type TocItem = { anchor: string; label: string };
+	type TocItem = { anchor: string; label: string; number?: string | null };
 	type NavPage = {
 		id: string; parentId: string | null;
 		title: string; slug: string;
@@ -19,14 +20,26 @@
 	};
 
 	const manualLanguage = $derived((data.settings?.defaultLanguage === 'cs' ? 'cs' : 'en') as ManualLanguage);
+	// Chapter numbering (brand setting): page number from the tree, sections continue it
+	const chapterNumbers = $derived(data.settings?.manualNumbering ? pageNumbers(data.pages ?? [], data.sectionCounts ?? {}) : new Map<string, string>());
+	const pageNumber = $derived(chapterNumbers.get(data.page.id));
+	const blockNumbers = $derived.by(() => {
+		// Same rule as the layout's section count: enabled, titled, not a divider
+		const blocks = (data.blocks ?? []) as { id: string; type: string; enabled?: boolean; config: Record<string, unknown> }[];
+		// Subpages shown first take the first numbers; sections continue after them
+		const offset = subpagesAt === 'start' ? (data.pages ?? []).filter((p: { parentId: string | null }) => p.parentId === data.page.id).length : 0;
+		const nums = sectionNumbers(pageNumber, blocks.map((b) => (b.enabled === false || b.type === 'divider' ? null : String(b.config?.heading ?? ''))), offset);
+		return new Map(blocks.map((b, i) => [b.id, nums[i]]));
+	});
 	const toc = $derived(
 		(data.blocks ?? [])
 			.filter((b: { type: string; anchor: string | null; config: Record<string, unknown> }) =>
 				b.type !== 'divider' && (b.anchor || b.config?.heading)
 			)
-			.map((b: { anchor: string | null; config: Record<string, unknown> }) => ({
+			.map((b: { id: string; anchor: string | null; config: Record<string, unknown> }) => ({
 				anchor: b.anchor ?? slugify(String(b.config.heading ?? '')),
-				label: String(b.config.heading ?? b.anchor ?? '')
+				label: String(b.config.heading ?? b.anchor ?? ''),
+				number: blockNumbers.get(b.id) ?? null
 			}))
 			.filter((item: TocItem) => item.label && item.anchor)
 	);
@@ -79,6 +92,7 @@
 	});
 	const landingTitle = $derived(allPages.find(p => p.isLanding)?.title ?? t.home);
 	const currentHref = $derived(pageHref(data.page as NavPage));
+	const subpagesAt = $derived(data.page.subpagesPosition === 'start' ? 'start' : 'end');
 
 	// ── Scroll-spy for ToC ──────────────────────────────────────────────────
 	let activeAnchor = $state<string | null>(null);
@@ -123,6 +137,7 @@
 <div class="manual-page">
 	<ManualHero
 		title={data.page.title}
+		number={pageNumber}
 		description={data.page.description}
 		featureImage={data.page.featureImage}
 		heroBgSize={data.page.heroBgSize}
@@ -145,22 +160,40 @@
 		{#if toc.length > 1}
 			<details class="toc-mobile" bind:open={mobileTocOpen}>
 				<summary>
-					<span>{t.onThisPage}</span>
+					<span class="toc-mobile-title">
+						<span>{t.onThisPage}</span>
+						<small>({toc.length})</small>
+					</span>
 					<IconChevronDown size={16} stroke={2} class="toc-mobile-chevron" />
 				</summary>
 				<nav aria-label={t.onThisPage}>
 					{#each toc as item (item.anchor)}
-						<a href="#{item.anchor}" class:active={activeAnchor === item.anchor} onclick={() => (mobileTocOpen = false)}>{item.label}</a>
+						<a href="#{item.anchor}" class:active={activeAnchor === item.anchor} onclick={() => (mobileTocOpen = false)}>
+							{#if item.number}<span class="toc-num">{item.number}</span>{/if}
+							<span class="toc-mobile-link-title">{item.label}</span>
+						</a>
 					{/each}
 				</nav>
 			</details>
 		{/if}
 
 		<article class="article">
+			{#snippet subpages()}
+				{#if data.childPages?.length}
+					<section class="subpages" class:at-start={subpagesAt === 'start'} aria-labelledby="subpages-heading">
+						<h2 id="subpages-heading" class="subpages-heading">{t.subpages}</h2>
+						<PageCards pages={data.childPages} baseHref={currentHref} previews={data.previews} numbers={chapterNumbers} />
+					</section>
+				{/if}
+			{/snippet}
+
+			{#if subpagesAt === 'start'}{@render subpages()}{/if}
+
 			{#if data.blocks.length}
 				<div class="blocks">
 					{#each data.blocks as block (block.id)}
 						<BlockRenderer {block}
+							sectionNumber={blockNumbers.get(block.id) ?? null}
 							colorRows={data.colorRows ?? []}
 							paletteRows={data.paletteRows ?? []}
 							fontRows={data.fontRows ?? []}
@@ -176,19 +209,14 @@
 				</section>
 			{/if}
 
-			{#if data.childPages?.length}
-				<section class="subpages" aria-labelledby="subpages-heading">
-					<h2 id="subpages-heading" class="subpages-heading">{t.subpages}</h2>
-					<PageCards pages={data.childPages} baseHref={currentHref} previews={data.previews} />
-				</section>
-			{/if}
+			{#if subpagesAt === 'end'}{@render subpages()}{/if}
 
 			{#if prevPage || nextPage}
 				<nav class="page-nav" aria-label="{t.previous} / {t.next}">
 					{#if prevPage}
 						<a href={pageHref(prevPage)} class="page-nav-item prev" rel="prev">
 							<span class="page-nav-dir"><IconArrowLeft size={14} stroke={2} /> {t.previous}</span>
-							<span class="page-nav-title">{prevPage.title}</span>
+							<span class="page-nav-title">{#if chapterNumbers.get(prevPage.id)}<span class="toc-num">{chapterNumbers.get(prevPage.id)}</span>{/if}{prevPage.title}</span>
 						</a>
 					{:else}
 						<span></span>
@@ -196,7 +224,7 @@
 					{#if nextPage}
 						<a href={pageHref(nextPage)} class="page-nav-item next" rel="next">
 							<span class="page-nav-dir">{t.next} <IconArrowRight size={14} stroke={2} /></span>
-							<span class="page-nav-title">{nextPage.title}</span>
+							<span class="page-nav-title">{#if chapterNumbers.get(nextPage.id)}<span class="toc-num">{chapterNumbers.get(nextPage.id)}</span>{/if}{nextPage.title}</span>
 						</a>
 					{/if}
 				</nav>
@@ -208,7 +236,7 @@
 				<div class="toc-label">{t.onThisPage}</div>
 				<nav aria-label={t.onThisPage}>
 					{#each toc as item (item.anchor)}
-						<a href="#{item.anchor}" class="toc-link" class:active={activeAnchor === item.anchor} aria-current={activeAnchor === item.anchor ? 'location' : undefined}>{item.label}</a>
+						<a href="#{item.anchor}" class="toc-link" class:active={activeAnchor === item.anchor} aria-current={activeAnchor === item.anchor ? 'location' : undefined}>{#if item.number}<span class="toc-num">{item.number}</span>{/if}{item.label}</a>
 					{/each}
 				</nav>
 			</aside>
@@ -223,12 +251,12 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 4px 6px;
+		gap: 4px 8px;
 		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
-	.breadcrumbs li { display: inline-flex; align-items: center; gap: 6px; opacity: .92; }
+	.breadcrumbs li { display: inline-flex; align-items: center; gap: 8px; opacity: .92; }
 	.breadcrumbs a { color: inherit; text-decoration: none; }
 	.breadcrumbs a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
@@ -277,7 +305,7 @@
 		position: relative;
 		display: block;
 		margin-left: -1px;
-		padding: 6px 0 6px 14px;
+		padding: 8px 0 8px 16px;
 		border-left: 1px solid transparent;
 		color: var(--manual-muted);
 		text-decoration: none;
@@ -286,7 +314,9 @@
 		transition: color .15s ease, border-color .15s ease;
 	}
 	.toc-link:hover { color: var(--manual-ink); }
-	.toc-link.active { color: var(--manual-brand); border-left-color: var(--manual-brand); font-weight: 600; }
+	.toc-num { margin-right: .5em; font-variant-numeric: tabular-nums; opacity: .8; }
+	.toc-mobile .toc-num { margin-right: .5em; font-variant-numeric: tabular-nums; }
+	.toc-link.active { color: var(--manual-ink); border-left-color: var(--manual-brand); font-weight: 500; }
 
 	.toc-mobile { display: none; }
 
@@ -299,9 +329,12 @@
 	.empty p { margin: 0; }
 
 	/* ── Sub-pages ───────────────────────────────────────────────────────── */
-	.subpages { margin-top: clamp(3.5rem, 6vw, 5.5rem); }
+	.subpages { margin-top: var(--manual-section-gap); }
+	.subpages.at-start { margin-top: 0; }
+	.subpages.at-start:not(:last-child) { margin-bottom: var(--manual-section-gap); }
 	.subpages-heading {
 		margin: 0 0 20px;
+		font-family: var(--manual-font-heading, var(--manual-font));
 		font-size: var(--text-lg);
 		font-weight: 600;
 		letter-spacing: var(--tracking-snug);
@@ -313,41 +346,35 @@
 		grid-template-columns: 1fr 1fr;
 		gap: 12px;
 		margin-top: clamp(4rem, 7vw, 6rem);
-		padding-top: 2rem;
+		padding-top: 32px;
 		border-top: 1px solid var(--manual-border);
 	}
+	/* Previous / next: typeset links on the closing rule, no boxes */
 	.page-nav-item {
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
+		gap: 4px;
 		min-width: 0;
-		padding: 18px 20px;
-		border: 1px solid var(--manual-border);
-		border-radius: calc(var(--manual-radius) + 4px);
+		padding: 4px 0;
 		text-decoration: none;
 		color: inherit;
-		transition: border-color .15s ease, background .15s ease, transform .15s ease;
-	}
-	.page-nav-item:hover {
-		border-color: color-mix(in srgb, var(--manual-brand) 40%, var(--manual-border));
-		background: color-mix(in srgb, var(--manual-brand) 3%, var(--manual-surface));
 	}
 	.page-nav-item.next { text-align: right; align-items: flex-end; }
 	.page-nav-dir {
 		display: inline-flex;
 		align-items: center;
-		gap: 6px;
+		gap: 8px;
 		font-size: var(--text-xs);
 		font-weight: 500;
 		color: var(--manual-muted);
 	}
 	.page-nav-title {
 		font-size: var(--text-lg);
-		font-weight: 600;
+		font-weight: 500;
 		color: var(--manual-ink);
 		line-height: 1.3;
 	}
-	.page-nav-item:hover .page-nav-title { color: var(--manual-brand); }
+	.page-nav-item:hover .page-nav-title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 
 	@media (max-width: 1180px) {
 		.page-layout,
@@ -356,11 +383,11 @@
 		.toc-mobile {
 			display: block;
 			position: sticky;
-			top: calc(var(--manual-topbar) + 8px);
+			top: var(--manual-topbar);
 			z-index: 20;
-			margin-bottom: -8px;
-			border-block: 1px solid var(--manual-border);
-			background: color-mix(in srgb, var(--manual-paper) 90%, transparent);
+			margin-bottom: 24px;
+			border-block: 1px solid var(--manual-border-strong);
+			background: color-mix(in srgb, var(--manual-ink) 4%, var(--manual-paper));
 			-webkit-backdrop-filter: blur(12px);
 			backdrop-filter: blur(12px);
 		}
@@ -369,7 +396,7 @@
 			align-items: center;
 			justify-content: space-between;
 			gap: 12px;
-			min-height: 44px;
+			min-height: 52px;
 			padding: 0;
 			font-size: var(--text-sm);
 			font-weight: 500;
@@ -377,29 +404,53 @@
 			cursor: pointer;
 		}
 		.toc-mobile summary::-webkit-details-marker { display: none; }
-		.toc-mobile :global(.toc-mobile-chevron) { transition: transform .18s ease; color: var(--manual-muted); }
+		.toc-mobile-title { display: inline-flex; align-items: baseline; gap: 8px; color: var(--manual-ink); }
+		.toc-mobile-title small {
+			color: var(--manual-muted); font-family: var(--manual-mono); font-size: var(--text-2xs);
+			font-weight: 400; font-variant-numeric: tabular-nums;
+		}
+		.toc-mobile :global(.toc-mobile-chevron) { transition: transform .18s ease; color: var(--manual-ink); }
 		.toc-mobile[open] :global(.toc-mobile-chevron) { transform: rotate(180deg); }
 		.toc-mobile nav {
-			display: flex;
-			flex-direction: column;
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			column-gap: clamp(24px, 5vw, 48px);
 			max-height: 50vh;
 			overflow-y: auto;
-			padding: 4px 6px 8px;
+			padding: 8px 0 16px;
 			border-top: 1px solid var(--manual-border);
 		}
 		.toc-mobile nav a {
-			padding: 10px 10px;
-			border-radius: var(--radius);
+			display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px;
+			padding: 12px 0;
+			border-bottom: 1px solid var(--manual-border);
 			color: var(--manual-muted);
-			font-size: var(--text-base);
+			font-size: var(--text-sm);
 			text-decoration: none;
 		}
-		.toc-mobile nav a.active { color: var(--manual-ink); font-weight: 500; }
+		.toc-mobile nav a:hover { color: var(--manual-ink); }
+		.toc-mobile nav a.active {
+			color: var(--manual-ink); font-weight: 600;
+		}
+		.toc-mobile nav a.active .toc-mobile-link-title {
+			text-decoration: underline; text-decoration-color: var(--manual-brand);
+			text-decoration-thickness: 2px; text-underline-offset: 5px;
+		}
+		.toc-mobile nav .toc-num { margin-right: 0; color: var(--manual-muted); font-family: var(--manual-mono); }
+		.toc-mobile-link-title { min-width: 0; overflow-wrap: anywhere; }
 	}
 	@media (max-width: 900px) {
 		.page-layout { width: auto; padding: 0 16px; }
+		.toc-mobile {
+			width: calc(100% + 32px);
+			margin-inline: -16px;
+			border-top: 0;
+		}
+		.toc-mobile summary { padding-inline: 16px; }
+		.toc-mobile nav { padding: 8px 16px 16px; }
 	}
 	@media (max-width: 560px) {
+		.toc-mobile nav { grid-template-columns: minmax(0, 1fr); }
 		.page-nav { grid-template-columns: 1fr; }
 		.page-nav > span:empty { display: none; }
 		.page-nav-item.next { text-align: left; align-items: flex-start; }

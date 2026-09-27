@@ -5,6 +5,7 @@
 	import PageCards from '$lib/components/manual/PageCards.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import type { ManualLanguage } from '$lib/manual/ui-strings';
+	import { pageNumbers } from '$lib/manual/numbering';
 
 	const { data }: { data: PageData } = $props();
 
@@ -23,6 +24,7 @@
 	};
 
 	const brand = $derived(data.settings);
+	const chapterNumbers = $derived(brand?.manualNumbering ? pageNumbers(data.pages ?? [], data.sectionCounts ?? {}) : new Map<string, string>());
 	const brandName = $derived(brand?.name ?? 'Brand Manual');
 	const manualLanguage = $derived((brand?.defaultLanguage === 'cs' ? 'cs' : 'en') as ManualLanguage);
 	const pages = $derived((data.pages ?? []) as ManualPage[]);
@@ -68,7 +70,7 @@
 					{/each}
 				</div>
 			{:else if topLevelPages.length}
-				<PageCards pages={topLevelPages} previews={data.previews} />
+				<PageCards pages={topLevelPages} previews={data.previews} numbers={chapterNumbers} variant="landing" layout={brand?.manualLandingLayout ?? 'grid'} />
 			{:else}
 				<section class="empty">
 					<p>{m.manual_empty_sections({}, { locale: manualLanguage })}</p>
@@ -99,8 +101,8 @@
 		display: inline-flex;
 		align-items: center;
 		min-height: 34px;
-		padding: 0 14px;
-		border-radius: var(--radius-full);
+		padding: 0 16px;
+		border-radius: var(--manual-control-radius);
 		border: 1px solid color-mix(in srgb, var(--hero-text) 20%, transparent);
 		background: color-mix(in srgb, var(--hero-text) 6%, transparent);
 		color: var(--hero-text);

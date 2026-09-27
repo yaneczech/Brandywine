@@ -35,10 +35,14 @@
 
 	type AccessMode = 'public' | 'password' | 'email_whitelist' | 'token';
 	type ManualThemeMode = 'light' | 'dark' | 'system' | 'toggle';
+	type ManualTypographyPreset = 'editorial' | 'neutral' | 'technical';
+	type ManualLandingLayout = 'editorial' | 'grid' | 'gallery';
 	type BrandColor  = { id: string; name: string; hex: string; paletteId: string | null };
 	type BrandPalette = { id: string; name: string };
 	const brandColors   = $derived((data.brandColors   ?? []) as BrandColor[]);
 	const brandPalettes = $derived((data.brandPalettes ?? []) as BrandPalette[]);
+	type BrandFont = { id: string; name: string; role: string | null };
+	const brandFonts = $derived((data.brandFonts ?? []) as BrandFont[]);
 
 	type Settings = typeof data.settings & {
 		activeLanguages?: string[] | null;
@@ -57,6 +61,11 @@
 		manualAccentColor?: string | null;
 		manualAccentColorDark?: string | null;
 		manualBorderRadius?: number | null;
+		manualNumbering?: boolean | null;
+		manualTypographyPreset?: ManualTypographyPreset | null;
+		manualLandingLayout?: ManualLandingLayout | null;
+		manualHeadingFontId?: string | null;
+		manualBodyFontId?: string | null;
 		logoDarkPath?: string | null;
 	};
 
@@ -240,6 +249,35 @@
 		if (mode === 'dark') return 'The public manual always uses the dark palette.';
 		if (mode === 'toggle') return 'Visitors can switch between light and dark.';
 		return 'The manual follows the visitor device preference.';
+	}
+
+	function typographyPresetLabel(preset: ManualTypographyPreset) {
+		const labels = uiLanguage === 'cs'
+			? { editorial: 'Editorial', neutral: 'Neutrální', technical: 'Technický' }
+			: { editorial: 'Editorial', neutral: 'Neutral', technical: 'Technical' };
+		return labels[preset];
+	}
+
+	function typographyPresetDescription(preset: ManualTypographyPreset) {
+		const descriptions = uiLanguage === 'cs'
+			? {
+				editorial: 'Vzdušnější rytmus a výraznější titulky.',
+				neutral: 'Vyvážený univerzální rám pro většinu značek.',
+				technical: 'Kompaktnější, přesnější a informačně hustší.'
+			}
+			: {
+				editorial: 'Airier rhythm with more expressive headlines.',
+				neutral: 'A balanced frame for most brand systems.',
+				technical: 'More compact, precise, and information-dense.'
+			};
+		return descriptions[preset];
+	}
+
+	function landingLayoutLabel(layout: ManualLandingLayout) {
+		const labels = uiLanguage === 'cs'
+			? { editorial: 'Editorial', grid: 'Mřížka', gallery: 'Galerie' }
+			: { editorial: 'Editorial', grid: 'Grid', gallery: 'Gallery' };
+		return labels[layout];
 	}
 
 	function autoGenerateTheme() {
@@ -590,6 +628,66 @@
 					: 'Global color treatment for the public manual. Individual page hero colors are still controlled per page.'}</p>
 			</div>
 			<div class="panel">
+				<div class="direction-builder">
+					<div class="direction-group">
+						<div class="direction-head">
+							<strong>{uiLanguage === 'cs' ? 'Typografický režim' : 'Typography mode'}</strong>
+							<span>{uiLanguage === 'cs' ? 'Řídí hierarchii, rytmus a hustotu manuálu.' : 'Controls hierarchy, rhythm, and density.'}</span>
+						</div>
+						<div class="direction-option-grid">
+							{#each ['editorial', 'neutral', 'technical'] as preset (preset)}
+								<button type="button" class="direction-card typography-sample {preset}"
+									class:active={(s.manualTypographyPreset ?? 'neutral') === preset}
+									onclick={() => (s.manualTypographyPreset = preset as ManualTypographyPreset)}>
+									<span class="direction-sample" aria-hidden="true">Aa</span>
+									<strong>{typographyPresetLabel(preset as ManualTypographyPreset)}</strong>
+									<small>{typographyPresetDescription(preset as ManualTypographyPreset)}</small>
+								</button>
+							{/each}
+						</div>
+					</div>
+					<div class="direction-group">
+						<div class="direction-head">
+							<strong>{uiLanguage === 'cs' ? 'Písma' : 'Typefaces'}</strong>
+							<span>{uiLanguage === 'cs' ? 'Fonty z modulu Typografie. Čísla kapitol a ovládání zůstávají v písmu textu.' : 'Fonts from the Typography module. Chapter numbers and controls use the body face.'}</span>
+						</div>
+						<div class="font-pick-grid">
+							{#each [['manualHeadingFontId', uiLanguage === 'cs' ? 'Nadpisy' : 'Headings'], ['manualBodyFontId', uiLanguage === 'cs' ? 'Text' : 'Body text']] as [key, label] (key)}
+								<label class="field">
+									<span>{label}</span>
+									<select value={s[key as 'manualHeadingFontId' | 'manualBodyFontId'] ?? ''}
+										onchange={(e) => (s[key as 'manualHeadingFontId' | 'manualBodyFontId'] = (e.currentTarget as HTMLSelectElement).value || null)}
+										disabled={!brandFonts.length}>
+										<option value="">{uiLanguage === 'cs' ? 'Výchozí (Geist)' : 'Default (Geist)'}</option>
+										{#each brandFonts as f (f.id)}
+											<option value={f.id}>{f.name}</option>
+										{/each}
+									</select>
+								</label>
+							{/each}
+						</div>
+						{#if !brandFonts.length}
+							<small class="field-hint">{uiLanguage === 'cs' ? 'Nejdřív přidej font v sekci Typografie.' : 'Add a font in Typography first.'}</small>
+						{/if}
+					</div>
+					<div class="direction-group">
+						<div class="direction-head">
+							<strong>{uiLanguage === 'cs' ? 'Kompozice úvodní stránky' : 'Landing composition'}</strong>
+							<span>{uiLanguage === 'cs' ? 'Určuje poměr a důraz karet kapitol.' : 'Sets chapter-card proportion and emphasis.'}</span>
+						</div>
+						<div class="direction-option-grid">
+							{#each ['editorial', 'grid', 'gallery'] as layout (layout)}
+								<button type="button" class="direction-card layout-sample {layout}"
+									class:active={(s.manualLandingLayout ?? 'grid') === layout}
+									onclick={() => (s.manualLandingLayout = layout as ManualLandingLayout)}>
+									<span class="layout-diagram" aria-hidden="true"><i></i><i></i><i></i></span>
+									<strong>{landingLayoutLabel(layout as ManualLandingLayout)}</strong>
+								</button>
+							{/each}
+						</div>
+					</div>
+				</div>
+
 				<div class="theme-mode-grid">
 					{#each ['light', 'dark', 'system', 'toggle'] as mode (mode)}
 						<button
@@ -641,7 +739,7 @@
 								</div>
 							</div>
 							<div
-								class="theme-mini-preview"
+								class="theme-mini-preview" data-brand-material
 								style="--theme-bg:{manualTheme.light.bg}; --theme-surface:{manualTheme.light.surface}; --theme-text:{manualTheme.light.text}; --theme-muted:{manualTheme.light.muted}; --theme-accent:{manualTheme.accentLight}; --theme-radius:{manualTheme.radius}px;"
 							>
 								<div class="preview-line strong"></div>
@@ -714,7 +812,7 @@
 								</div>
 							</div>
 							<div
-								class="theme-mini-preview"
+								class="theme-mini-preview" data-brand-material
 								style="--theme-bg:{manualTheme.dark.bg}; --theme-surface:{manualTheme.dark.surface}; --theme-text:{manualTheme.dark.text}; --theme-muted:{manualTheme.dark.muted}; --theme-accent:{manualTheme.accentDark}; --theme-radius:{manualTheme.radius}px;"
 							>
 								<div class="preview-line strong"></div>
@@ -805,6 +903,13 @@
 						? 'Ovlivní karty, tlačítka, navigaci, boxy a obsahové bloky veřejného manuálu.'
 						: 'Affects cards, buttons, navigation, boxes, and content blocks in the public manual.'}</small>
 				</label>
+				<label class="switch-row">
+					<input type="checkbox" checked={Boolean(s.manualNumbering)} onchange={(e) => (s.manualNumbering = (e.currentTarget as HTMLInputElement).checked)} />
+					<span>
+						<strong>{m.brand_numbering_label()}</strong>
+						<small>{m.brand_numbering_hint()}</small>
+					</span>
+				</label>
 			</div>
 		</section>
 
@@ -885,18 +990,18 @@
 	:global(:root) {
 		--brand-page-border: color-mix(in srgb, var(--color-border) 86%, transparent);
 	}
-	.page { min-height: 100vh; padding: 2rem; color: var(--color-text); }
+	.page { min-height: 100vh; padding: 32px; color: var(--color-text); }
 	.eyebrow.small { font-size: var(--text-2xs); color: var(--color-muted); }
 
 
 
 
-	.overview { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(320px, .7fr); gap: 1rem; margin: 1.5rem 0; }
+	.overview { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(320px, .7fr); gap: 16px; margin: 24px 0; }
 	.brand-card, .health-card, .panel {
 		background: var(--color-surface); border: 1px solid var(--brand-page-border); border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-xs);
 	}
-	.brand-card { padding: 1rem; display: flex; flex-direction: column; gap: .6rem; }
+	.brand-card { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
 	.manual-iframe-wrap {
 		position: relative;
 		width: 100%;
@@ -915,39 +1020,39 @@
 		transform-origin: top left;
 		pointer-events: none;
 	}
-	.iframe-actions { display: flex; gap: .4rem; }
+	.iframe-actions { display: flex; gap: 8px; }
 
 	.health-card { padding: var(--space-5); }
 	.health-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-5); }
 	.health-head h2 { margin: var(--space-2) 0 0; font-size: var(--text-4xl); font-weight: 400; letter-spacing: var(--tracking-display); line-height: 1; font-variant-numeric: tabular-nums; }
 	.health-list { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--color-border); }
 	.health-item {
-		display: grid; grid-template-columns: 22px minmax(0, 1fr) 18px; align-items: center; gap: .6rem;
+		display: grid; grid-template-columns: 22px minmax(0, 1fr) 18px; align-items: center; gap: 8px;
 		padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); color: var(--color-placeholder);
 	}
 	.health-item.done { color: var(--color-accent); }
 	.health-item:last-child { border-bottom: 0; padding-bottom: 0; }
 	.health-item strong { display: block; color: var(--color-text); font-size: var(--text-sm); font-weight: 500; }
 	.health-item span { display: block; font-size: var(--text-xs); line-height: 1.35; color: var(--color-muted); overflow-wrap: anywhere; }
-	.sections { display: flex; flex-direction: column; gap: 1rem; }
-	.section { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 1rem; padding-top: 1rem; }
+	.sections { display: flex; flex-direction: column; gap: 16px; }
+	.section { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; padding-top: 16px; }
 	.section-meta h2 { margin: 0 0 var(--space-2); font-size: var(--text-lg); font-weight: 500; letter-spacing: var(--tracking-snug); }
 	.section-meta p { margin: 0; color: var(--color-muted); line-height: 1.5; font-size: var(--text-base); }
-	.panel { padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
-	.grid-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
-	.field { display: flex; flex-direction: column; gap: .38rem; }
+	.panel { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+	.grid-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+	.field { display: flex; flex-direction: column; gap: 8px; }
 	.field span { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
 	.field small { color: var(--color-muted); font-size: var(--text-xs); line-height: 1.35; }
 	.field input, .field select, .field textarea {
-		width: 100%; min-height: 38px; padding: .55rem .65rem; border: 1px solid var(--color-border);
+		width: 100%; min-height: 38px; padding: 8px 12px; border: 1px solid var(--color-border);
 		border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font: inherit;
 	}
 	.field textarea { resize: vertical; line-height: 1.45; }
-	.path-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
+	.path-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
 	.path-picker-btn { white-space: nowrap; background: var(--color-bg); }
 	.asset-path-preview {
-		display: flex; align-items: center; gap: .55rem;
-		min-height: 38px; padding: .45rem .55rem;
+		display: flex; align-items: center; gap: 8px;
+		min-height: 38px; padding: 8px 8px;
 		border: 1px solid var(--color-border); border-radius: var(--radius);
 		background: color-mix(in srgb, var(--color-bg) 70%, var(--color-surface));
 	}
@@ -956,7 +1061,7 @@
 	/* Neutral mid-gray for both light/dark logo previews — both colors visible */
 	.asset-path-thumb { background: #8a8a8a; border-color: #6a6a6a; }
 	.asset-path-preview-dark small { color: #888; }
-	.field-hint { margin: .25rem 0 0; font-size: var(--text-xs); color: var(--color-muted); }
+	.field-hint { margin: 4px 0 0; font-size: var(--text-xs); color: var(--color-muted); }
 	.asset-path-thumb {
 		width: 64px; height: 56px;
 		display: flex; align-items: center; justify-content: center;
@@ -971,16 +1076,43 @@
 		box-sizing: border-box;
 	}
 	.mono { font-family: var(--font-mono); max-width: 140px; }
-	.color-input { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+	.color-input { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 	.color-input input[type="color"] { width: 44px; padding: 3px; }
 	.swatch { width: 34px; height: 34px; border-radius: var(--radius); border: 1px solid var(--color-border); }
-	.theme-mode-grid { display: grid; gap: .75rem; }
+	.theme-mode-grid { display: grid; gap: 12px; }
 	.theme-mode-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-	.theme-builder-actions { display: flex; gap: .45rem; align-items: center; flex-shrink: 0; }
+	.direction-builder { display: grid; gap: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--color-border); }
+	.direction-group { display: grid; gap: 12px; }
+	.direction-head { display: flex; flex-direction: column; gap: 2px; }
+	.direction-head strong { font-size: var(--text-sm); font-weight: 600; }
+	.direction-head span { color: var(--color-muted); font-size: var(--text-xs); }
+	.direction-option-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+	.font-pick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+	.direction-card {
+		display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; min-height: 116px;
+		padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius);
+		background: var(--color-bg); color: var(--color-text); text-align: left;
+	}
+	.direction-card:hover { border-color: var(--color-border-strong); }
+	.direction-card.active { border-color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-accent); }
+	.direction-card strong { margin-top: auto; font-size: var(--text-sm); font-weight: 600; }
+	.direction-card small { color: var(--color-muted); font-size: var(--text-xs); line-height: 1.35; }
+	.direction-sample { font-size: 2rem; line-height: 1; }
+	.typography-sample.editorial .direction-sample { font-weight: 400; letter-spacing: -.04em; }
+	.typography-sample.neutral .direction-sample { font-weight: 500; letter-spacing: -.028em; }
+	.typography-sample.technical .direction-sample { font-weight: 600; letter-spacing: -.012em; }
+	.layout-diagram { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; width: 100%; height: 40px; }
+	.layout-diagram i { grid-column: span 4; border-radius: 2px; background: var(--color-border-strong); }
+	.layout-sample.editorial .layout-diagram i:first-child { grid-column: span 5; }
+	.layout-sample.editorial .layout-diagram i:nth-child(2) { grid-column: span 3; }
+	.layout-sample.gallery .layout-diagram i:first-child { grid-column: span 8; }
+	.layout-sample.gallery .layout-diagram i:nth-child(2),
+	.layout-sample.gallery .layout-diagram i:nth-child(3) { grid-column: span 4; }
+	.theme-builder-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 	.btn-auto, .btn-reset {
-		display: inline-flex; align-items: center; gap: 5px;
-		padding: .3rem .75rem; height: 30px;
-		border: 1px solid var(--color-border); border-radius: var(--radius-full);
+		display: inline-flex; align-items: center; gap: 4px;
+		padding: 4px 12px; height: var(--control-h-sm);
+		border: 1px solid var(--color-border); border-radius: var(--radius);
 		background: var(--color-bg); color: var(--color-text);
 		font-size: var(--text-xs); font-weight: 500; cursor: pointer;
 		transition: background .15s, border-color .15s;
@@ -992,7 +1124,7 @@
 	.theme-mode-card {
 		position: relative;
 		min-height: 104px;
-		padding: .8rem;
+		padding: 12px;
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius);
 		background: var(--color-bg);
@@ -1003,7 +1135,7 @@
 		flex-direction: column;
 		align-items: flex-start;
 		justify-content: flex-start;
-		gap: .3rem;
+		gap: 4px;
 		min-width: 0;
 	}
 	.theme-mode-card.active {
@@ -1024,14 +1156,14 @@
 	}
 	.theme-builder {
 		display: grid;
-		gap: .9rem;
-		margin-top: .95rem;
+		gap: 16px;
+		margin-top: 16px;
 	}
 	.theme-builder-head {
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: .9rem;
+		gap: 16px;
 		padding-top: .15rem;
 	}
 	.theme-builder-head h3 {
@@ -1049,14 +1181,14 @@
 	.theme-columns {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: .9rem;
+		gap: 16px;
 		align-items: start;
 	}
 	.theme-column {
 		display: grid;
-		gap: .75rem;
+		gap: 12px;
 		min-width: 0;
-		padding: .85rem;
+		padding: 12px;
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
 		background: color-mix(in srgb, var(--color-surface) 72%, var(--color-bg));
@@ -1064,7 +1196,7 @@
 	.theme-column-head {
 		display: flex;
 		align-items: flex-start;
-		gap: .65rem;
+		gap: 12px;
 	}
 	.theme-column-head h4 {
 		margin: 0;
@@ -1086,9 +1218,9 @@
 		flex: 0 0 auto;
 	}
 	.theme-column-icon.light {
-		background: var(--color-warning-subtle);
-		color: var(--color-warning);
-		border: 1px solid var(--color-warning-border);
+		background: var(--color-surface);
+		color: var(--color-text);
+		border: 1px solid var(--color-border);
 	}
 	.theme-column-icon.dark {
 		background: #18181b;
@@ -1097,8 +1229,8 @@
 	}
 	.theme-mini-preview {
 		display: grid;
-		gap: .7rem;
-		padding: .85rem;
+		gap: 12px;
+		padding: 12px;
 		border: 1px solid color-mix(in srgb, var(--theme-text) 12%, transparent);
 		border-radius: calc(var(--theme-radius) + 4px);
 		background: var(--theme-bg);
@@ -1113,8 +1245,8 @@
 	}
 	.preview-card {
 		display: grid;
-		gap: .35rem;
-		padding: .75rem;
+		gap: 4px;
+		padding: 12px;
 		border: 1px solid color-mix(in srgb, var(--theme-text) 10%, transparent);
 		border-radius: var(--theme-radius);
 		background: var(--theme-surface);
@@ -1132,7 +1264,7 @@
 		justify-self: start;
 		margin-top: .2rem;
 		height: 28px;
-		padding: 0 .7rem;
+		padding: 0 12px;
 		border: 0;
 		border-radius: max(5px, calc(var(--theme-radius) - 2px));
 		background: var(--theme-accent);
@@ -1142,44 +1274,44 @@
 	}
 	.theme-token-list {
 		display: grid;
-		gap: .65rem;
+		gap: 12px;
 	}
 	.radius-field { max-width: 520px; }
-	.radius-control { display: grid; grid-template-columns: minmax(160px, 1fr) 78px auto; gap: .55rem; align-items: center; }
+	.radius-control { display: grid; grid-template-columns: minmax(160px, 1fr) 78px auto; gap: 8px; align-items: center; }
 	.radius-control input[type="range"] { width: 100%; accent-color: var(--color-accent); }
 	.radius-control input[type="number"] { min-height: 38px; }
 	.radius-unit { color: var(--color-muted); font-size: var(--text-sm); font-weight: 600; }
-	.access-grid { display: flex; gap: .5rem; flex-wrap: wrap; }
+	.access-grid { display: flex; gap: 12px; flex-wrap: wrap; }
 	.access-grid button {
-		display: flex; align-items: center; gap: .45rem; border: 1px solid var(--color-border);
+		display: flex; align-items: center; gap: 8px; border: 1px solid var(--color-border);
 		background: var(--color-bg); color: var(--color-text); border-radius: var(--radius); cursor: pointer;
 	}
 	.access-grid button.active {
 		border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 7%, var(--color-bg)); color: var(--color-accent);
 	}
-	.switch-row { display: flex; gap: .65rem; align-items: flex-start; padding: .7rem; border: 1px solid var(--color-border); border-radius: var(--radius); }
+	.switch-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius); }
 	.switch-row input { margin-top: .15rem; }
 	.switch-row strong, .switch-row small { display: block; }
 	.switch-row small { color: var(--color-muted); margin-top: .15rem; }
 	.access-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-	.access-grid button { min-height: 104px; padding: .8rem; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; }
+	.access-grid button { min-height: 104px; padding: 12px; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; }
 	.access-grid strong { font-size: var(--text-base); color: inherit; }
 	.access-grid span { color: var(--color-muted); font-size: var(--text-xs); }
 	.access-note, .warning-note {
-		display: flex; flex-direction: column; gap: .15rem; padding: .75rem .85rem;
+		display: flex; flex-direction: column; gap: .15rem; padding: 12px 12px;
 		border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-bg);
 	}
 	.access-note span { color: var(--color-muted); font-size: var(--text-base); }
 	.warning-note { flex-direction: row; align-items: center; color: var(--color-warning); background: var(--color-warning-subtle); border-color: var(--color-warning-border); font-size: var(--text-base); }
 	.save-bar {
-		position: sticky; bottom: 1rem; z-index: 20; margin: 1.5rem auto 0; max-width: 680px;
-		display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-		padding: .7rem .8rem; background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+		position: sticky; bottom: 1rem; z-index: 20; margin: 24px auto 0; max-width: 680px;
+		display: flex; align-items: center; justify-content: space-between; gap: 16px;
+		padding: 12px 12px; background: color-mix(in srgb, var(--color-surface) 94%, transparent);
 		backdrop-filter: blur(10px); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: 0 12px 32px rgba(0,0,0,.12);
 	}
-	.save-bar span { display: flex; align-items: center; gap: .45rem; color: var(--color-muted); font-size: var(--text-base); }
+	.save-bar span { display: flex; align-items: center; gap: 8px; color: var(--color-muted); font-size: var(--text-base); }
 	@media (max-width: 960px) {
-		.page { padding: 1rem; }
+		.page { padding: 16px; }
 		.overview, .section { grid-template-columns: 1fr; }
 		.section-meta { max-width: 680px; }
 		.access-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1187,12 +1319,12 @@
 		.theme-columns { grid-template-columns: 1fr; }
 	}
 	@media (max-width: 560px) {
-		.grid-two, .access-grid, .theme-mode-grid { grid-template-columns: 1fr; }
+		.grid-two, .access-grid, .theme-mode-grid, .direction-option-grid, .font-pick-grid { grid-template-columns: 1fr; }
 		.path-input-row { grid-template-columns: 1fr; }
 		.path-picker-btn { width: 100%; }
 		.theme-builder-head { flex-direction: column; }
 		.theme-builder-head .btn-auto { width: 100%; justify-content: center; }
-		.theme-column { padding: .7rem; }
+		.theme-column { padding: 12px; }
 		.radius-control { grid-template-columns: 1fr 72px auto; }
 		.save-bar { left: 1rem; right: 1rem; flex-direction: column; align-items: stretch; }
 	}

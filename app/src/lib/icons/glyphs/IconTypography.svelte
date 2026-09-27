@@ -1,6 +1,6 @@
 <script lang="ts">
 	import MaterialIcon from '../MaterialIcon.svelte';
-	import svg from '@material-symbols/svg-300/outlined/text_fields.svg?raw';
+	import svg from '@material-symbols/svg-400/outlined/text_fields.svg?raw';
 	let props = $props();
 </script>
 

@@ -127,7 +127,7 @@
 	"manual_not_configured": "Brand Manual is not configured yet.",
 	"manual_toc_label": "On this page",
 	"manual_empty_blocks": "This page is ready, but no content blocks have been published yet.",
-	"manual_admin_link": "Admin ↗",
+	"manual_admin_link": "Admin",
 	"manual_made_with": "Made with",
 	"manual_open_section": "Open",
 	"manual_color_system_placeholder": "Color system — connected from brand palette",
@@ -661,6 +661,10 @@
 	"editor_pick_asset": "Choose from assets",
 	"editor_hero_bg": "Hero background colour",
 	"editor_hero_text": "Hero text colour",
+	"editor_subpages_position": "Subpages",
+	"editor_subpages_start": "At the start",
+	"editor_subpages_end": "At the end",
+	"editor_subpages_hint": "Where the subpage cards appear on the page.",
 	"editor_no_color": "No colour",
 	"editor_contrast_sample": "Aa — sample text on the background",
 	"editor_no_blocks": "This page has no blocks yet.",
@@ -932,5 +936,8 @@
 	"be_remove_language_confirm": "Remove the language “{name}” and its rules?",
 	"be_title": "Title",
 	"be_choose_image": "Choose an image",
-	"be_choose_image_hint": "From the asset library, or upload a new one"
+	"be_choose_image_hint": "From the asset library, or upload a new one",
+	"assets_select_item": "Select",
+	"brand_numbering_label": "Number chapters and headings",
+	"brand_numbering_hint": "Chapters, subchapters and sections are numbered by hierarchy: 1, 1.1, 1.1.1. The landing page is not numbered."
 }

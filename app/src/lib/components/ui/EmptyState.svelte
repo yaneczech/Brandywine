@@ -59,7 +59,7 @@
 	}
 	.ui-empty-desc {
 		max-width: 42ch;
-		margin-top: 6px;
+		margin-top: 8px;
 		font-size: var(--text-sm);
 		line-height: var(--leading-normal);
 		color: var(--color-muted);

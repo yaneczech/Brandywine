@@ -4,6 +4,10 @@ export const accessModeEnum = ['public', 'password', 'email_whitelist', 'token']
 export type AccessMode = (typeof accessModeEnum)[number];
 export const manualThemeModeEnum = ['light', 'dark', 'system', 'toggle'] as const;
 export type ManualThemeMode = (typeof manualThemeModeEnum)[number];
+export const manualTypographyPresetEnum = ['editorial', 'neutral', 'technical'] as const;
+export type ManualTypographyPreset = (typeof manualTypographyPresetEnum)[number];
+export const manualLandingLayoutEnum = ['editorial', 'grid', 'gallery'] as const;
+export type ManualLandingLayout = (typeof manualLandingLayoutEnum)[number];
 // Digital units (screen/web)
 export const unitDigitalEnum = ['px', 'rem', 'em', 'vw'] as const;
 export type UnitDigital = (typeof unitDigitalEnum)[number];
@@ -56,6 +60,13 @@ export const brandSettings = pgTable('brand_settings', {
 	manualAccentColor: text('manual_accent_color'),
 	manualAccentColorDark: text('manual_accent_color_dark'),
 	manualBorderRadius: integer('manual_border_radius').notNull().default(8),
+	manualTypographyPreset: text('manual_typography_preset').$type<ManualTypographyPreset>().notNull().default('neutral'),
+	manualLandingLayout: text('manual_landing_layout').$type<ManualLandingLayout>().notNull().default('grid'),
+	// Brand typefaces for the manual (typography_fonts.id); null keeps the default
+	manualHeadingFontId: text('manual_heading_font_id'),
+	manualBodyFontId: text('manual_body_font_id'),
+	// Hierarchical chapter numbers (1, 1.1, 1.1.1) in navigation and headings
+	manualNumbering: boolean('manual_numbering').notNull().default(false),
 	// Access control
 	accessMode: text('access_mode').$type<AccessMode>().notNull().default('public'),
 	accessPassword: text('access_password'),

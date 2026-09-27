@@ -22,11 +22,13 @@
 		id,
 		type,
 		config,
+		number = null,
 		children
 	}: {
 		id?: string;
 		type: string;
 		config: Record<string, unknown>;
+		number?: string | null;
 		children?: Snippet;
 	} = $props();
 
@@ -66,6 +68,7 @@
 		<aside class="block-context">
 			{#if heading}
 				<h2>
+					{#if number}<span class="section-num">{number}</span>{/if}
 					{heading}
 					{#if id}
 						<button class="anchor-btn" onclick={copyAnchorLink} aria-label={strings().copyLink} title={strings().copyLink}>
@@ -81,7 +84,7 @@
 						<!-- eslint-disable-next-line svelte/no-at-html-tags -- toRichItems() sanitizes this HTML. -->
 						<div class="intro-text">{@html item.html}</div>
 						{:else}
-							<div class="intro-callout" class:alert={item.type === 'alert'}>
+							<div class="intro-callout" class:is-alert={item.type === 'alert'}>
 								<div class="callout-icon" aria-hidden="true">
 									{#if item.type === 'alert'}
 										<IconCancel size={15} stroke={1.9} />
@@ -97,7 +100,7 @@
 				</div>
 			{/if}
 			{#if hasCallout}
-				<div class="block-callout" class:alert={calloutType === 'alert'}>
+				<div class="block-callout" class:is-alert={calloutType === 'alert'}>
 					<div class="callout-icon" aria-hidden="true">
 						{#if calloutType === 'alert'}
 							<IconCancel size={18} stroke={1.9} />
@@ -120,7 +123,7 @@
 		scroll-margin-top: calc(var(--manual-topbar, 60px) + 28px);
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 1.5rem;
+		gap: 24px;
 		align-items: start;
 	}
 	/* Wide containers: context in a sticky side column, content beside it */
@@ -137,7 +140,7 @@
 	.block-context {
 		display: flex;
 		flex-direction: column;
-		gap: .85rem;
+		gap: 12px;
 		min-width: 0;
 		max-width: 68ch;
 	}
@@ -145,14 +148,30 @@
 		position: relative;
 		display: flex;
 		align-items: center;
-		gap: .4rem;
+		gap: 8px;
 		margin: 0;
 		color: var(--manual-ink);
 		font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem);
-		font-weight: 500;
-		letter-spacing: -.028em;
+		font-weight: var(--manual-display-weight, 500);
+		font-family: var(--manual-font-heading, var(--manual-font));
+		letter-spacing: var(--manual-heading-tracking, -.028em);
 		line-height: 1.1;
 		text-wrap: balance;
+	}
+	/* Chapter number: set in the heading's size but light and muted, with a
+	   fixed gap so numbered headings align down the page */
+	/* Chapter number: a small superior figure on the cap line — present for
+	   orientation, quiet next to the heading itself */
+	.section-num {
+		font-family: var(--manual-font);
+		align-self: flex-start;
+		margin: .3em .2em 0 0;
+		color: var(--manual-muted);
+		font-size: var(--text-sm);
+		font-weight: 400;
+		letter-spacing: 0;
+		line-height: 1;
+		font-variant-numeric: tabular-nums;
 	}
 	.anchor-btn {
 		display: inline-grid;
@@ -161,7 +180,7 @@
 		width: 28px;
 		height: 28px;
 		border: 0;
-		border-radius: var(--radius);
+		border-radius: var(--manual-control-radius);
 		background: transparent;
 		color: var(--manual-muted);
 		cursor: pointer;
@@ -175,13 +194,13 @@
 	.block-intro {
 		display: flex;
 		flex-direction: column;
-		gap: .7rem;
+		gap: 12px;
 	}
 	.intro-text {
 		max-width: 60ch;
 		color: var(--manual-muted);
 		font-size: var(--text-lg);
-		line-height: 1.6;
+		line-height: var(--manual-body-leading, 1.6);
 		text-wrap: pretty;
 	}
 	.intro-text :global(p)         { margin: 0 0 .6em; }
@@ -198,16 +217,17 @@
 		--note: var(--manual-warning);
 		display: grid;
 		grid-template-columns: 16px minmax(0, 1fr);
-		gap: .65rem;
-		padding: .1rem 0 .1rem .9rem;
-		border-left: 1px solid var(--note);
+		gap: 12px;
+		padding: 12px 14px;
+		border-radius: var(--manual-control-radius);
+		background: color-mix(in srgb, var(--note) 7%, var(--manual-paper));
 		color: var(--manual-ink);
 		font-size: var(--text-md);
 		line-height: 1.55;
 	}
 	.block-callout { white-space: pre-wrap; }
-	.intro-callout.alert,
-	.block-callout.alert { --note: var(--manual-danger); }
+	.intro-callout.is-alert,
+	.block-callout.is-alert { --note: var(--manual-danger); }
 	.callout-icon {
 		width: 16px;
 		height: 1.55em;

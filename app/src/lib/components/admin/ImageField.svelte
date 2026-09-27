@@ -82,7 +82,7 @@
 </div>
 
 <style>
-	.imf { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+	.imf { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 	.imf-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 	.imf-label { font-size: var(--text-sm); font-weight: 500; color: var(--color-text); }
 	.imf-hint { font-weight: 400; color: var(--color-muted); }

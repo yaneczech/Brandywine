@@ -323,7 +323,7 @@
 .toolbar :global(.ui-tabs.underline) { border-bottom: 0; }
 .search {
 	display: flex; align-items: center; gap: 8px;
-	width: min(280px, 100%); height: 32px; margin-bottom: 8px; padding: 0 10px;
+	width: min(280px, 100%); height: 32px; margin-bottom: 8px; padding: 0 8px;
 	border: 1px solid var(--color-border); border-radius: var(--radius);
 	background: var(--color-surface); color: var(--color-muted); box-shadow: var(--shadow-xs);
 	transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
@@ -355,7 +355,8 @@
 	width: 34px; height: 34px; border-radius: 50%;
 	background: color-mix(in srgb, var(--av) 12%, var(--color-surface));
 	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--av) 22%, transparent);
-	color: var(--av);
+	/* the hue identifies, the ink keeps initials readable (≥ 4.5:1) */
+	color: color-mix(in srgb, var(--av) 45%, var(--color-text));
 	font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.02em;
 }
 .user-identity { min-width: 0; line-height: var(--leading-snug); }
@@ -363,7 +364,7 @@
 .user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); font-weight: 500; color: var(--color-text); }
 .user-email { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); color: var(--color-muted); }
 .role { font-size: var(--text-xs); color: var(--color-text-secondary); }
-.role::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; vertical-align: 1px; background: var(--color-border-strong); }
+.role::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 8px; border-radius: 50%; vertical-align: 1px; background: var(--color-border-strong); }
 .role-admin::before { background: var(--color-accent); }
 .role-editor::before { background: var(--color-text-secondary); }
 .user-date { font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -393,7 +394,7 @@
 .magic-desc strong { color: var(--color-text); font-weight: 500; }
 .magic-link-box {
 	display: flex; align-items: center; gap: var(--space-2);
-	padding: 6px 6px 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius);
+	padding: 8px 8px 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius);
 	background: var(--color-bg);
 }
 .magic-link-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text); }
