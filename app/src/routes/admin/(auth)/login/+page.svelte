@@ -2,7 +2,7 @@
 	import type { ActionData, PageData } from './$types';
 	import * as m from '$lib/paraglide/messages';
 	import { readableOn } from '$lib/ui/contrast';
-	import { IconInfoCircle, IconArrowRight, IconCheck } from '@tabler/icons-svelte';
+	import { IconInfoCircle, IconArrowRight, IconCheck } from '$lib/icons';
 	const { form, data }: { form: ActionData; data: PageData } = $props();
 
 	const systemName = $derived(data.brand?.systemName ?? 'Brandywine');

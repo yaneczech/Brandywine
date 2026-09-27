@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
 	import type { ActionData, PageData } from './$types';
-	import { IconInfoCircle, IconLock, IconCheck } from '@tabler/icons-svelte';
+	import { IconInfoCircle, IconLock, IconCheck } from '$lib/icons';
 
 	const { form, data }: { form: ActionData; data: PageData } = $props();
 </script>

@@ -3,7 +3,7 @@
 	 * AssetThumb — shared thumbnail renderer for asset grid cards and picker modal.
 	 * Fills its parent container 100% × 100%; the parent controls size / aspect-ratio.
 	 */
-	import { IconFileText, IconVideo, IconFile } from '@tabler/icons-svelte';
+	import { IconFileText, IconVideo, IconFile } from '$lib/icons';
 
 	const {
 		mime,

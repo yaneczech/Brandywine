@@ -9,7 +9,7 @@
 	import {
 		IconPlus, IconPencil, IconTrash, IconChevronRight, IconChevronDown,
 		IconBook2, IconEye, IconEyeOff, IconListCheck
-	} from '@tabler/icons-svelte';
+	} from '$lib/icons';
 
 	const { data }: { data: PageData } = $props();
 

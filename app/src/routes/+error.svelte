@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import * as m from '$lib/paraglide/messages';
-	import { IconArrowLeft } from '@tabler/icons-svelte';
+	import { IconArrowLeft } from '$lib/icons';
 
 	const notFound = $derived(page.status === 404);
 	const inAdmin = $derived(page.url.pathname.startsWith('/admin'));

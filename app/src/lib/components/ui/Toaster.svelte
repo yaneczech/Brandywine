@@ -2,7 +2,7 @@
 <script lang="ts">
 	import { fly } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
-	import { IconCircleCheck, IconAlertCircle, IconInfoCircle, IconX } from '@tabler/icons-svelte';
+	import { IconCircleCheck, IconAlertCircle, IconInfoCircle, IconX } from '$lib/icons';
 	import * as m from '$lib/paraglide/messages';
 	import { toasts, dismiss } from '$lib/ui/toast.svelte';
 	import { DUR, EASE } from './motion';

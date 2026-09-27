@@ -13,7 +13,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { resolveColorPalette } from '$lib/manual/color-source';
 	import { untrack } from 'svelte';
-	import { IconCheck, IconPhoto, IconPlus, IconFolder } from '@tabler/icons-svelte';
+	import { IconCheck, IconPhoto, IconPlus, IconFolder } from '$lib/icons';
 	import RichContentEditor from './RichContentEditor.svelte';
 	import AssetPickerModal from '$lib/components/admin/AssetPickerModal.svelte';
 	import ImageField from '$lib/components/admin/ImageField.svelte';

@@ -18,7 +18,7 @@
 		IconArrowRight, IconLayoutGrid, IconLayoutList,
 		IconPhoto, IconFileTypePdf, IconBrandAdobe, IconFileZip,
 		IconTypography, IconEye, IconArrowsDiff, IconGripVertical
-	} from '@tabler/icons-svelte';
+	} from '$lib/icons';
 
 	const { data }: { data: PageData } = $props();
 	type Asset = (typeof data.assets)[0];

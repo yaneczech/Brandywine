@@ -10,7 +10,7 @@
 	import { ask } from '$lib/ui/dialog.svelte';
 	import {
 		IconPlus, IconPencil, IconTrash, IconCheck, IconUsers, IconLink, IconCopy, IconAlertTriangle, IconSearch
-	} from '@tabler/icons-svelte';
+	} from '$lib/icons';
 
 	const { data }: { data: PageData } = $props();
 

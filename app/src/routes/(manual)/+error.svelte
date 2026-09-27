@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { useManualStrings } from '$lib/manual/ui-strings';
-	import { IconArrowLeft } from '@tabler/icons-svelte';
+	import { IconArrowLeft } from '$lib/icons';
 
 	const strings = useManualStrings();
 	const t = $derived(strings());

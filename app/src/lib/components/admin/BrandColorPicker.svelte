@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
 	import { tick } from 'svelte';
-	import { IconPencil, IconX } from '@tabler/icons-svelte';
+	import { IconPencil, IconX } from '$lib/icons';
 	import { generateShades } from '$lib/utils/colors';
 
 	type BrandColor = { id: string; name: string; hex: string; paletteId: string | null };

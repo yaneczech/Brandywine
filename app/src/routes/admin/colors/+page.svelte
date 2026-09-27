@@ -18,7 +18,7 @@
 		IconPlus, IconDownload, IconChevronDown, IconPencil,
 		IconArrowUp, IconArrowDown, IconX, IconCheck,
 		IconGripVertical
-	} from '@tabler/icons-svelte';
+	} from '$lib/icons';
 
 	const { data }: { data: PageData } = $props();
 

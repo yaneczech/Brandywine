@@ -10,7 +10,7 @@
 </script>
 
 <script lang="ts">
-	import { IconFolder, IconSearch, IconX } from '@tabler/icons-svelte';
+	import { IconFolder, IconSearch, IconX } from '$lib/icons';
 
 	let {
 		folders,

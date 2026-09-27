@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { IconCancel, IconExclamationCircle, IconLink, IconCheck } from '@tabler/icons-svelte';
+	import { IconCancel, IconExclamationCircle, IconLink, IconCheck } from '$lib/icons';
 	import { sanitizeRichHtml } from '$lib/utils/sanitize-rich-html';
 	import { useManualStrings } from '$lib/manual/ui-strings';
 
@@ -148,10 +148,10 @@
 		gap: .4rem;
 		margin: 0;
 		color: var(--manual-ink);
-		font-size: clamp(1.4rem, 2vw, 1.75rem);
-		font-weight: 600;
-		letter-spacing: var(--tracking-tight);
-		line-height: 1.15;
+		font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem);
+		font-weight: 500;
+		letter-spacing: -.028em;
+		line-height: 1.1;
 		text-wrap: balance;
 	}
 	.anchor-btn {
@@ -178,45 +178,44 @@
 		gap: .7rem;
 	}
 	.intro-text {
+		max-width: 60ch;
 		color: var(--manual-muted);
 		font-size: var(--text-lg);
-		line-height: 1.7;
+		line-height: 1.6;
 		text-wrap: pretty;
 	}
 	.intro-text :global(p)         { margin: 0 0 .6em; }
 	.intro-text :global(p:last-child) { margin-bottom: 0; }
 	.intro-text :global(ul),
 	.intro-text :global(ol)        { margin: .3em 0 .3em 1.1em; padding: 0; }
-	.intro-text :global(strong)    { font-weight: 600; color: var(--manual-ink); }
-	.intro-text :global(a)         { color: var(--manual-brand); text-underline-offset: 3px; }
+	.intro-text :global(strong)    { font-weight: 500; color: var(--manual-ink); }
+	.intro-text :global(a)         { color: var(--manual-ink); text-decoration-color: var(--manual-border-strong); text-underline-offset: 3px; }
+	.intro-text :global(a:hover)   { text-decoration-color: currentColor; }
+	/* Notes: a hairline in the state colour, no tinted box — the state is
+	   signalled, not shouted. */
 	.intro-callout,
 	.block-callout {
+		--note: var(--manual-warning);
 		display: grid;
-		grid-template-columns: 20px minmax(0, 1fr);
-		gap: .6rem;
-		padding: .75rem .85rem;
-		border: 1px solid color-mix(in srgb, var(--manual-warning, #d97706) 26%, var(--manual-border));
-		border-radius: var(--manual-radius);
-		background: color-mix(in srgb, var(--manual-warning, #d97706) 7%, var(--manual-surface));
+		grid-template-columns: 16px minmax(0, 1fr);
+		gap: .65rem;
+		padding: .1rem 0 .1rem .9rem;
+		border-left: 1px solid var(--note);
 		color: var(--manual-ink);
-		font-size: var(--text-base);
+		font-size: var(--text-md);
 		line-height: 1.55;
 	}
 	.block-callout { white-space: pre-wrap; }
 	.intro-callout.alert,
-	.block-callout.alert {
-		border-color: color-mix(in srgb, var(--manual-danger, #dc2626) 28%, var(--manual-border));
-		background: color-mix(in srgb, var(--manual-danger, #dc2626) 7%, var(--manual-surface));
-	}
+	.block-callout.alert { --note: var(--manual-danger); }
 	.callout-icon {
-		width: 20px;
-		height: 20px;
+		width: 16px;
+		height: 1.55em;
 		display: grid;
 		place-items: center;
-		color: var(--manual-warning, #d97706);
+		color: var(--note);
 	}
-	.intro-callout.alert .callout-icon,
-	.block-callout.alert .callout-icon { color: var(--manual-danger, #dc2626); }
+	.callout-icon :global(svg) { width: 15px; height: 15px; }
 	.intro-callout :global(p) { margin: 0; }
 	.block-content {
 		min-width: 0;

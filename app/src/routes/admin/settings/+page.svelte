@@ -5,7 +5,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import {
 		IconCheck, IconAlertTriangle, IconScale, IconLock, IconInfoCircle, IconRefresh
-	} from '@tabler/icons-svelte';
+	} from '$lib/icons';
 	import type { UnitDigital, UnitPrint, UnitType } from '$lib/db/schema/brand';
 
 	const { data }: { data: PageData } = $props();

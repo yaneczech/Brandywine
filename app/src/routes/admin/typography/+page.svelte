@@ -12,7 +12,7 @@
 		IconPlus, IconPencil, IconTrash, IconX, IconDownload, IconUpload,
 		IconTypography, IconChevronDown, IconGripVertical,
 		IconSunFilled, IconMoonFilled
-	} from '@tabler/icons-svelte';
+	} from '$lib/icons';
 
 	const { data }: { data: PageData } = $props();
 

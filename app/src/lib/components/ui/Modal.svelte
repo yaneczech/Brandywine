@@ -6,7 +6,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
-	import { IconX } from '@tabler/icons-svelte';
+	import { IconX } from '$lib/icons';
 	import * as m from '$lib/paraglide/messages';
 	import { focusTrap } from '$lib/actions/focus-trap';
 	import { DUR, DUR_FAST, EASE } from './motion';
