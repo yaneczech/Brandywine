@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./brandywine-logo-n.svg" alt="Brandywine" width="32" />
+  <img src="./docs/assets/logo.svg" alt="Brandywine" width="32" />
 </p>
 
 <h1 align="center">Brandywine</h1>
@@ -172,18 +172,34 @@ or copy it to separate storage for disaster recovery.
 ## Development
 
 ```bash
+docker compose -f docker-compose.yml -f compose.dev.yml up -d db redis
 cd app
 npm install
+npm run db:migrate
 npm run dev
 ```
 
-Worker:
+The [contributing guide](./CONTRIBUTING.md) covers the full setup, checks and
+pull requests; [docs/architecture.md](./docs/architecture.md) explains how the
+code is organised.
 
-```bash
-cd worker
-npm install
-npm run dev
-```
+## Extending
+
+Brandywine is built from registries, so most extensions are new folders rather
+than edits to existing code:
+
+- **Manual blocks** — a folder in `app/src/lib/blocks/` with a definition, a
+  public view and an editor. [Guide](./docs/extending/blocks.md)
+- **Admin modules** — a sidebar entry and access rule in
+  `app/src/lib/modules/` plus pages in `app/src/routes/admin/`.
+  [Guide](./docs/extending/modules.md)
+- **Worker queues** — background media processing.
+  [Guide](./docs/extending/worker.md)
+- **Languages** — translations for the admin and the public manual.
+  [Guide](./docs/extending/languages.md)
+- **Plugins** — blocks, admin sections, API routes and event handlers in the
+  installation's `plugins/` folder, without touching the code; **webhooks**
+  notify other services of changes. [Guide](./docs/extending/plugins.md)
 
 ## Stack
 
@@ -198,12 +214,15 @@ npm run dev
 
 Brandywine is under active development. The core product direction is clear: a beautiful, self-hosted brand CMS for designers, brand teams, and agencies. Expect rapid iteration around manual page building, asset workflows, typography, permissions, and polish.
 
-See the [professional product and self-hosting roadmap](./PRODUCT_ROADMAP.md) for
-the release milestones, DAM workflows, governance, integrations, and the next
-steps beyond the included WordPress-like install/update/backup experience.
+See the [roadmap](./docs/ROADMAP.md) (in Czech) for the release milestones, DAM
+workflows, governance, integrations, and the next steps beyond the included
+install/update/backup experience.
 
-The [product audit](./PRODUCT_AUDIT.md) records what is fully usable today,
-what is only partial, and which release gates should precede a `1.0` label.
+## Contributing
+
+Contributions are welcome — read the [contributing guide](./CONTRIBUTING.md)
+and the [code of conduct](./CODE_OF_CONDUCT.md). Report security issues as
+described in [SECURITY.md](./SECURITY.md).
 
 ## License
 

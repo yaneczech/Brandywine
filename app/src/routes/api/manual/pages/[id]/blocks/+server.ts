@@ -8,8 +8,9 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$db';
 import { manualPages, manualBlocks } from '$db/schema';
 import { eq, asc, max } from 'drizzle-orm';
-import { BLOCK_TYPES } from '$lib/manual/blockTypes';
+import { BLOCK_TYPES } from '$lib/blocks';
 import { createId } from '$lib/db/id';
+import { emit } from '$server/events';
 
 // ── GET ────────────────────────────────────────────────────────────────────────
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -42,7 +43,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	};
 
 	if (!body.type) error(400, 'type is required');
-	if (!BLOCK_TYPES.includes(body.type as never)) {
+	if (!BLOCK_TYPES.includes(body.type)) {
 		error(400, `Unknown block type: ${body.type}. Valid types: ${BLOCK_TYPES.join(', ')}`);
 	}
 
@@ -76,7 +77,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		.values({
 			id: createId(),
 			pageId: params.id,
-			type: body.type as (typeof BLOCK_TYPES)[number],
+			type: body.type,
 			config: body.config ?? {},
 			anchor: body.anchor ?? null,
 			sortOrder,
@@ -87,6 +88,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	await renumberBlocks(params.id);
 	const [fresh] = await db.select().from(manualBlocks).where(eq(manualBlocks.id, block.id));
 
+	emit('block.saved', { block: { id: fresh.id, pageId: fresh.pageId, type: fresh.type }, created: true, userId: locals.user.id });
 	return json(fresh, { status: 201 });
 };
 

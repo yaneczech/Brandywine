@@ -4,6 +4,7 @@ import { db } from '$db';
 import { users } from '$db/schema';
 import { eq } from 'drizzle-orm';
 import { verifyPassword, createSession } from '$server/auth';
+import { emit } from '$server/events';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	const body = await request.json().catch(() => null);
@@ -18,6 +19,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	if (!valid) error(401, 'Invalid credentials');
 
 	const sessionId = await createSession(user.id);
+	emit('user.signedIn', { user: { id: user.id, email: user.email, role: user.role }, method: 'password' });
 	cookies.set('session', sessionId, {
 		path: '/',
 		httpOnly: true,

@@ -30,7 +30,7 @@ export type LocaleLangRules = {
 	dateFormat:   string;      // 'D. M. YYYY' | 'DD.MM.YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD'
 	timeFormat:   '24h' | '12h';
 	// Lists & ordinals
-	listSep:      ',' | ';' | ' |'; // cs: ; (protože , je desetinná), en: ,
+	listSep:      ',' | ';' | ' |'; // cs uses ; (the comma is the decimal separator), en uses ,
 	ordinalStyle: 'dot' | 'suffix'; // cs: 1. | en: 1st
 	// Custom rules
 	customRules: Array<{ rule: string; correct?: string; wrong?: string }>;

@@ -4,19 +4,9 @@
 	import { ensureContrast, readableOn } from '$lib/ui/contrast';
 	import Toaster from '$lib/components/ui/Toaster.svelte';
 	import DialogHost from '$lib/components/ui/DialogHost.svelte';
-	import {
-		IconLayoutDashboard,
-		IconRosette,
-		IconPalette,
-		IconTypography,
-		IconFolder,
-		IconUsers,
-		IconSettings,
-		IconLogout,
-		IconMenu2,
-		IconBook2,
-		IconExternalLink
-	} from '$lib/icons';
+	import { IconLogout, IconMenu2, IconExternalLink, IconBook2 } from '$lib/icons';
+	import { adminNav } from '$lib/modules';
+	import type { IconComponent } from '$lib/icons';
 	const { children, data } = $props();
 
 	const brand = $derived(data.brand);
@@ -33,39 +23,13 @@
 
 	let mobileOpen = $state(false);
 
-	import type { IconComponent } from '$lib/icons';
 	// Brand as UI accent on the admin background: same hue, ≥ 3:1
 	const uiBrand = $derived(ensureContrast(primaryColor, '#f7f7f5'));
-	type NavItem = { href: string; label: string; icon: IconComponent };
-
-	const isAdminUser = $derived(data.user?.role === 'admin');
-
-	// $derived so nav labels re-evaluate when language changes
-	const navGroups: { label: string; items: NavItem[] }[] = $derived([
-		{
-			label: m.admin_group_brand(),
-			items: [
-				{ href: '/admin',            label: m.admin_dashboard(), icon: IconLayoutDashboard },
-				...(isAdminUser ? [{ href: '/admin/brand', label: m.admin_brand(), icon: IconRosette }] : []),
-				{ href: '/admin/colors',      label: m.admin_colors(),    icon: IconPalette },
-				{ href: '/admin/typography',  label: m.admin_typography(),icon: IconTypography },
-			]
-		},
-		{
-			label: m.admin_group_assets(),
-			items: [
-				{ href: '/admin/assets', label: m.admin_assets(), icon: IconFolder },
-				{ href: '/admin/manual', label: m.admin_manual(),   icon: IconBook2 },
-			]
-		},
-		...(isAdminUser ? [{
-			label: m.admin_group_admin(),
-			items: [
-				{ href: '/admin/users',    label: m.admin_users(),    icon: IconUsers },
-				{ href: '/admin/settings', label: m.admin_settings(), icon: IconSettings },
-			]
-		}] : [])
-	]);
+	// Sidebar from the module registry (src/lib/modules); $derived so labels follow the language
+	const navGroups = $derived(adminNav(data.user?.role).map((g) => ({
+		label: g.label,
+		items: g.items.map((mod) => ({ href: mod.href, label: mod.label(), icon: mod.icon })),
+	})));
 
 	function isActive(href: string) {
 		if (href === '/admin') return $page.url.pathname === '/admin';
@@ -74,7 +38,7 @@
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -->
-{#snippet iconSnippet(Icon: NavItem['icon'])}
+{#snippet iconSnippet(Icon: IconComponent)}
 	<Icon size={16} stroke={1.5} />
 {/snippet}
 

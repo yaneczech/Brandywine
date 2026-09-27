@@ -11,6 +11,8 @@
 		slug: string;
 		description: string | null;
 		featureImage?: string | null;
+		/** Card cover; falls back to the hero image, then to an automatic preview */
+		cardImage?: string | null;
 		bgColor?: string | null;
 		textColor?: string | null;
 	};
@@ -49,7 +51,7 @@
 
 <ul class="page-cards" class:landing-grid={variant === 'landing'} class:layout-grid={layout === 'grid'} class:layout-gallery={layout === 'gallery'}>
 	{#each pages as p, i (p.id)}
-		{@const img = assetSrc(p.featureImage)}
+		{@const img = assetSrc(p.cardImage || p.featureImage)}
 		{@const preview = img ? null : previews[p.id] ?? null}
 		<li>
 			<a href="{baseHref.replace(/\/$/, '')}/{p.slug}" class="page-card">

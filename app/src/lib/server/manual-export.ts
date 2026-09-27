@@ -1,4 +1,6 @@
 import { colorsForSource } from '$lib/manual/color-source';
+import { getBlockDefinition } from '$lib/blocks';
+import { manualPagePath } from '$lib/manual/paths';
 /**
  * Plain-text / Markdown view of the whole manual for AI tools (AI export,
  * llms.txt and the read-only MCP server). Everything here is derived from the
@@ -113,13 +115,7 @@ function richContent(c: Record<string, unknown>): string {
 }
 
 export function pagePath(page: Page, pages: Page[]): string {
-	const parts: string[] = [];
-	let cur: Page | undefined = page;
-	for (let depth = 0; cur && !cur.isLanding && depth < 32; depth++) {
-		parts.unshift(cur.slug);
-		cur = pages.find((p) => p.id === cur!.parentId);
-	}
-	return `/${parts.join('/')}`;
+	return manualPagePath(page, pages);
 }
 
 function hexToCmyk(hex: string) {
@@ -198,65 +194,17 @@ export function blockMarkdown(block: Block, snap: ManualSnapshot): string {
 	if (intro) out.push(intro);
 	if (str(c.calloutText)) out.push(`> ${str(c.calloutText)}`);
 
-	let body = '';
-	switch (block.type) {
-		case 'rich_text': body = richContent(c); break;
-		case 'naming': body = str(c.markdown); break;
-		case 'text_image':
-			body = [str(c.title) && `**${str(c.title)}**`, richContent(c), str(c.imageUrl) && `![${str(c.alt)}](${abs(snap, str(c.imageUrl))})`,
-				str(c.ctaUrl) && `[${str(c.ctaLabel) || str(c.ctaUrl)}](${abs(snap, str(c.ctaUrl))})`].filter(Boolean).join('\n\n');
-			break;
-		case 'image': body = str(c.url) ? `![${str(c.alt)}](${abs(snap, str(c.url))})${str(c.caption) ? `\n\n_${str(c.caption)}_` : ''}` : ''; break;
-		case 'quote': body = str(c.quote) ? `> ${str(c.quote)}${str(c.author) ? `\n>\n> — ${str(c.author)}${str(c.role) ? `, ${str(c.role)}` : ''}` : ''}` : ''; break;
-		case 'callout': body = `> **${str(c.tone) || 'info'}:** ${[str(c.title), str(c.text)].filter(Boolean).join(' — ')}`; break;
-		case 'stats': body = arr<{ value?: string; label?: string; description?: string }>(c.items).map((i) => `- **${str(i.value)}** ${str(i.label)}${str(i.description) ? ` — ${str(i.description)}` : ''}`).join('\n'); break;
-		case 'links': body = arr<{ title?: string; url?: string; description?: string }>(c.items).filter((i) => str(i.url)).map((i) => `- [${str(i.title) || str(i.url)}](${abs(snap, str(i.url))})${str(i.description) ? ` — ${str(i.description)}` : ''}`).join('\n'); break;
-		case 'embed': body = str(c.url) ? `Media: ${abs(snap, str(c.url))}${str(c.caption) ? ` — ${str(c.caption)}` : ''}` : ''; break;
-		case 'do_dont': body = arr<{ type?: string; text?: string }>(c.items).map((i) => `- ${i.type === 'dont' ? "❌ Don't" : '✅ Do'}: ${str(i.text)}`).join('\n'); break;
-		case 'process': body = arr<{ title?: string; description?: string }>(c.steps).map((s, i) => `${i + 1}. **${str(s.title)}**${str(s.description) ? ` — ${str(s.description)}` : ''}`).join('\n'); break;
-		case 'accordion': body = arr<{ question?: string; answer?: string }>(c.items).map((i) => `**${str(i.question)}**\n${str(i.answer)}`).join('\n\n'); break;
-		case 'cards': body = arr<{ title?: string; description?: string }>(c.cards).map((i) => `- **${str(i.title)}** — ${str(i.description)}`).join('\n'); break;
-		case 'table': body = table(arr<string>(c.headers), arr<string[]>(c.rows)); break;
-		case 'code': body = `\`\`\`${str(c.language)}\n${String(c.code ?? '')}\n\`\`\``; break;
-		case 'html': body = str(c.html) ? `\`\`\`html\n${String(c.html)}\n\`\`\`` : ''; break;
-		case 'chart': body = str(c.data).split('\n').filter(Boolean).map((l) => `- ${l.trim()}`).join('\n'); break;
-		case 'colors': body = colorsMarkdown(snap, str(c.source) || 'all'); break;
-		case 'color_ratio': body = arr<{ colorId?: string; percent?: number }>(c.items).map((i) => {
-			const color = snap.colors.find((x) => x.id === i.colorId);
-			return color ? `- ${color.name} (${color.hex.toUpperCase()}): ${Number(i.percent) || 0} %` : '';
-		}).filter(Boolean).join('\n'); break;
-		case 'contrast_checker': body = 'Interactive WCAG contrast checker for the brand colours (see Colors).'; break;
-		case 'typography': body = typographyMarkdown(snap, arr<string>(c.fontIds)); break;
-		case 'text_styles': body = typographyMarkdown(snap); break;
-		case 'font_usage': {
-			const rows = arr<{ label?: string; fontIds?: string[] }>(c.rows);
-			const fonts = snap.fonts.filter((f) => rows.some((r) => r.fontIds?.includes(f.id)));
-			body = table(['Use', ...fonts.map((f) => f.name)], rows.map((r) => [str(r.label), ...fonts.map((f) => (r.fontIds?.includes(f.id) ? 'yes' : 'no'))]));
-			break;
-		}
-		case 'typo_rules': body = arr<{ label?: string; lang?: string; rules?: { category?: string; rule?: string; correct?: string; wrong?: string }[] }>(c.languages)
-			.map((l) => `**${str(l.label) || str(l.lang)}**\n\n${table(['Category', 'Rule', 'Correct', 'Wrong'], (l.rules ?? []).map((r) => [r.category, r.rule, r.correct, r.wrong]))}`).join('\n\n'); break;
-		case 'logo_spec': body = [
-			str(c.logoUrl) && `Logo: ${abs(snap, str(c.logoUrl))}`,
-			c.clearspace != null && `Clear space: ${c.clearspace}× x-height`,
-			c.minSizePx != null && `Minimum size: ${c.minSizePx} px / ${c.minSizeMm ?? '—'} mm`,
-			str(c.description),
-		].filter(Boolean).join('\n'); break;
-		case 'logo_download': body = [
-			(c.minSizePx || c.minSizeMm) && `Minimum logo height: ${c.minSizePx ? `${c.minSizePx} px on screens` : ''}${c.minSizePx && c.minSizeMm ? ', ' : ''}${c.minSizeMm ? `${c.minSizeMm} mm in print` : ''}`,
-			...arr<{ label?: string; url?: string; background?: string }>(c.variants).filter((v) => str(v.url))
-				.map((v) => `- ${str(v.label) || 'Logo'} (${str(v.background) || 'light'} background): ${abs(snap, str(v.url))}`),
-			`All versions (ZIP): ${snap.origin}/api/manual/blocks/${block.id}/logo-pack`,
-		].filter(Boolean).join('\n'); break;
-		case 'hotspots': body = [
-			str(c.imageUrl) && `![${str(c.alt)}](${abs(snap, str(c.imageUrl))})`,
-			...arr<{ title?: string; text?: string }>(c.points).map((p, i) => `${i + 1}. **${str(p.title)}** ${str(p.text)}`),
-		].filter(Boolean).join('\n'); break;
-		case 'grid': body = `Layout grid: ${c.columns ?? 12} columns, gutter ${c.gutter ?? 24}, margins ${c.margin ?? 40} ${str(c.unit) || (str(c.medium) === 'print' ? 'mm' : 'px')}${str(c.format) ? `, format ${str(c.format)}` : ''}.${str(c.description) ? ` ${str(c.description)}` : ''}`; break;
-		case 'before_after': body = [str(c.beforeUrl) && `Before: ${abs(snap, str(c.beforeUrl))}`, str(c.afterUrl) && `After: ${abs(snap, str(c.afterUrl))}`].filter(Boolean).join('\n'); break;
-		case 'image_gallery': case 'carousel': case 'icons': body = assetList(snap, c, true); break;
-		case 'asset_gallery': case 'download': body = assetList(snap, c); break;
-	}
+	const body = getBlockDefinition(block.type)?.toMarkdown?.(c, {
+		blockId: block.id,
+		origin: snap.origin,
+		str, arr, table, richContent,
+		abs: (url) => abs(snap, url),
+		colorsMarkdown: (source) => colorsMarkdown(snap, source),
+		typographyMarkdown: (fontIds) => typographyMarkdown(snap, fontIds),
+		colors: snap.colors,
+		fonts: snap.fonts,
+		assetList: (config, imagesOnly) => assetList(snap, config, imagesOnly),
+	}) ?? '';
 	if (body) out.push(body);
 	return out.join('\n\n');
 }

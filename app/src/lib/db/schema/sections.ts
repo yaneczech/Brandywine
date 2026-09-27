@@ -2,10 +2,6 @@ import { pgTable, text, boolean, integer, jsonb, timestamp, index } from 'drizzl
 import { createId } from '../id';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
-// Re-export from the client-safe module so server code can import from here too.
-export { BLOCK_TYPES, type BlockType } from '$lib/manual/blockTypes';
-import type { BlockType } from '$lib/manual/blockTypes';
-
 // ── Pages ──────────────────────────────────────────────────────────────────────
 export const manualPages = pgTable('manual_pages', {
 	id:          text('id').primaryKey().$defaultFn(createId),
@@ -17,6 +13,7 @@ export const manualPages = pgTable('manual_pages', {
 	enabled:      boolean('enabled').notNull().default(true),
 	isLanding:    boolean('is_landing').notNull().default(false),
 	featureImage: text('feature_image'),   // asset path or URL
+	cardImage:    text('card_image'),      // cover on page cards; falls back to featureImage, then an auto preview
 	heroBgSize:   text('hero_bg_size'),    // 'cover' | 'contain' | 'tile' — default cover when null
 	bgColor:      text('bg_color'),        // hex — full card + hero background
 	textColor:    text('text_color'),      // hex — text on bgColor (WCAG-checked)
@@ -33,7 +30,7 @@ export const manualPages = pgTable('manual_pages', {
 export const manualBlocks = pgTable('manual_blocks', {
 	id:        text('id').primaryKey().$defaultFn(createId),
 	pageId:    text('page_id').notNull().references(() => manualPages.id, { onDelete: 'cascade' }),
-	type:      text('type').$type<BlockType>().notNull(),
+	type:      text('type').notNull(),   // a registered block type, see src/lib/blocks
 	config:    jsonb('config').$type<Record<string, unknown>>().notNull().default({}),
 	sortOrder: integer('sort_order').notNull().default(0),
 	enabled:   boolean('enabled').notNull().default(true),

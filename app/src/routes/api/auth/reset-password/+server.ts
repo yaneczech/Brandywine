@@ -12,7 +12,8 @@ import { db } from '$db';
 import { users } from '$db/schema';
 import { eq } from 'drizzle-orm';
 import { createMagicToken } from '$server/auth';
-import { sendEmail, getAppUrl } from '$server/email';
+import { sendEmail, getAppUrl, actionEmail } from '$server/email';
+import * as m from '$lib/paraglide/messages';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json().catch(() => null);
@@ -33,15 +34,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		await sendEmail({
 			to: email,
-			subject: 'Obnovení hesla — Brandywine',
-			text: `Požádali jste o obnovení hesla. Klikněte na odkaz níže (platí 15 minut):\n\n${link}\n\nPokud jste o obnovení hesla nepožádali, ignorujte tento email.`,
-			html: `
-<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#171717">
-  <p style="font-size:1.125rem;font-weight:600;margin:0 0 8px">Obnovení hesla</p>
-  <p style="color:#737373;margin:0 0 24px">Požádali jste o obnovení hesla v Brandywine. Kliknutím na tlačítko nastavíte nové heslo. Odkaz je platný 15 minut.</p>
-  <a href="${link}" style="display:inline-block;padding:12px 24px;background:#4A1204;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Nastavit nové heslo</a>
-  <p style="font-size:.8125rem;color:#a3a3a3;margin:24px 0 0">Pokud jste o obnovení hesla nepožádali, ignorujte tento email. Vaše heslo zůstane nezměněno.</p>
-</div>`
+			subject: m.email_reset_subject(),
+			...actionEmail({
+				title: m.email_reset_title(), body: m.email_reset_body(), action: m.email_reset_action(),
+				footer: m.email_reset_footer(), textIntro: m.email_reset_text_intro(), link,
+			}),
 		});
 	}
 

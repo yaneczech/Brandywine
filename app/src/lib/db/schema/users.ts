@@ -1,10 +1,10 @@
 import { pgTable, text, timestamp, pgEnum, index } from 'drizzle-orm/pg-core';
 import { createId } from '../id';
 
-// Globální role — admin > editor > member
-// admin  — plný přístup včetně uživatelů a nastavení systému
-// editor — správa obsahu (barvy, typografie, assety, manuál), bez správy uživatelů/nastavení
-// member — pouze čtení a stahování
+// Global roles — admin > editor > member (see $lib/auth/roles)
+// admin  — full access, including users and system settings
+// editor — brand content (colours, typography, assets, manual), no users/settings
+// member — read and download only
 export const globalRoleEnum = pgEnum('global_role', ['admin', 'editor', 'member']);
 
 export const users = pgTable('users', {

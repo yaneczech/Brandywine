@@ -1,0 +1,135 @@
+/*
+ * One control language for every block editor (fields, rows, list items,
+ * pickers). @scope keeps these rules inside .primary-editor — the admin
+ * container editors render in — and out of nested components (image field,
+ * folder tree, rich text editor, modals), which style themselves.
+ * Styles used by a single editor live in that block's Editor.svelte.
+ */
+@scope (.primary-editor) to (.imf, .folder-picker, .rich-editor, .ui-modal-backdrop) {
+	:scope :where(input[type="text"], input[type="number"], input:not([type]), select, textarea) {
+		width: 100%;
+		min-width: 0;
+		height: var(--control-h);
+		padding: 0 12px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-surface);
+		color: var(--color-text);
+		font: inherit;
+		font-size: var(--text-sm);
+		box-shadow: var(--shadow-xs);
+		outline: none;
+		transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+	}
+	:scope :where(textarea) { height: auto; min-height: 76px; padding: 8px 12px; line-height: var(--leading-normal); resize: vertical; }
+	:scope :where(select) {
+		appearance: none;
+		padding-right: 32px;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a7a75' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 10px center;
+	}
+	:scope :where(input, select, textarea):hover:not(:focus):not(:disabled) { border-color: var(--color-border-strong); }
+	:scope :where(input, select, textarea):focus { border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
+	:scope :where(input[type="checkbox"], input[type="radio"]) { accent-color: var(--color-accent); width: 15px; height: 15px; }
+	:scope {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+	.fields {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+	.fields-row {
+		display: flex;
+		gap: var(--space-3);
+		flex-wrap: wrap;
+	}
+	.fields-row .field { flex: 1; min-width: 160px; }
+	.field { display: flex; flex-direction: column; gap: 8px; font-size: var(--text-sm); }
+	.field > span { font-weight: 500; color: var(--color-text); letter-spacing: var(--tracking-snug); }
+	.field.checkbox { flex-direction: row; align-items: center; gap: 8px; }
+	.field.checkbox > span { font-weight: 400; }
+	.muted { color: var(--color-muted); font-weight: 400 !important; }
+	.field input[type="text"], .field input[type="number"], .field select, .field textarea { width: 100%; }
+	.field textarea { resize: vertical; }
+	.btn-pick {
+		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		height: 32px;
+		padding: 0 8px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-surface-raised);
+		color: var(--color-muted);
+		font-size: var(--text-xs);
+		cursor: pointer;
+		white-space: nowrap;
+		font-family: inherit;
+	}
+	.btn-pick:hover {
+		border-color: var(--color-border-strong);
+		color: var(--color-text);
+		background: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface-raised));
+	}
+	.code-area { font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: var(--text-sm); }
+	.list-editor { display: flex; flex-direction: column; gap: 8px; }
+	.list-row { display: flex; align-items: center; gap: 8px; }
+	.list-row input { flex: 1; }
+	.process-row {
+		display: flex; align-items: flex-start; gap: 8px;
+		border: 1px solid var(--color-border); border-radius: var(--radius); padding: 8px;
+		background: var(--color-surface);
+	}
+	.step-num {
+		min-width: 22px; padding-top: 8px;
+		color: var(--color-accent); font-family: var(--font-mono);
+		font-size: var(--text-xs); font-variant-numeric: tabular-nums; flex-shrink: 0;
+	}
+	.step-fields { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+	.step-fields input, .step-fields textarea { resize: vertical; }
+	.btn-add {
+		padding: 8px 12px; background: none;
+		border: 1px dashed var(--color-border); border-radius: var(--radius);
+		color: var(--color-muted); font-size: var(--text-sm); cursor: pointer; text-align: left;
+	}
+	.btn-add:hover { border-color: var(--color-border-strong); color: var(--color-text); }
+	.chip-checks { display: flex; flex-wrap: wrap; gap: 4px; }
+	.chip-check { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); font-size: var(--text-sm); cursor: pointer; }
+	.chip-check:has(input:checked) { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface)); }
+	.chip-check input { accent-color: var(--color-accent); }
+	.variant-card { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+	.variant-head { display: flex; align-items: center; gap: 8px; }
+	.variant-head input { flex: 1; min-width: 0; font-weight: 600; }
+	.inline-pair { display: grid; grid-template-columns: minmax(90px, 140px) minmax(0, 1fr); gap: 8px; }
+	.row-actions { display: flex; flex-direction: column; gap: .15rem; }
+	.btn-ghost { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: none; border: none; border-radius: var(--radius-sm); cursor: pointer; color: var(--color-muted); font-size: var(--text-sm); }
+	.btn-ghost.sm { padding: .15rem 4px; font-size: var(--text-xs); }
+	.btn-ghost.danger:hover { color: var(--color-danger); }
+	.color-row { display: flex; align-items: center; gap: 8px; }
+	.color-swatch { width: 32px; height: 32px; padding: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; background: none; flex-shrink: 0; }
+	.color-text { flex: 1; padding: 8px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: var(--text-base); background: var(--color-surface); color: var(--color-text); outline: none; font-family: monospace; }
+	.color-text:focus { border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
+	.folder-field { display: flex; flex-direction: column; gap: 4px; }
+	.folder-selected {
+		display: flex; align-items: center; gap: 8px;
+		padding: 8px 12px;
+		border: 1px solid var(--color-border); border-radius: var(--radius);
+		background: var(--color-surface); font-size: var(--text-base);
+		cursor: default;
+	}
+	.folder-selected svg { color: var(--color-muted); flex-shrink: 0; }
+	.folder-selected > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.folder-panel {
+		border: 1px solid var(--color-border); border-radius: var(--radius);
+		background: var(--color-surface);
+		box-shadow: 0 4px 16px rgba(0,0,0,.1);
+		overflow: hidden;
+		padding: 8px 0;
+	}
+}

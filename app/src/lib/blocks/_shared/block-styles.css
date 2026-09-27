@@ -1,0 +1,51 @@
+/*
+ * Styles shared by several block types (prose, tables, link cards, file rows…).
+ * Scoped to .manual-block, the shell every block renders in. Styles used by a
+ * single block live in that block's Render.svelte.
+ */
+.manual-block .block-text { color: var(--manual-muted); line-height: 1.72; font-size: var(--text-md); }
+.manual-block .muted-block {
+	display: flex; flex-direction: column; gap: 8px;
+	padding: 20px;
+	border: 1px dashed color-mix(in srgb, var(--manual-ink) 16%, transparent);
+	border-radius: var(--manual-radius);
+	background: color-mix(in srgb, var(--manual-surface) 62%, transparent);
+	color: var(--manual-muted);
+}
+.manual-block .placeholder-copy { font-size: var(--text-base); line-height: 1.55; }
+.manual-block .prose { max-width: 72ch; color: var(--manual-ink); line-height: 1.75; font-size: var(--text-lg); text-wrap: pretty; }
+.manual-block .prose h2, .manual-block .prose h3, .manual-block .prose h4 { margin: 1.6em 0 .5em; font-family: var(--manual-font-heading, var(--manual-font)); line-height: 1.25; letter-spacing: -.015em; font-weight: 500; }
+.manual-block .prose h2:first-child, .manual-block .prose h3:first-child, .manual-block .prose h4:first-child { margin-top: 0; }
+.manual-block .prose a { color: inherit; text-decoration-color: color-mix(in srgb, var(--manual-brand) 55%, transparent); text-decoration-thickness: 1px; text-underline-offset: 3px; transition: text-decoration-color .15s ease; }
+.manual-block .prose a:hover { text-decoration-color: var(--manual-brand); }
+.manual-block .prose strong { font-weight: 600; }
+.manual-block .prose blockquote { margin: 16px 0; padding-left: 16px; border-left: 1px solid var(--manual-border-strong); color: var(--manual-muted); }
+.manual-block .prose li::marker { color: var(--manual-muted); }
+.manual-block .prose code { padding: .12em .35em; border-radius: min(var(--manual-control-radius), 4px); background: color-mix(in srgb, var(--manual-ink) 7%, transparent); font-family: var(--manual-mono, monospace); font-size: .88em; }
+.manual-block .prose p { margin: 0 0 16px; }
+.manual-block .prose p:last-child, .manual-block .prose ul:last-child, .manual-block .prose ol:last-child { margin-bottom: 0; }
+.manual-block .prose ul, .manual-block .prose ol { margin: 8px 0 16px 20px; padding: 0; }
+.manual-block .img-caption { margin-top: 12px; color: var(--manual-muted); font-size: var(--text-sm); line-height: 1.5; }
+.manual-block .table-wrap {
+	overflow-x: auto;
+	--scroll-hint: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+	-webkit-mask-image: var(--scroll-hint);
+	mask-image: var(--scroll-hint);
+}
+.manual-block .block-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.manual-block .block-table th { text-align: left; padding: 0 16px 8px 0; border-bottom: 1px solid var(--manual-border-strong); color: var(--manual-muted); font-size: var(--manual-label-size); font-weight: 500; text-transform: uppercase; letter-spacing: var(--manual-label-tracking); white-space: nowrap; }
+.manual-block .block-table td { padding: 12px 16px 12px 0; border-bottom: 1px solid var(--manual-border); color: var(--manual-ink); vertical-align: top; line-height: 1.5; }
+.manual-block .code-block { overflow-x: auto; margin: 0; padding: 16px 20px; border-radius: var(--manual-radius); background: var(--manual-stage); color: var(--manual-ink); font-family: var(--manual-mono); font-size: var(--text-sm); line-height: 1.7; white-space: pre; }
+.manual-block .link-card {
+	display: flex; flex: 1; align-items: center; gap: 12px; min-width: 0;
+	padding: 16px 0;
+	color: var(--manual-ink); text-decoration: none;
+}
+.manual-block .link-card-body { display: flex; flex: 1; flex-direction: column; gap: .15rem; min-width: 0; }
+.manual-block .link-card-body strong { overflow: hidden; font-size: var(--text-md); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; transition: color .15s ease; }
+.manual-block .link-card-body small { overflow: hidden; color: var(--manual-muted); font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
+.manual-block .link-card-arrow { display: grid; color: var(--manual-muted); transition: color .15s ease, transform .2s var(--manual-ease, ease); }
+.manual-block .link-card:hover .link-card-arrow { color: var(--manual-ink); transform: translate(2px, -2px); }
+@media (max-width: 680px) {
+	.manual-block .table-wrap { padding-right: 28px; }
+}

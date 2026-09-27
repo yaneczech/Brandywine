@@ -12,6 +12,8 @@ export default defineConfig({
 			cookieName: 'paraglide_lang'
 		})
 	],
+	// Plugins are compiled from ../plugins, outside the app root
+	server: { fs: { allow: ['../plugins'] } },
 	test: {
 		include: ['src/**/*.test.ts', 'tests/unit/**/*.test.ts'],
 		environment: 'node'

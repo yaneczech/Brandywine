@@ -45,7 +45,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		db
 			.select({
 				id: manualPages.id, title: manualPages.title, slug: manualPages.slug,
-				description: manualPages.description, featureImage: manualPages.featureImage,
+				description: manualPages.description, featureImage: manualPages.featureImage, cardImage: manualPages.cardImage,
 				bgColor: manualPages.bgColor, textColor: manualPages.textColor,
 			})
 			.from(manualPages)

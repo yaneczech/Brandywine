@@ -19,7 +19,7 @@ export async function saveFile(originalFilename: string, buffer: Buffer, subfold
 		: join(datePart, filename);
 	const fullPath = join(UPLOAD_DIR, relativePath);
 
-	// Ujisti se, že fullPath skutečně leží uvnitř UPLOAD_DIR
+	// Make sure fullPath really lies inside UPLOAD_DIR
 	const resolvedUploadDir = resolve(UPLOAD_DIR);
 	const resolvedFull = resolve(fullPath);
 	if (!resolvedFull.startsWith(resolvedUploadDir + '/')) {

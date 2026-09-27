@@ -6,7 +6,6 @@
 	import { invalidateAll } from '$app/navigation';
 	import { checkContrast } from '$lib/utils/colors';
 	import * as m from '$lib/paraglide/messages';
-	import { focusTrap } from '$lib/actions/focus-trap';
 	import { SvelteSet } from 'svelte/reactivity';
 	import {
 		IconPlus, IconPencil, IconTrash, IconX, IconDownload, IconUpload,

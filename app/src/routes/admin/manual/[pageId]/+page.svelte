@@ -1,18 +1,12 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
-	import { BLOCK_TYPES } from '$lib/manual/blockTypes';
-	import { blockLabel, blockDesc } from '$lib/manual/blockLabels';
+	import { BLOCK_GROUPS, blockDefinitions, getBlockDefinition, type BlockGroup } from '$lib/blocks';
+	import { blockLabel, blockDesc } from '$lib/blocks/labels';
 	import type { PageData } from './$types';
 	import {
 		IconArrowLeft, IconPlus, IconTrash, IconGripVertical, IconX,
 		IconEye, IconEyeOff, IconChevronUp, IconChevronDown, IconSettings,
-		IconCheck, IconPhoto, IconExternalLink, IconSearch,
-		IconAlignLeft, IconLayoutColumns, IconQuote, IconInfoCircle, IconLayoutList,
-		IconLayoutGrid, IconSlideshow, IconArrowsHorizontal, IconPlayerPlay,
-		IconPalette, IconTypography, IconLetterCase, IconBadge, IconGridDots, IconThumbUp,
-		IconAbc, IconTextSpellcheck, IconIcons, IconStairs, IconChartRadar,
-		IconCards, IconNumbers, IconTable, IconLink, IconSeparator,
-		IconFolders, IconDownload, IconCode, IconBrackets, IconChartPie, IconContrast, IconPointer, IconFileDownload, IconTableOptions
+		IconCheck, IconPhoto, IconExternalLink, IconSearch
 	} from '$lib/icons';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
@@ -22,6 +16,7 @@
 	import BlockConfigPanel from './BlockConfigPanel.svelte';
 	import BlockPrimaryEditor from './BlockPrimaryEditor.svelte';
 	import AssetPickerModal from '$lib/components/admin/AssetPickerModal.svelte';
+	import ImageField from '$lib/components/admin/ImageField.svelte';
 
 	const { data }: { data: PageData } = $props();
 
@@ -50,6 +45,8 @@
 	let pageDescription = $state<string>(page.description ?? '');
 	// svelte-ignore state_referenced_locally
 	let pageFeatureImage = $state<string>(page.featureImage ?? '');
+	// svelte-ignore state_referenced_locally
+	let pageCardImage = $state<string>(page.cardImage ?? '');
 	// svelte-ignore state_referenced_locally
 	let pageHeroBgSize = $state<string>(page.heroBgSize ?? 'cover');
 	// svelte-ignore state_referenced_locally
@@ -84,6 +81,8 @@
 
 	// Asset picker for feature image
 	let showAssetPicker = $state(false);
+	// Which image the asset picker fills
+	let assetPickerFor = $state<'hero' | 'card'>('hero');
 
 	function blockConfigText(block: Block, key: string): string {
 		const value = block.config?.[key];
@@ -132,47 +131,19 @@
 	// Delete confirm
 	let confirmDeleteId = $state<string | null>(null);
 
-	// ── Block type labels ──────────────────────────────────────────────────────
-	const BLOCK_LABELS: Record<string, string> = Object.fromEntries(BLOCK_TYPES.map((t) => [t, blockLabel(t)]));
-
-	// Icon + one-line description for the block picker
-	const BLOCK_META: Record<string, { icon: typeof IconAlignLeft; desc: string }> = {
-		rich_text:     { icon: IconAlignLeft,        desc: blockDesc('rich_text') },
-		text_image:    { icon: IconLayoutColumns,    desc: blockDesc('text_image') },
-		quote:         { icon: IconQuote,            desc: blockDesc('quote') },
-		callout:       { icon: IconInfoCircle,       desc: blockDesc('callout') },
-		accordion:     { icon: IconLayoutList,       desc: blockDesc('accordion') },
-		image:         { icon: IconPhoto,            desc: blockDesc('image') },
-		image_gallery: { icon: IconLayoutGrid,       desc: blockDesc('image_gallery') },
-		carousel:      { icon: IconSlideshow,        desc: blockDesc('carousel') },
-		before_after:  { icon: IconArrowsHorizontal, desc: blockDesc('before_after') },
-		embed:         { icon: IconPlayerPlay,       desc: blockDesc('embed') },
-		colors:        { icon: IconPalette,          desc: blockDesc('colors') },
-		typography:    { icon: IconTypography,       desc: blockDesc('typography') },
-		text_styles:   { icon: IconLetterCase,       desc: blockDesc('text_styles') },
-		logo_spec:     { icon: IconBadge,            desc: blockDesc('logo_spec') },
-		grid:          { icon: IconGridDots,         desc: blockDesc('grid') },
-		do_dont:       { icon: IconThumbUp,          desc: blockDesc('do_dont') },
-		naming:        { icon: IconAbc,              desc: blockDesc('naming') },
-		typo_rules:    { icon: IconTextSpellcheck,   desc: blockDesc('typo_rules') },
-		icons:         { icon: IconIcons,            desc: blockDesc('icons') },
-		process:       { icon: IconStairs,           desc: blockDesc('process') },
-		chart:         { icon: IconChartRadar,       desc: blockDesc('chart') },
-		cards:         { icon: IconCards,            desc: blockDesc('cards') },
-		stats:         { icon: IconNumbers,          desc: blockDesc('stats') },
-		table:         { icon: IconTable,            desc: blockDesc('table') },
-		links:         { icon: IconLink,             desc: blockDesc('links') },
-		divider:       { icon: IconSeparator,        desc: blockDesc('divider') },
-		asset_gallery: { icon: IconFolders,          desc: blockDesc('asset_gallery') },
-		download:      { icon: IconDownload,         desc: blockDesc('download') },
-		html:          { icon: IconBrackets,         desc: blockDesc('html') },
-		code:          { icon: IconCode,             desc: blockDesc('code') },
-		color_ratio:   { icon: IconChartPie,         desc: blockDesc('color_ratio') },
-		contrast_checker: { icon: IconContrast,      desc: blockDesc('contrast_checker') },
-		hotspots:      { icon: IconPointer,          desc: blockDesc('hotspots') },
-		logo_download: { icon: IconFileDownload,     desc: blockDesc('logo_download') },
-		font_usage:    { icon: IconTableOptions,     desc: blockDesc('font_usage') },
+	// ── Block types (from the registry in src/lib/blocks) ────────────────────────
+	const BLOCK_LABELS: Record<string, string> = Object.fromEntries(blockDefinitions.map((d) => [d.type, blockLabel(d.type)]));
+	const GROUP_LABELS: Record<BlockGroup, () => string> = {
+		text: m.picker_group_text,
+		media: m.picker_group_media,
+		brand: m.picker_group_brand,
+		structure: m.picker_group_structure,
+		files: m.picker_group_files,
+		advanced: m.picker_group_advanced,
 	};
+	const PICKER_GROUPS = BLOCK_GROUPS
+		.map((group) => ({ label: GROUP_LABELS[group](), types: blockDefinitions.filter((d) => d.group === group).map((d) => d.type) }))
+		.filter((group) => group.types.length);
 
 	let pickerQuery = $state('');
 	function normalizeQuery(value: string) {
@@ -185,7 +156,7 @@
 			.map((group) => ({
 				...group,
 				types: group.types.filter((type) =>
-					normalizeQuery(`${BLOCK_LABELS[type] ?? type} ${BLOCK_META[type]?.desc ?? ''} ${type}`).includes(q)
+					normalizeQuery(`${BLOCK_LABELS[type] ?? type} ${blockDesc(type)} ${type}`).includes(q)
 				),
 			}))
 			.filter((group) => group.types.length);
@@ -196,15 +167,6 @@
 		showPicker = true;
 	}
 
-	// Group block types for the picker
-	const PICKER_GROUPS = [
-		{ label: m.picker_group_text(),      types: ['rich_text', 'text_image', 'quote', 'callout', 'accordion'] },
-		{ label: m.picker_group_media(),     types: ['image', 'hotspots', 'image_gallery', 'carousel', 'before_after', 'embed'] },
-		{ label: m.picker_group_brand(),     types: ['logo_download', 'colors', 'color_ratio', 'contrast_checker', 'typography', 'font_usage', 'text_styles', 'logo_spec', 'grid', 'do_dont', 'naming', 'typo_rules', 'icons', 'process', 'chart'] },
-		{ label: m.picker_group_structure(), types: ['cards', 'stats', 'table', 'links', 'divider'] },
-		{ label: m.picker_group_files(),   types: ['asset_gallery', 'download'] },
-		{ label: m.picker_group_advanced(), types: ['html', 'code'] },
-	];
 
 	// ── API helpers ───────────────────────────────────────────────────────────
 	async function apiFetch(url: string, opts: Parameters<typeof fetch>[1]) {
@@ -313,6 +275,7 @@
 					title: pageTitle.trim() || page.title,
 					description: pageDescription.trim() || null,
 					featureImage: pageFeatureImage.trim() || null,
+					cardImage: pageCardImage.trim() || null,
 					heroBgSize: pageFeatureImage.trim() ? (pageHeroBgSize || 'cover') : null,
 					bgColor: pageBgColor || null,
 					textColor: pageTextColor || null,
@@ -360,7 +323,7 @@
 				<h1>{page.title}</h1>
 				<span class="page-slug muted">/manual/{page.slug}</span>
 			</div>
-			<a href="/manual/{page.slug}" target="_blank" rel="noopener" class="btn-ghost preview-btn" title={m.editor_view_in_manual()}>
+			<a href={data.publicPath} target="_blank" rel="noopener" class="btn-ghost preview-btn" title={m.editor_view_in_manual()}>
 				<IconExternalLink size={15} stroke={1.5} /> {m.common_view()}
 			</a>
 			<button class="btn-ghost settings-btn" class:active={showPageSettings}
@@ -406,7 +369,7 @@
 						<span class="field-label">{m.editor_hero_image()}</span>
 						<div class="fi-input-row">
 							<input type="text" bind:value={pageFeatureImage} placeholder="/uploads/…" class="fi-url-input" />
-							<button class="btn-ghost fi-pick-btn" onclick={() => showAssetPicker = true} title={m.editor_pick_asset()}>
+							<button class="btn-ghost fi-pick-btn" onclick={() => { assetPickerFor = 'hero'; showAssetPicker = true; }} title={m.editor_pick_asset()}>
 								<IconPhoto size={15} stroke={1.5} /> {m.be_choose()}
 							</button>
 						</div>
@@ -429,6 +392,17 @@
 								{/each}
 							</div>
 						{/if}
+						<!-- Card cover, independent of the hero -->
+						<div class="card-image-field">
+							<ImageField
+								label={m.editor_card_image()}
+								hint={m.editor_card_image_hint()}
+								value={pageCardImage}
+								compact
+								onChoose={() => { assetPickerFor = 'card'; showAssetPicker = true; }}
+								onChange={(v) => (pageCardImage = v)}
+							/>
+						</div>
 					</div>
 
 					<!-- Colors column: bg + text stacked -->
@@ -631,12 +605,13 @@
 				<h3 class="picker-group-label">{group.label}</h3>
 				<div class="picker-grid">
 					{#each group.types as type (type)}
-						{@const meta = BLOCK_META[type]}
+						{@const definition = getBlockDefinition(type)}
+						{@const desc = blockDesc(type)}
 						<button class="picker-tile" onclick={() => addBlock(type)} disabled={saving}>
-							{#if meta}<span class="tile-icon"><meta.icon size={18} stroke={1.5} /></span>{/if}
+							{#if definition}<span class="tile-icon"><definition.icon size={18} stroke={1.5} /></span>{/if}
 							<span class="tile-text">
 								<span class="tile-label">{BLOCK_LABELS[type] ?? type}</span>
-								{#if meta}<span class="tile-desc">{meta.desc}</span>{/if}
+								{#if desc}<span class="tile-desc">{desc}</span>{/if}
 							</span>
 						</button>
 					{/each}
@@ -648,11 +623,11 @@
 	</div>
 </Modal>
 
-<!-- Asset picker modal (hero image) -->
+<!-- Asset picker modal (hero or card image) -->
 <AssetPickerModal
 	open={showAssetPicker}
 	mimeFilter="image"
-	onPick={(url) => { pageFeatureImage = url; showAssetPicker = false; }}
+	onPick={(url) => { if (assetPickerFor === 'card') pageCardImage = url; else pageFeatureImage = url; showAssetPicker = false; }}
 	onClose={() => (showAssetPicker = false)}
 />
 
@@ -743,6 +718,7 @@
 .field-hint { font-size: var(--text-xs); color: var(--color-muted); }
 /* feature image field */
 .fi-field { min-width: 280px; }
+.card-image-field { margin-top: var(--space-5); }
 .fi-input-row { display: flex; gap: 8px; }
 .fi-url-input { flex: 1; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: var(--text-base); background: var(--color-surface); color: var(--color-text); outline: none; min-width: 0; }
 .fi-url-input:focus { border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }

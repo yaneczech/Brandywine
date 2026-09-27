@@ -1,6 +1,7 @@
 import { db } from '$db';
 import { teamMembers, teamPermissions } from '$db/schema';
 import { eq, and, inArray, isNotNull } from 'drizzle-orm';
+import { hasRole } from '$lib/auth/roles';
 
 // Only the fields permission checks actually need — accepts both
 // SessionUser (locals.user) and full DB rows
@@ -9,28 +10,23 @@ export type Action = 'read' | 'download' | 'write' | 'upload' | 'share';
 export type ResourceType = 'section' | 'folder' | 'collection';
 
 // ── Global role helpers ───────────────────────────────────────────────────────
-// Role hierarchy: admin (3) > editor (2) > member (1)
-// admin  — full access incl. users & system settings
-// editor — brand content (colors, typography, assets, manual); no user/settings mgmt
-// member — read-only, asset downloads
-
-const ROLE_LEVEL: Record<string, number> = { admin: 3, editor: 2, member: 1 };
+// Roles and their order live in $lib/auth/roles (client-safe).
 
 /** User can edit brand content (editor or above). */
 export function canEdit(role: string): boolean {
-	return (ROLE_LEVEL[role] ?? 0) >= ROLE_LEVEL.editor;
+	return hasRole(role, 'editor');
 }
 
 /** User has full admin access. */
 export function isAdmin(role: string): boolean {
-	return role === 'admin';
+	return hasRole(role, 'admin');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Admin má vždy přístup ke všemu.
- * Member musí mít explicitní oprávnění přes tým.
+ * Whether the user may perform an action on a resource. Editors and admins
+ * may do everything; members need an explicit permission through a team.
  */
 export async function can(
 	user: User,
@@ -43,7 +39,7 @@ export async function can(
 	// from the editor and prevented their download.
 	if (canEdit(user.role)) return true;
 
-	// Najdi všechny týmy, ve kterých je user členem
+	// Teams the user has joined
 	const memberships = await db
 		.select({ teamId: teamMembers.teamId })
 		.from(teamMembers)
@@ -53,7 +49,7 @@ export async function can(
 
 	const teamIds = memberships.map((m) => m.teamId);
 
-	// Ověř, jestli má některý z týmů požadovanou akci na daný zdroj
+	// Does any of those teams grant the action on this resource?
 	const perms = await db
 		.select({ actions: teamPermissions.actions })
 		.from(teamPermissions)
@@ -69,15 +65,15 @@ export async function can(
 }
 
 /**
- * Vrátí všechna resource_id daného typu, ke kterým má user přístup.
- * Užitečné pro filtrování listů (které složky vidím?).
+ * All resource ids of a type the user may access — for filtering lists
+ * ("which folders can I see?"). `['*']` means everything.
  */
 export async function accessibleResources(
 	user: User,
 	resourceType: ResourceType,
 	action: Action = 'read'
 ): Promise<string[]> {
-	if (canEdit(user.role)) return ['*']; // wildcard = vše
+	if (canEdit(user.role)) return ['*'];
 
 	const memberships = await db
 		.select({ teamId: teamMembers.teamId })

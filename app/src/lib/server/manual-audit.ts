@@ -4,14 +4,13 @@ import * as m from '$lib/paraglide/messages';
  * sharing the manual: empty blocks, missing alt texts, broken files, empty
  * asset selections, unreadable hero colours and duplicate anchors.
  */
-import { colorsForSource } from '$lib/manual/color-source';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { env } from '$env/dynamic/private';
 import { db } from '$db';
 import { assets, brandSettings, colors, colorPalettes, manualBlocks, manualPages, typographyFonts } from '$db/schema';
 import { asc, eq } from 'drizzle-orm';
-import { resolveEmbed } from '$lib/manual/embed';
+import { getBlockDefinition } from '$lib/blocks';
 import { contrastRatio } from '$lib/utils/colors';
 
 export type AuditSeverity = 'error' | 'warning' | 'info';
@@ -105,6 +104,9 @@ export async function auditManual(): Promise<AuditIssue[]> {
 		if (!page.isLanding && !str(page.description)) {
 			add('info', 'page_no_description', m.audit_page_no_description(), page.id);
 		}
+		if (page.cardImage && !fileExists(page.cardImage)) {
+			add('error', 'page_card_image_missing', m.audit_page_card_image_missing(), page.id);
+		}
 		if (page.featureImage && !fileExists(page.featureImage)) {
 			add('error', 'page_image_missing', m.audit_page_image_missing(), page.id);
 		}
@@ -129,7 +131,7 @@ export async function auditManual(): Promise<AuditIssue[]> {
 		// ── Blocks ─────────────────────────────────────────────────────────
 		for (const block of pageBlocks) {
 			const c = (block.config ?? {}) as Record<string, unknown>;
-			const empty = (msg = m.audit_block_empty()) => add('error', 'block_empty', msg, page.id, block);
+			const empty = (msg: string = m.audit_block_empty()) => add('error', 'block_empty', msg, page.id, block);
 			const missingAlt = () => add('warning', 'missing_alt', m.audit_missing_alt(), page.id, block);
 			const broken = (what: string) => add('error', 'file_missing', m.audit_file_missing({ what }), page.id, block);
 
@@ -138,113 +140,12 @@ export async function auditManual(): Promise<AuditIssue[]> {
 				continue;
 			}
 
-			switch (block.type) {
-				case 'rich_text':
-					if (!richHasContent(c)) empty();
-					break;
-				case 'image':
-					if (!str(c.url)) empty();
-					else {
-						if (!fileExists(str(c.url))) broken(m.audit_what_image());
-						if (!str(c.alt)) missingAlt();
-					}
-					break;
-				case 'text_image':
-					if (!richHasContent(c) && !str(c.title) && !str(c.imageUrl)) empty();
-					if (str(c.imageUrl)) {
-						if (!fileExists(str(c.imageUrl))) broken(m.audit_what_image());
-						if (!str(c.alt)) missingAlt();
-					}
-					if (str(c.ctaLabel) && !str(c.ctaUrl)) add('warning', 'cta_no_url', m.audit_cta_no_url(), page.id, block);
-					break;
-				case 'hotspots':
-					if (!str(c.imageUrl)) empty();
-					else {
-						if (!fileExists(str(c.imageUrl))) broken(m.audit_what_image());
-						if (!str(c.alt)) missingAlt();
-						if (!arr(c.points).length) add('warning', 'hotspots_none', m.audit_hotspots_none(), page.id, block);
-					}
-					break;
-				case 'before_after':
-					if (!str(c.beforeUrl) || !str(c.afterUrl)) empty(m.audit_compare_missing());
-					else if (!fileExists(str(c.beforeUrl)) || !fileExists(str(c.afterUrl))) broken(m.audit_what_compare_image());
-					break;
-				case 'logo_spec':
-					if (!str(c.logoUrl)) empty();
-					else if (!fileExists(str(c.logoUrl))) broken(m.audit_what_logo());
-					break;
-				case 'logo_download': {
-					const variants = arr<{ url?: string; files?: { url?: string }[] }>(c.variants).filter((v) => str(v.url));
-					if (!variants.length) empty(m.audit_no_logo_variant());
-					for (const v of variants) {
-						if (!fileExists(str(v.url))) broken(m.audit_what_logo_file({ name: str(v.url).split('/').pop() ?? '' }));
-						for (const f of v.files ?? []) if (str(f.url) && !fileExists(str(f.url))) broken(m.audit_what_file({ name: str(f.url).split('/').pop() ?? '' }));
-					}
-					break;
-				}
-				case 'do_dont': case 'accordion': case 'stats': case 'links': case 'color_ratio':
-					if (!arr(c.items).length) empty();
-					if (block.type === 'links' && arr<{ url?: string }>(c.items).some((i) => !str(i.url))) {
-						add('warning', 'link_no_url', m.audit_link_no_url(), page.id, block);
-					}
-					if (block.type === 'do_dont') {
-						for (const item of arr<{ imageUrl?: string }>(c.items)) {
-							if (str(item.imageUrl) && !fileExists(str(item.imageUrl))) broken(m.audit_what_item_image());
-						}
-					}
-					break;
-				case 'process':
-					if (!arr(c.steps).length) empty();
-					break;
-				case 'cards':
-					if (!arr(c.cards).length) empty();
-					break;
-				case 'table':
-					if (!arr(c.headers).length && !arr(c.rows).length) empty();
-					break;
-				case 'font_usage':
-					if (!arr(c.rows).length) empty();
-					if (!fontRows.length) add('warning', 'no_fonts', m.audit_no_fonts(), page.id, block);
-					break;
-				case 'quote':
-					if (!str(c.quote)) empty();
-					break;
-				case 'callout':
-					if (!str(c.title) && !str(c.text)) empty();
-					break;
-				case 'code':
-					if (!str(c.code)) empty();
-					break;
-				case 'html':
-					if (!str(c.html)) empty();
-					break;
-				case 'naming':
-					if (!str(c.markdown)) empty();
-					break;
-				case 'chart':
-					if (!str(c.data)) empty();
-					break;
-				case 'embed':
-					if (!str(c.url)) empty();
-					else if (resolveEmbed(c.url).kind === 'none') add('warning', 'embed_unsupported', m.audit_embed_unsupported(), page.id, block);
-					break;
-				case 'colors':
-					if (!colorsForSource(colorRows, palettes, c.source).length) add('warning', 'no_colors', m.audit_no_colors(), page.id, block);
-					break;
-				case 'typo_rules':
-					if (!arr<{ rules?: unknown }>(c.languages).some(lang => arr(lang.rules).length)) empty(m.audit_no_typo_rules());
-					break;
-				case 'typography': case 'text_styles':
-					if (!fontRows.length) add('warning', 'no_fonts', m.audit_no_fonts(), page.id, block);
-					break;
-				case 'image_gallery': case 'carousel': case 'icons':
-					if (!str(c.folderId)) empty(m.audit_no_folder());
-					else if (!assetsFor(c, true).length) add('warning', 'no_assets', m.audit_folder_no_images(), page.id, block);
-					break;
-				case 'asset_gallery': case 'download':
-					if (!assetsFor(c, false).length) add('warning', 'no_assets', m.audit_selection_no_files(), page.id, block);
-					break;
-			}
+			getBlockDefinition(block.type)?.audit?.(c, {
+				empty, missingAlt, broken,
+				warn: (code, message) => add('warning', code, message, page.id, block),
+				fileExists, str, arr, richHasContent,
+				colorRows, palettes, fontRows, assetsFor,
+			});
 		}
 	}
 

@@ -6,6 +6,7 @@ import { users } from '$db/schema';
 import { eq, count } from 'drizzle-orm';
 import { verifyPassword, createSession } from '$server/auth';
 import { safeReturnPath } from '$server/manual-access';
+import { emit } from '$server/events';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user) redirect(302, '/admin');
@@ -31,6 +32,7 @@ export const actions: Actions = {
 		}
 
 		const sessionId = await createSession(user.id);
+		emit('user.signedIn', { user: { id: user.id, email: user.email, role: user.role }, method: 'password' });
 		cookies.set('session', sessionId, {
 			path: '/',
 			httpOnly: true,

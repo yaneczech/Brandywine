@@ -4,7 +4,7 @@
 	import ManualHero from '$lib/components/manual/ManualHero.svelte';
 	import PageCards from '$lib/components/manual/PageCards.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import type { ManualLanguage } from '$lib/manual/ui-strings';
+	import { toManualLanguage } from '$lib/manual/ui-strings';
 	import { pageNumbers } from '$lib/manual/numbering';
 
 	const { data }: { data: PageData } = $props();
@@ -19,6 +19,7 @@
 		enabled: boolean;
 		isLanding: boolean;
 		featureImage: string | null;
+		cardImage: string | null;
 		bgColor: string | null;
 		textColor: string | null;
 	};
@@ -26,7 +27,7 @@
 	const brand = $derived(data.settings);
 	const chapterNumbers = $derived(brand?.manualNumbering ? pageNumbers(data.pages ?? [], data.sectionCounts ?? {}) : new Map<string, string>());
 	const brandName = $derived(brand?.name ?? 'Brand Manual');
-	const manualLanguage = $derived((brand?.defaultLanguage === 'cs' ? 'cs' : 'en') as ManualLanguage);
+	const manualLanguage = $derived(toManualLanguage(brand?.defaultLanguage));
 	const pages = $derived((data.pages ?? []) as ManualPage[]);
 	const topLevelPages = $derived(
 		pages

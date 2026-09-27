@@ -5,6 +5,9 @@ COPY package*.json ./
 COPY svelte.config.js ./
 RUN npm ci
 COPY . .
+# Plugins from the installation's plugins/ folder (compose additional context);
+# the app resolves them as ../plugins
+COPY --from=plugins . /plugins
 RUN npm run build
 RUN npm prune --omit=dev --ignore-scripts
 

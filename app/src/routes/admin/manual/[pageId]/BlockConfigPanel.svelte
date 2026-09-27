@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
-	import RichContentEditor from './RichContentEditor.svelte';
+	import RichContentEditor from '$lib/components/admin/RichContentEditor.svelte';
 
 	const { block, cfg, anchor, onUpdate, onAnchorChange }: {
 		block: { id: string; type: string };

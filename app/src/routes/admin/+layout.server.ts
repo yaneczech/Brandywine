@@ -1,3 +1,5 @@
+import { hasRole } from '$lib/auth/roles';
+import { moduleForPath } from '$lib/modules';
 import type { LayoutServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/db';
@@ -41,8 +43,13 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		redirect(302, `/admin/login?redirect=${encodeURIComponent(url.pathname)}`);
 	}
 	// Members have no access to admin; editors and admins are allowed
-	if (locals.user.role === 'member') {
+	if (!hasRole(locals.user.role, 'editor')) {
 		redirect(302, '/');
+	}
+	// Each admin module declares the lowest role that may open it
+	const mod = moduleForPath(url.pathname);
+	if (mod && !hasRole(locals.user.role, mod.minRole ?? 'editor')) {
+		redirect(302, '/admin');
 	}
 	return { user: locals.user, brand: brandData };
 };

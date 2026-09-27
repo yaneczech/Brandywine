@@ -11,7 +11,15 @@ const config = {
 		adapter: adapter({ out: 'build' }),
 		alias: {
 			$db: 'src/lib/db',
-			$server: 'src/lib/server'
+			$server: 'src/lib/server',
+			// Installed plugins live next to app/, in the installation's plugins/ folder
+			$plugins: '../plugins'
+		},
+		typescript: {
+			// Type-check plugins together with the app
+			config: (config) => {
+				config.include.push('../../plugins/**/*.ts', '../../plugins/**/*.svelte');
+			}
 		}
 	}
 };

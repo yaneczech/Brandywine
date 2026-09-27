@@ -16,6 +16,7 @@ services:
       disable: true
     volumes:
       - ./app/src:/app/src
+      - ./plugins:/plugins
       - uploads:/uploads
 
   worker:

@@ -1,140 +1,144 @@
-# Brandywine — designový kodex
+# Brandywine — design codex
 
-Závazná pravidla pro admin i veřejný manuál. Každé pravidlo je formulované
-tak, aby šlo ověřit — ručně nebo auditem (`app/scripts/design-audit.mjs`).
-Když je potřeba pravidlo porušit, porušení se zdůvodní v komentáři u kódu.
+Binding rules for the admin and the public manual. Every rule is written so
+it can be checked, by hand or by the audit (`app/scripts/design-audit/`).
+When a rule has to be broken, a comment next to the code says why.
 
-## Charakter
+## Character
 
-Brandywine je rám pro cizí značku. Úspěch se měří tím, jak dobře vynikne
-prezentovaná značka — ne platforma.
+Brandywine is a frame for someone else's brand. It succeeds when the brand it
+presents stands out, not the platform.
 
-1. **Tisk, ne aplikace.** Obsah leží na papíře. Strukturu nese typografie,
-   mřížka a vlasové linky, ne krabice, stíny a barevné plochy.
-2. **Jeden signál na jeden význam.** Každá informace je vyjádřena právě
-   jednou: buď ikonou, nebo textem; buď linkou, nebo mezerou; buď barvou,
-   nebo popiskem. Nikdy dvakrát.
-3. **Vzdálenost je význam.** Co k sobě patří, je blíž; co ne, je dál. Mezera
-   se nevybírá od oka, ale podle vztahu mezi prvky (viz Rytmus).
-4. **Barva patří značce.** Plochy jsou neutrální. Barva značky je akcent jen
-   pro akci, aktivní stav, fokus a data. Barvy stavů jsou signál, ne výplň.
-5. **Klid je funkce.** Nic se nehýbe, nebliká ani nevystupuje bez důvodu.
-   Pohyb jen potvrzuje akci uživatele.
+1. **Print, not app.** Content sits on paper. Typography, the grid and
+   hairlines carry the structure, not boxes, shadows or colour fills.
+2. **One signal per meaning.** Each piece of information is expressed exactly
+   once: an icon or text; a rule or a space; a colour or a label. Never both.
+3. **Distance is meaning.** What belongs together sits closer; what does not
+   sits further apart. Spacing follows the relationship between elements (see
+   Rhythm), not the eye.
+4. **Colour belongs to the brand.** Surfaces are neutral. The brand colour is
+   an accent for actions, the active state, focus and data only. State colours
+   are signals, not fills.
+5. **Calm is a feature.** Nothing moves, blinks or pops without a reason.
+   Motion only confirms what the user did.
 
-Zdroje: Gestalt princip blízkosti; spacing systémy Atlassian a damato.design
-(„near / away“, hustota klesá se zanořením); Butterick, *Practical Typography*;
-Nielsen, *10 Usability Heuristics*; WCAG 2.2 AA; online brand booky
-B&O, IBM, Dropbox, DevRev, Firefox (Frontify, 2026).
+Sources: Gestalt law of proximity; the Atlassian and damato.design spacing
+systems ("near / away", density decreasing with nesting); Butterick,
+*Practical Typography*; Nielsen, *10 Usability Heuristics*; WCAG 2.2 AA; online
+brand books of B&O, IBM, Dropbox, DevRev and Firefox (Frontify, 2026).
 
-## Rytmus a mezery
+## Rhythm and spacing
 
-Mezery tvoří pět vztahových úrovní. Jiná hodnota mezi prvky obsahu je chyba.
+Spacing has five relationship tiers. Any other value between content elements
+is a bug.
 
-| Úroveň | Vztah | Manuál | Admin |
+| Tier | Relationship | Manual | Admin |
 |---|---|---|---|
-| **inline** | ikona ↔ text, hodnota ↔ jednotka | 4–8 px | `--space-1`–`--space-2` |
-| **near** | popisek ↔ pole, nadpis ↔ podtitul, položky seznamu | 8–16 px | `--space-2`–`--space-4` |
-| **group** | skupiny uvnitř bloku (pole formuláře, sloupce karet) | 20–32 px | `--space-5`–`--space-8` |
-| **flow** | blok bez nadpisu navazující na předchozí | `--manual-flow-gap` (28–40 px) | `--space-8` |
-| **section** | nová sekce s nadpisem | `--manual-section-gap` (64–104 px) + linka | `--space-12`–`--space-16` |
+| **inline** | icon ↔ text, value ↔ unit | 4–8 px | `--space-1`–`--space-2` |
+| **near** | label ↔ field, heading ↔ subtitle, list items | 8–16 px | `--space-2`–`--space-4` |
+| **group** | groups inside a block (form fields, card columns) | 20–32 px | `--space-5`–`--space-8` |
+| **flow** | an untitled block continuing the previous one | `--manual-flow-gap` (28–40 px) | `--space-8` |
+| **section** | a new section with a heading | `--manual-section-gap` (64–104 px) + rule | `--space-12`–`--space-16` |
 
-Pravidla:
+Rules:
 
-- **Poměr úrovní ≥ 1,5×.** Mezera kolem skupiny musí být aspoň 1,5× větší než
-  mezera uvnitř ní — jinak se vztah nečte.
-- **Linka nahrazuje mezeru, nepřidává se k ní.** Dvě vodorovné linky blíž než
-  `near` jsou duplicita (sloučit na jednu).
-- **Prázdný kontejner nemá rozměr.** Prvek bez obsahu nesmí držet padding,
-  min-height ani rámeček.
-- **Mřížka 4 px.** Všechny mezery a rozměry ovládacích prvků jsou násobky 4.
-  Výjimka: optické dorovnání pod 4 px (popisek ↔ hodnota, překryv linky
-  o −1 px) a mezery v jednotkách `em`, které sledují velikost písma.
+- **Tiers differ by ≥ 1.5×.** The space around a group is at least 1.5× the
+  space inside it, otherwise the relationship does not read.
+- **A rule replaces space, it is not added to it.** Two horizontal rules closer
+  than `near` are a duplicate (merge them).
+- **An empty container has no size.** An element without content keeps no
+  padding, min-height or border.
+- **4 px grid.** All spacing and control dimensions are multiples of 4.
+  Exceptions: optical alignment below 4 px (label ↔ value, a −1 px rule
+  overlap) and `em` spacing that follows the font size.
 
-## Typografie
+## Typography
 
-- **Text:** 16 px (`--text-lg`), řádkování 1,55–1,75, délka řádku max. 72 znaků
-  (`max-width: 72ch`), minimum 45 znaků na desktopu.
-- **Stupnice:** jen hodnoty `--text-*`. Sousední úrovně nadpisů se liší
-  aspoň 1,2×.
-- **Řezy:** 400 a 500; 600 jen pro krátké UI popisky v adminu; 300 jen pro
-  velká čísla (≥ 36 px).
-- **Popisky (labels):** verzálky 11 px (`--manual-label-size`), prostrkání 8 %
-  (`--manual-label-tracking`), barva muted. Verzálky nikdy na víc než jeden
-  řádek.
-- **Čísla v datech** (hodnoty barev, rozměry, tabulky, statistiky):
+- **Body text:** 16 px (`--text-lg`), line height 1.55–1.75, line length at most
+  72 characters (`max-width: 72ch`), at least 45 on desktop.
+- **Scale:** `--text-*` values only. Adjacent heading levels differ by at
+  least 1.2×.
+- **Weights:** 400 and 500; 600 only for short admin UI labels; 300 only for
+  large numbers (≥ 36 px).
+- **Labels:** 11 px capitals (`--manual-label-size`), 8 % tracking
+  (`--manual-label-tracking`), muted colour. Capitals never run over one line.
+- **Numbers in data** (colour values, dimensions, tables, statistics):
   `font-variant-numeric: tabular-nums`.
-- **Znaky:** české uvozovky „…“, pomlčka –, nezlomitelná mezera mezi číslem
-  a jednotkou, × pro rozměry. Žádné ASCII šipky `->`.
-- Tučné písmo jen pro zvýraznění v textu, nikdy spolu s kurzívou.
+- **Characters:** the quotation marks and dashes of the content language
+  (Czech „…“, English “…”), an en dash –, a non-breaking space between a
+  number and its unit, × for dimensions. No ASCII arrows `->`.
+- Bold only for emphasis in running text, never together with italics.
 
-## Barva
+## Colour
 
-- Plochy: `--manual-paper` / `--color-bg`, `--manual-stage` (jen pod
-  materiálem značky: obrázky, loga, vzorky, specimeny).
-- **Akcent značky** (`--manual-brand`, `--color-accent`): primární akce,
-  aktivní stav, fokus, datová linka. Nikdy výplň plochy ani barva textu nadpisu.
-- **Stavy** (info, úspěch, varování, chyba): jen 1px linka, ikona nebo popisek.
-  Nikdy podbarvená plocha.
-- **Barevně se značí jen porušení** (zákaz, špatný příklad, neprošlý kontrast).
-  Správný stav je inkoust.
+- Surfaces: `--manual-paper` / `--color-bg`, and `--manual-stage` only under
+  brand material (images, logos, swatches, specimens).
+- **Brand accent** (`--manual-brand`, `--color-accent`): primary action, active
+  state, focus, data line. Never a surface fill or a heading colour.
+- **States** (info, success, warning, error): a 1 px rule, an icon or a label
+  only. Never a tinted surface.
+- **Only violations are coloured** (a "don't", a bad example, a failed contrast
+  check). The correct state is ink.
 
-## Tvar a hloubka
+## Shape and depth
 
-- **Jedno zaoblení:** `--manual-radius` (nastavitelné v adminu) / `--radius`.
-  Žádné pilulky (`--radius-full` jen pro kruhové prvky: avatar, tečka).
-- **Linky 1 px.** Silnější linka jen jako `--manual-border-strong` pod hlavičkou
-  tabulky nebo nad citací.
-- **Hloubka:** stín jen u plovoucích vrstev (menu, dialog, tooltip, toast).
-  Rámeček + pozadí + stín na jednom prvku je vždy chyba.
+- **One corner radius:** `--manual-radius` (set in the admin) / `--radius`.
+  No pills (`--radius-full` only for round elements: avatar, dot).
+- **1 px rules.** A heavier rule only as `--manual-border-strong` under a table
+  header or above a quotation.
+- **Depth:** shadows only on floating layers (menu, dialog, tooltip, toast).
+  Border + background + shadow on one element is always wrong.
 
-## Komponenty — jedna na potřebu
+## Components — one per need
 
-| Potřeba | Jediné řešení |
+| Need | The only solution |
 |---|---|
-| přepínání pohledů | podtržené textové záložky |
-| primární akce | plné tlačítko v inkoustu (admin: akcent značky) |
-| sekundární akce | tlačítko s vlasovou linkou |
-| seznam položek, souborů, odkazů | řádky oddělené linkami |
-| upozornění | 1px linka vlevo v barvě stavu + ikona |
-| ukázka materiálu značky | stage (`--manual-stage`) se zaoblením |
-| specifikace (rozměry, parametry) | popisek nad hodnotou, v řádku, nad linkou |
-| data v řádcích | tabulka bez rámečku, silnější linka pod hlavičkou |
+| switching views | underlined text tabs |
+| primary action | solid button in ink (admin: brand accent) |
+| secondary action | hairline button |
+| list of items, files, links | rows separated by rules |
+| notice | 1 px left rule in the state colour + icon |
+| showing brand material | stage (`--manual-stage`) with the corner radius |
+| specification (dimensions, parameters) | label above value, in a row, above a rule |
+| row data | borderless table, heavier rule under the header |
 
-## Ikony
+## Icons
 
-- Sada: **Google Material Symbols, Outlined, váha 400** (ladí s řezem textu 500), výhradně přes
-  `$lib/icons` (mapování v `app/scripts/icon-map.json`).
-- Velikosti 16 / 20 / 24 px. Ikona v textu = velikost písma × 1,15.
-- Ikona doprovází text jen tehdy, když přidává význam (typ souboru, směr,
-  stav). Nikdy ikona + stejná informace textem (šipka + „→“).
-- Ikona bez textu musí mít `aria-label` nebo `title`.
+- Set: **Google Material Symbols, Outlined, weight 400** (matches the 500 text
+  weight), only through `$lib/icons` (mapping in `app/scripts/icon-map.json`).
+- Sizes 16 / 20 / 24 px. An icon inside text = font size × 1.15.
+- An icon accompanies text only when it adds meaning (file type, direction,
+  state). Never an icon plus the same information as text (arrow + "→").
+- An icon without text needs an `aria-label` or `title`.
 
-## Přístupnost (WCAG 2.2 AA)
+## Accessibility (WCAG 2.2 AA)
 
-- Kontrast textu ≥ 4,5 : 1 (velký text ≥ 3 : 1), prvky UI a ikony ≥ 3 : 1.
-- Cíl kliknutí ≥ 24 × 24 px.
-- Viditelný fokus (2px outline v akcentu), nikdy zakrytý lepkavou lištou.
-- Stav nesmí být sdělen jen barvou — vždy i ikonou nebo slovem.
+- Text contrast ≥ 4.5 : 1 (large text ≥ 3 : 1), UI elements and icons ≥ 3 : 1.
+- Click targets ≥ 24 × 24 px.
+- Visible focus (2 px outline in the accent), never hidden by a sticky bar.
+- State is never conveyed by colour alone — always also by an icon or a word.
 
-## Pohyb
+## Motion
 
-- Trvání 120 / 180 / 280 ms (`--dur-*`), křivka `--ease`.
-- Hover mění barvu nebo linku, ne polohu (žádné „vyskočení“ karet).
-- Žádná nekonečná animace (pulzy, blikání).
+- Durations 120 / 180 / 280 ms (`--dur-*`), easing `--ease`.
+- Hover changes colour or a rule, not position (no cards jumping up).
+- No infinite animation (pulses, blinking).
 
 ## Audit
 
-Kodex se ověřuje měřením vykreslených stránek, ne čtením kódu:
+The codex is checked by measuring rendered pages, not by reading code:
 
-- **Veřejný manuál:** `node scripts/design-audit/run.mjs http://localhost:5173 design-audit.md`
-  (v `app/`; projde všechny stránky ve světlém a tmavém režimu a na šířce
-  1440 a 390 px a zapíše seskupené nálezy).
-- **Admin** vyžaduje přihlášení: obsah `scripts/design-audit/core.js` se spustí
-  v konzoli přihlášeného prohlížeče (vrací `{ findings }` pro aktuální stránku).
-- **Mezery mimo mřížku** srovná `python3 scripts/design-audit/snap-spacing.py <soubory>`
-  (zaokrouhlí gap/margin/padding na násobky 4 px; clamp/calc/var nechá být).
+- **Public manual:** `node scripts/design-audit/run.mjs http://localhost:5173 design-audit.md`
+  (run in `app/`; visits every page in light and dark mode at 1440 and 390 px
+  and writes grouped findings).
+- **Admin** needs a signed-in session: run the contents of
+  `scripts/design-audit/core.js` in the console of a signed-in browser (returns
+  `{ findings }` for the current page).
+- **Off-grid spacing** is fixed by `python3 scripts/design-audit/snap-spacing.py <files>`
+  (rounds gap/margin/padding to multiples of 4 px; leaves clamp/calc/var alone).
 
-Pravidla auditu: `gap-off-grid`, `double-rule`, `empty-box`, `triple-chrome`,
+Audit rules: `gap-off-grid`, `double-rule`, `empty-box`, `triple-chrome`,
 `contrast`, `target-size`, `measure`, `leading`, `duplicate-signal`,
 `typography`, `pill`, `type-off-scale`, `heading-order`, `unnamed-control`.
-Materiál značky (inline styly bloků, specimeny, náhledy) je z UI pravidel vyjmut.
+Brand material (block inline styles, specimens, previews) is exempt from the
+UI rules.

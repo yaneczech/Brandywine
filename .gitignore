@@ -10,3 +10,8 @@ uploads/
 *.sqlite
 .caddy/
 backups/
+
+# Local tooling
+.claude/
+test-results/
+playwright-report/

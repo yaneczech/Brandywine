@@ -65,35 +65,30 @@ export function hexToAllFormats(hex: string) {
 
 export interface Shade { step: number; hex: string; label: string }
 
+/** Mix two hex colours (ratio 0 = `hex`, 1 = `target`) */
+export function mixHex(hex: string, target: string, ratio: number): string {
+	const a = hexToRgb(hex), b = hexToRgb(target);
+	const mix = (x: number, y: number) => Math.round(x + (y - x) * ratio);
+	return rgbToHex({ r: mix(a.r, b.r), g: mix(a.g, b.g), b: mix(a.b, b.b) });
+}
+
 /**
- * Generate a 9-step shade scale (50, 100…900) from a base hex color.
- * Uses HSL interpolation: keeps hue, adjusts lightness toward white (50) and black (900).
- * The base color is mapped to the step closest to its natural lightness.
+ * The shade scale of a brand colour, used everywhere shades appear (admin,
+ * colour picker, token export, public manual). Steps 100–400 mix the colour
+ * with white, 600–900 with black; 500 is the colour itself, so the brand
+ * value is always part of its own scale.
  */
 export function generateShades(hex: string): Shade[] {
-	const rgb = hexToRgb(hex);
-	const { h, s } = rgbToHsl(rgb);
-
-	// Lightness values for steps 50→900 (Tailwind-inspired)
-	const steps = [
-		{ step: 50,  l: 96 },
-		{ step: 100, l: 90 },
-		{ step: 200, l: 80 },
-		{ step: 300, l: 68 },
-		{ step: 400, l: 54 },
-		{ step: 500, l: 40 },
-		{ step: 600, l: 30 },
-		{ step: 700, l: 22 },
-		{ step: 800, l: 15 },
-		{ step: 900, l: 9  },
+	const steps: [number, string, number][] = [
+		[100, '#ffffff', 0.88], [200, '#ffffff', 0.72], [300, '#ffffff', 0.54], [400, '#ffffff', 0.32],
+		[500, '#ffffff', 0],
+		[600, '#000000', 0.18], [700, '#000000', 0.36], [800, '#000000', 0.54], [900, '#000000', 0.70],
 	];
-
-	return steps.map(({ step, l }) => {
-		// Slightly desaturate at extremes for a more realistic look
-		const sAdj = step <= 100 ? Math.round(s * 0.5) : step >= 800 ? Math.round(s * 0.6) : s;
-		const shadeRgb = hslToRgb({ h, s: sAdj, l });
-		return { step, hex: rgbToHex(shadeRgb), label: String(step) };
-	});
+	return steps.map(([step, target, ratio]) => ({
+		step,
+		label: String(step),
+		hex: ratio === 0 ? hex : mixHex(hex, target, ratio),
+	}));
 }
 
 // ── WCAG Contrast ────────────────────────────────────────────────────────────

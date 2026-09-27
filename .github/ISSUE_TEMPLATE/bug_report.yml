@@ -1,0 +1,33 @@
+name: Bug report
+description: Something does not work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to Admin → Colours
+        2. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Public manual, Admin, Assets / worker, Install / update, Other]
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, logs, browser

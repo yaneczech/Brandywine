@@ -59,7 +59,7 @@
 			</div>
 			<div class="brand-copy">
 				<h1 class="brand-name">{systemName}</h1>
-				<p class="brand-tagline">{@html m.auth_tagline()}</p>
+				<p class="brand-tagline">{#each m.auth_tagline().split(/<br\s*\/?>/) as line, i (i)}{#if i}<br />{/if}{line}{/each}</p>
 			</div>
 			<div class="brand-meta">
 				<span>Open-source</span><span>Apache 2.0</span>

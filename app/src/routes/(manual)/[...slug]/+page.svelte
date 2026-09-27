@@ -4,7 +4,7 @@
 	import ManualHero from '$lib/components/manual/ManualHero.svelte';
 	import PageCards from '$lib/components/manual/PageCards.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { useManualStrings, type ManualLanguage } from '$lib/manual/ui-strings';
+	import { useManualStrings, toManualLanguage } from '$lib/manual/ui-strings';
 	import { pageNumbers, sectionNumbers } from '$lib/manual/numbering';
 	import { IconArrowLeft, IconArrowRight, IconChevronDown, IconChevronRight } from '$lib/icons';
 
@@ -19,7 +19,7 @@
 		sortOrder: number; isLanding: boolean;
 	};
 
-	const manualLanguage = $derived((data.settings?.defaultLanguage === 'cs' ? 'cs' : 'en') as ManualLanguage);
+	const manualLanguage = $derived(toManualLanguage(data.settings?.defaultLanguage));
 	// Chapter numbering (brand setting): page number from the tree, sections continue it
 	const chapterNumbers = $derived(data.settings?.manualNumbering ? pageNumbers(data.pages ?? [], data.sectionCounts ?? {}) : new Map<string, string>());
 	const pageNumber = $derived(chapterNumbers.get(data.page.id));

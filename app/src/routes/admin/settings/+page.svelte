@@ -3,8 +3,9 @@
 	import type { PageData } from './$types';
 	import { getLocale, setLocale } from '$lib/paraglide/runtime';
 	import * as m from '$lib/paraglide/messages';
+	import WebhooksSection from './WebhooksSection.svelte';
 	import {
-		IconCheck, IconAlertTriangle, IconScale, IconLock, IconInfoCircle, IconRefresh
+		IconAlertTriangle, IconScale, IconLock, IconInfoCircle, IconRefresh
 	} from '$lib/icons';
 	import type { UnitDigital, UnitPrint, UnitType } from '$lib/db/schema/brand';
 
@@ -150,6 +151,7 @@
 		<a href="#display" class="anav-item">{m.settings_display()}</a>
 		<a href="#locale"  class="anav-item">{m.settings_locale()}</a>
 		<a href="#units"   class="anav-item">{m.settings_units_section()}</a>
+		<a href="#webhooks" class="anav-item">{m.webhooks_title()}</a>
 		<a href="#license" class="anav-item">{m.settings_license()}</a>
 	</nav>
 
@@ -394,6 +396,17 @@
 						</select>
 					</div>
 				</div>
+			</div>
+		</section>
+
+		<!-- ── Webhooks ───────────────────────────────────────────────────────── -->
+		<section id="webhooks" class="section">
+			<div class="section-meta">
+				<h2>{m.webhooks_title()}</h2>
+				<p>{m.webhooks_sub()}</p>
+			</div>
+			<div class="section-fields">
+				<WebhooksSection />
 			</div>
 		</section>
 

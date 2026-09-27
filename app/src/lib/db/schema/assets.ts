@@ -9,8 +9,8 @@ export const folders = pgTable('folders', {
 	name: text('name').notNull(),
 	path: text('path').notNull(),
 	description: text('description'),
-	color: text('color'),   // hex barva pro vizuální rozlišení složky
-	icon: text('icon'),     // emoji nebo název Tabler ikony
+	color: text('color'),   // hex colour that tells folders apart
+	icon: text('icon'),     // emoji or icon name
 	sortOrder: integer('sort_order').notNull().default(0),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 }, (t) => [
@@ -21,7 +21,7 @@ export const assets = pgTable('assets', {
 	id: text('id').primaryKey().$defaultFn(createId),
 	filename: text('filename').notNull(),
 	mime: text('mime').notNull(),
-	// bigint — integer maxuje na ~2 GB, video soubory ho překročí
+	// bigint — integer tops out at ~2 GB, video files exceed it
 	size: bigint('size', { mode: 'number' }).notNull(),
 	storagePath: text('storage_path').notNull(),
 	thumbnailPath: text('thumbnail_path'),
