@@ -138,7 +138,7 @@
 	--focus-ring: 0 0 0 3px color-mix(in srgb, var(--brand) 16%, transparent);
 }
 
-/* One icon set: Google Material Symbols, Outlined, weight 300 ($lib/icons). */
+/* One icon set: Google Material Symbols, Outlined, weight 400 ($lib/icons). */
 svg.icon { flex-shrink: 0; }
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */

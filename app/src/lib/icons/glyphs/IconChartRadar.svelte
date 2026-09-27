@@ -1,6 +1,6 @@
 <script lang="ts">
 	import MaterialIcon from '../MaterialIcon.svelte';
-	import svg from '@material-symbols/svg-300/outlined/radar.svg?raw';
+	import svg from '@material-symbols/svg-400/outlined/radar.svg?raw';
 	let props = $props();
 </script>
 

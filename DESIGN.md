@@ -102,7 +102,7 @@ Pravidla:
 
 ## Ikony
 
-- Sada: **Google Material Symbols, Outlined, váha 300**, výhradně přes
+- Sada: **Google Material Symbols, Outlined, váha 400** (ladí s řezem textu 500), výhradně přes
   `$lib/icons` (mapování v `app/scripts/icon-map.json`).
 - Velikosti 16 / 20 / 24 px. Ikona v textu = velikost písma × 1,15.
 - Ikona doprovází text jen tehdy, když přidává význam (typ souboru, směr,
