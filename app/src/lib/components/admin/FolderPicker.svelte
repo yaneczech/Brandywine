@@ -133,7 +133,7 @@
 	.folder-list {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
+		gap: 2px;
 		max-height: 320px;
 		overflow-y: auto;
 		padding: 0 8px 4px;

@@ -361,7 +361,7 @@
 .indent { flex-shrink: 0; }
 .spacer { flex: 1; }
 .muted { color: var(--color-muted); }
-.rename-input { flex: 1; border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 4px 8px; font-size: var(--text-base); outline: none; background: var(--color-surface); color: var(--color-text); }
+.rename-input { flex: 1; border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: .2rem 8px; font-size: var(--text-base); outline: none; background: var(--color-surface); color: var(--color-text); }
 
 /* Buttons */
 .audit-link { text-decoration: none; gap: 8px; }

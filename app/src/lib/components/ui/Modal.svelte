@@ -117,7 +117,7 @@
 		padding: var(--space-5) var(--space-5) 0 var(--space-6);
 		flex-shrink: 0;
 	}
-	.ui-modal-titles { flex: 1; min-width: 0; padding-top: 4px; }
+	.ui-modal-titles { flex: 1; min-width: 0; padding-top: 2px; }
 	.ui-modal-head h2 {
 		font-size: var(--text-lg);
 		font-weight: 500;

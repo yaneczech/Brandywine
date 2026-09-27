@@ -75,7 +75,6 @@
 			<div class="score-text"><strong>{Math.round(score)}</strong><span>/ 100</span></div>
 		</div>
 		<Tabs
-			variant="segmented"
 			label={m.audit_filter_label()}
 			bind:value={filter}
 			items={[
@@ -148,7 +147,7 @@ h1 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: var(--track
 .score circle { fill: none; stroke-width: 3.2; }
 .score .track { stroke: var(--color-border); }
 .score .bar { stroke: var(--c); stroke-linecap: round; transition: stroke-dasharray .4s ease; }
-.score-text { position: absolute; inset: 0; display: flex; align-items: baseline; justify-content: center; padding-top: 24px; gap: 4px; }
+.score-text { position: absolute; inset: 0; display: flex; align-items: baseline; justify-content: center; padding-top: 24px; gap: 1px; }
 .score-text strong { font-size: var(--text-xl); font-weight: 600; }
 .score-text span { font-size: var(--text-2xs); color: var(--color-muted); }
 
@@ -164,7 +163,7 @@ h1 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: var(--track
 .issue.sev-error .sev-icon { color: var(--color-danger); }
 .issue.sev-warning .sev-icon { color: var(--color-warning); }
 .issue.sev-info .sev-icon { color: var(--color-info); }
-.issue-body { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.issue-body { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: .15rem; }
 .issue-msg { font-size: var(--text-base); line-height: 1.45; }
 .issue-where { color: var(--color-muted); font-size: var(--text-xs); }
 :global(.issue-arrow) { flex: 0 0 auto; color: var(--color-muted); }

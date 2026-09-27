@@ -368,7 +368,7 @@
 .role-admin::before { background: var(--color-accent); }
 .role-editor::before { background: var(--color-text-secondary); }
 .user-date { font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.user-actions { display: flex; justify-content: flex-end; gap: 4px; opacity: 0.55; transition: opacity var(--dur-fast) var(--ease); }
+.user-actions { display: flex; justify-content: flex-end; gap: 2px; opacity: 0.55; transition: opacity var(--dur-fast) var(--ease); }
 .user-row:hover .user-actions, .user-row:focus-within .user-actions { opacity: 1; }
 @media (pointer: coarse) { .user-actions { opacity: 1; } }
 .row-btn {
@@ -399,7 +399,7 @@
 }
 .magic-link-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text); }
 .magic-warning { display: flex; gap: 8px; align-items: flex-start; margin-top: var(--space-4); font-size: var(--text-xs); color: var(--color-warning); }
-.magic-warning :global(svg) { flex-shrink: 0; margin-top: 4px; }
+.magic-warning :global(svg) { flex-shrink: 0; margin-top: 1px; }
 
 @media (max-width: 760px) {
 	.toolbar { flex-direction: column; align-items: stretch; gap: var(--space-3); border-bottom: 0; }

@@ -240,7 +240,7 @@
 
 	.fs-info { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 16px 24px; margin: 0; padding: 4px 0 20px; }
 	.fs-info dt { color: var(--manual-muted); font-size: var(--manual-label-size); font-weight: 500; text-transform: uppercase; letter-spacing: var(--manual-label-tracking); }
-	.fs-info dd { margin: 4px 0 0; color: var(--manual-ink); font-size: var(--text-base); overflow-wrap: anywhere; }
+	.fs-info dd { margin: .15rem 0 0; color: var(--manual-ink); font-size: var(--text-base); overflow-wrap: anywhere; }
 	.fs-info code { font-family: var(--manual-mono, monospace); font-size: var(--text-sm); }
 
 	.fs-glyphs { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr); gap: 16px; padding: 4px 0 20px; font-family: var(--fs-family); }
@@ -250,7 +250,7 @@
 		background: var(--manual-stage); color: var(--manual-ink);
 		font-size: clamp(4rem, 10vw, 7.5rem); line-height: 1;
 	}
-	.fs-glyph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px; }
+	.fs-glyph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 2px; }
 	.fs-glyph-grid button {
 		aspect-ratio: 1; padding: 0; border: 0; border-radius: var(--radius); background: transparent; color: var(--manual-ink);
 		font-family: inherit; font-size: var(--text-xl); cursor: default;

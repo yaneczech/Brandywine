@@ -641,7 +641,7 @@
 								</div>
 							</div>
 							<div
-								class="theme-mini-preview"
+								class="theme-mini-preview" data-brand-material
 								style="--theme-bg:{manualTheme.light.bg}; --theme-surface:{manualTheme.light.surface}; --theme-text:{manualTheme.light.text}; --theme-muted:{manualTheme.light.muted}; --theme-accent:{manualTheme.accentLight}; --theme-radius:{manualTheme.radius}px;"
 							>
 								<div class="preview-line strong"></div>
@@ -714,7 +714,7 @@
 								</div>
 							</div>
 							<div
-								class="theme-mini-preview"
+								class="theme-mini-preview" data-brand-material
 								style="--theme-bg:{manualTheme.dark.bg}; --theme-surface:{manualTheme.dark.surface}; --theme-text:{manualTheme.dark.text}; --theme-muted:{manualTheme.dark.muted}; --theme-accent:{manualTheme.accentDark}; --theme-radius:{manualTheme.radius}px;"
 							>
 								<div class="preview-line strong"></div>
@@ -972,7 +972,7 @@
 	}
 	.mono { font-family: var(--font-mono); max-width: 140px; }
 	.color-input { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-	.color-input input[type="color"] { width: 44px; padding: 4px; }
+	.color-input input[type="color"] { width: 44px; padding: 3px; }
 	.swatch { width: 34px; height: 34px; border-radius: var(--radius); border: 1px solid var(--color-border); }
 	.theme-mode-grid { display: grid; gap: 12px; }
 	.theme-mode-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -1032,7 +1032,7 @@
 		align-items: flex-start;
 		justify-content: space-between;
 		gap: 16px;
-		padding-top: 4px;
+		padding-top: .15rem;
 	}
 	.theme-builder-head h3 {
 		margin: 0;
@@ -1041,7 +1041,7 @@
 		color: var(--color-text);
 	}
 	.theme-builder-head p {
-		margin: 4px 0 0;
+		margin: .22rem 0 0;
 		color: var(--color-muted);
 		font-size: var(--text-sm);
 		line-height: 1.45;
@@ -1072,7 +1072,7 @@
 		color: var(--color-text);
 	}
 	.theme-column-head p {
-		margin: 4px 0 0;
+		margin: .14rem 0 0;
 		color: var(--color-muted);
 		font-size: var(--text-xs);
 		line-height: 1.35;
@@ -1086,9 +1086,9 @@
 		flex: 0 0 auto;
 	}
 	.theme-column-icon.light {
-		background: var(--color-warning-subtle);
-		color: var(--color-warning);
-		border: 1px solid var(--color-warning-border);
+		background: var(--color-surface);
+		color: var(--color-text);
+		border: 1px solid var(--color-border);
 	}
 	.theme-column-icon.dark {
 		background: #18181b;
@@ -1130,7 +1130,7 @@
 	}
 	.preview-card button {
 		justify-self: start;
-		margin-top: 4px;
+		margin-top: .2rem;
 		height: 28px;
 		padding: 0 12px;
 		border: 0;
@@ -1158,15 +1158,15 @@
 		border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 7%, var(--color-bg)); color: var(--color-accent);
 	}
 	.switch-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius); }
-	.switch-row input { margin-top: 4px; }
+	.switch-row input { margin-top: .15rem; }
 	.switch-row strong, .switch-row small { display: block; }
-	.switch-row small { color: var(--color-muted); margin-top: 4px; }
+	.switch-row small { color: var(--color-muted); margin-top: .15rem; }
 	.access-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 	.access-grid button { min-height: 104px; padding: 12px; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; }
 	.access-grid strong { font-size: var(--text-base); color: inherit; }
 	.access-grid span { color: var(--color-muted); font-size: var(--text-xs); }
 	.access-note, .warning-note {
-		display: flex; flex-direction: column; gap: 4px; padding: 12px 12px;
+		display: flex; flex-direction: column; gap: .15rem; padding: 12px 12px;
 		border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-bg);
 	}
 	.access-note span { color: var(--color-muted); font-size: var(--text-base); }

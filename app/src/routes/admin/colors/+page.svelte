@@ -16,7 +16,7 @@
 	import { SvelteMap } from 'svelte/reactivity';
 	import {
 		IconPlus, IconDownload, IconChevronDown, IconPencil,
-		IconArrowUp, IconArrowDown, IconX, IconCheck,
+		IconArrowUp, IconArrowDown, IconX, IconCheck, IconTrash,
 		IconGripVertical
 	} from '$lib/icons';
 
@@ -521,7 +521,7 @@
 		<div class="palette-tabs">
 			<!-- View tabs -->
 			<div class="view-switch">
-				<Tabs variant="segmented" size="sm" label={m.colors_title()} bind:value={activeTab}
+				<Tabs size="sm" label={m.colors_title()} bind:value={activeTab}
 					items={[{ id: 'colors', label: m.colors_tab_colors() }, { id: 'gradients', label: m.colors_tab_gradients() }]} />
 			</div>
 			<div class="tab-separator"></div>
@@ -532,22 +532,15 @@
 				<span class="ptab-count">{activeTab === 'colors' ? colorRows.length : gradients.length}</span>
 			</button>
 			{#each palettes as p (p.id)}
-				<div class="ptab-group">
-					<button class="ptab" class:active={activePaletteId === p.id} onclick={() => (activePaletteId = p.id)}>
-						{p.name}
-						<span class="ptab-count">{
-							activeTab === 'colors'
-								? colorRows.filter(r => r.color.paletteId === p.id).length
-								: gradients.filter(g => g.paletteId === p.id).length
-						}</span>
-					</button>
-					<button class="ptab-action" onclick={() => openEditPalette(p.id, p.name)} title={m.colors_rename_group()}>
-						<IconPencil size={9} stroke={2} />
-					</button>
-					<button class="ptab-action ptab-del" onclick={() => deletePalette(p.id, p.name)} title={m.colors_delete_group()}>
-						<IconX size={9} stroke={2} />
-					</button>
-				</div>
+				<!-- Tabs only filter; group management lives in the group header -->
+				<button class="ptab" class:active={activePaletteId === p.id} onclick={() => (activePaletteId = p.id)}>
+					{p.name}
+					<span class="ptab-count">{
+						activeTab === 'colors'
+							? colorRows.filter(r => r.color.paletteId === p.id).length
+							: gradients.filter(g => g.paletteId === p.id).length
+					}</span>
+				</button>
 			{/each}
 		</div>
 	</div>
@@ -595,6 +588,14 @@
 										title={m.colors_rename_group()}
 									>
 										<IconPencil size={11} stroke={2} />
+									</button>
+									<button
+										class="palette-order-btn palette-delete-btn"
+										onclick={() => deletePalette(group.paletteId!, group.paletteName!)}
+										title={m.colors_delete_group()}
+										aria-label={m.colors_delete_group()}
+									>
+										<IconTrash size={11} stroke={2} />
 									</button>
 								</div>
 							{/if}
@@ -1193,16 +1194,7 @@
 .view-tab { font-weight: 400; }
 .ptab-count { font-size: var(--text-xs); color: var(--color-placeholder); font-variant-numeric: tabular-nums; }
 .ptab.active .ptab-count { color: var(--color-muted); }
-.ptab-group { display:flex; align-items:center; }
-.ptab-action {
-	display:flex; align-items:center; justify-content:center;
-	width:18px; height:18px; border:none; background:none; cursor:pointer;
-	color:var(--color-muted); border-radius: var(--radius-sm); opacity:0;
-	transition:opacity 0.1s, color 0.1s, background 0.1s;
-}
-.ptab-group:hover .ptab-action { opacity:1; }
-.ptab-action:hover { color:var(--color-text); background:var(--color-hover); }
-.ptab-del:hover { color:var(--color-danger) !important; }
+.palette-delete-btn:hover { color:var(--color-danger) !important; }
 
 /* ── Grid area ──────────────────────────────────────────────────────────── */
 .grid-area { flex:1; padding: 0 var(--space-12) var(--space-16); }
@@ -1336,10 +1328,8 @@
 	font-size: var(--text-2xs); font-weight: 500; letter-spacing: var(--tracking-eyebrow);
 	padding: 4px 4px; border-radius: var(--radius-xs); text-transform:uppercase; flex-shrink:0;
 }
-.badge-aaa { background:var(--color-success-subtle); color:var(--color-success); }
-.badge-aa { background:var(--color-info-subtle); color:var(--color-info); }
-.badge-aa-large { background:var(--color-warning-subtle); color:var(--color-warning); }
-.badge-fail { background:var(--color-danger-subtle); color:var(--color-danger); }
+.badge-aaa, .badge-aa, .badge-aa-large { color:var(--color-text); }
+.badge-fail { color:var(--color-danger); }
 
 /* ── Gradient grid ──────────────────────────────────────────────────────── */
 .gradient-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-5); }

@@ -231,7 +231,7 @@
 		text-transform: uppercase; letter-spacing: var(--tracking-eyebrow);
 		margin-top: 4px; display: block;
 	}
-	.bcp-swatches { display: flex; flex-direction: column; gap: 4px; }
+	.bcp-swatches { display: flex; flex-direction: column; gap: .2rem; }
 	.bcp-group { min-width: 0; }
 	.bcp-row { display: flex; flex-wrap: wrap; gap: 4px; }
 	.bcp-swatch {
@@ -249,7 +249,7 @@
 		position: fixed;
 		z-index: 9000;
 		display: flex;
-		gap: 4px;
+		gap: 3px;
 		overflow-x: auto;
 		max-width: calc(100vw - 16px);
 		background: var(--color-surface-raised, #fff);
@@ -286,7 +286,7 @@
 	.bcp-custom-toggle span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.bcp-custom-toggle.active { color: var(--color-text); }
 	.bcp-custom-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; min-width: 0; }
-	.bcp-custom-row input[type="color"] { width: 36px; height: 30px; padding: 4px; border: 1px solid var(--color-border); border-radius: var(--radius); cursor: pointer; }
+	.bcp-custom-row input[type="color"] { width: 36px; height: 30px; padding: 2px; border: 1px solid var(--color-border); border-radius: var(--radius); cursor: pointer; }
 	.bcp-custom-row .mono {
 		font-family: var(--font-mono); font-size: var(--text-sm); flex: 1; min-width: 0;
 		border: 1px solid var(--color-border); border-radius: var(--radius);
@@ -297,7 +297,7 @@
 	.bcp.compact .bcp-swatches {
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px;
 	}
-	.bcp.compact .bcp-row { gap: 4px; }
+	.bcp.compact .bcp-row { gap: .22rem; }
 	.bcp.compact .bcp-swatch { width: 24px; height: 24px; border-radius: var(--radius); }
 	.bcp.compact .bcp-palette-name { margin: 0 0 4px; font-size: var(--text-2xs); }
 </style>

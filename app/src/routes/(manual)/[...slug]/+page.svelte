@@ -276,7 +276,7 @@
 	.toc-link {
 		position: relative;
 		display: block;
-		margin-left: -4px;
+		margin-left: -1px;
 		padding: 8px 0 8px 16px;
 		border-left: 1px solid transparent;
 		color: var(--manual-muted);

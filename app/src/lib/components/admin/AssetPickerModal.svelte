@@ -120,7 +120,7 @@
 			{/if}
 		</label>
 		{#if mimeFilter === 'all'}
-			<Tabs variant="segmented" size="sm" label={m.picker_title()} items={typeTabs} bind:value={typeFilter} />
+			<Tabs size="sm" label={m.picker_title()} items={typeTabs} bind:value={typeFilter} />
 		{/if}
 	</div>
 

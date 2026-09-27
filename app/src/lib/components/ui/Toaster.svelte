@@ -55,11 +55,11 @@
 		line-height: var(--leading-snug);
 		pointer-events: auto;
 	}
-	.ui-toast-icon { display: flex; padding-top: 4px; flex-shrink: 0; }
+	.ui-toast-icon { display: flex; padding-top: 1px; flex-shrink: 0; }
 	.tone-success .ui-toast-icon { color: #7fd1a3; }
 	.tone-error .ui-toast-icon { color: #f2998f; }
 	.tone-info .ui-toast-icon { color: #a9c4ee; }
-	.ui-toast-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+	.ui-toast-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
 	.ui-toast-text small { color: rgba(244, 244, 242, 0.6); font-size: var(--text-xs); }
 	.ui-toast-close {
 		display: grid; place-items: center; flex-shrink: 0;

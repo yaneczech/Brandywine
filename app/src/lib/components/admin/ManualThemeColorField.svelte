@@ -95,7 +95,7 @@
 		line-height: 1.2;
 	}
 	.theme-color-field-head p {
-		margin: 4px 0 0;
+		margin: .18rem 0 0;
 		color: var(--color-muted);
 		font-size: var(--text-xs);
 		line-height: 1.35;

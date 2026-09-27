@@ -26,7 +26,7 @@
 	};
 	// Brand material is rendered with the brand's own styles on purpose (inline
 	// style from block config, specimens, previews) — exempt it from UI rules.
-	const BRAND_SEL = 'iframe,.ts-preview,.fs-hero,.fs-weights,.fs-glyphs,.fs-tester,.cc-preview,.swatch-tile,.color-swatch,.ratio-bar,.style-table td:first-child,.text-image-media,.hs-stage,.ld-stage,.logo-stage,.html-preview,.contrast-sample';
+	const BRAND_SEL = '[data-brand-material],iframe,.ts-preview,.fs-hero,.fs-weights,.fs-glyphs,.fs-tester,.cc-preview,.swatch-tile,.color-swatch,.ratio-bar,.style-table td:first-child,.text-image-media,.hs-stage,.ld-stage,.logo-stage,.html-preview,.contrast-sample';
 	// Real style declarations (not theme custom properties like --manual-brand)
 	const hasBrandStyle = (n) => /(^|;)\s*(font|color|background)[\w-]*\s*:/.test(n.getAttribute('style') || '');
 	const isBrandMaterial = (el) => {
@@ -65,7 +65,8 @@
 		for (let i = layers.length - 1; i >= 0; i--) bg = blend(layers[i], bg);
 		return bg;
 	}
-	const offGrid = (v) => v > 0.5 && Math.abs(v / GRID - Math.round(v / GRID)) * GRID > 1.01;
+	// Sub-4px gaps are optical adjustments (label ↔ value), allowed by DESIGN.md
+	const offGrid = (v) => v >= 3.5 && Math.abs(v / GRID - Math.round(v / GRID)) * GRID > 1.01;
 
 	const root = document.querySelector('main, #main, .page-main, .main') || document.body;
 	const all = [...root.querySelectorAll('*')].filter(visible);
@@ -214,6 +215,59 @@
 		if (!el.textContent.trim() && !el.getAttribute('aria-label') && !el.getAttribute('title') && !el.getAttribute('aria-labelledby'))
 			push('unnamed-control', el, 'ovládací prvek bez textu i aria-label');
 	}
+
+	// ── 13. State fills: state colours used as surfaces (DESIGN.md › Barva)
+	const hue = ({ r, g, b }) => {
+		r /= 255; g /= 255; b /= 255;
+		const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+		if (d < 0.0001) return { h: 0, s: 0 };
+		const l = (mx + mn) / 2, sat = d / (1 - Math.abs(2 * l - 1));
+		const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+		return { h: (h * 60 + 360) % 360, s: sat };
+	};
+	const tokenHues = (names) => names.map((n) => vars.getPropertyValue(n).trim()).filter(Boolean).map((v) => {
+		const probe = document.createElement('i'); probe.style.color = v; document.body.appendChild(probe);
+		const c = parseColor(getComputedStyle(probe).color); probe.remove(); return c && hue(c);
+	}).filter((x) => x && x.s > 0.2);
+	const shellVars = getComputedStyle(document.querySelector('.manual-shell') || document.documentElement);
+	const stateHues = tokenHues(['--color-success', '--color-warning', '--color-info', '--color-danger'])
+		.concat(['--manual-success', '--manual-warning', '--manual-info', '--manual-danger'].map((n) => shellVars.getPropertyValue(n).trim()).filter(Boolean).map((v) => {
+			const probe = document.createElement('i'); probe.style.color = v; document.body.appendChild(probe);
+			const c = parseColor(getComputedStyle(probe).color); probe.remove(); return c && hue(c);
+		}).filter(Boolean));
+	const brandHue = tokenHues(['--color-accent', '--manual-brand'])[0];
+	for (const el of all) {
+		if (isBrandMaterial(el) || el.closest('svg,[role=dialog],.toast,[role=status]')) continue;
+		const c = parseColor(getComputedStyle(el).backgroundColor);
+		if (!c || c.a < 0.04) continue;
+		const bg = effectiveBg(el); if (!bg) continue;
+		const hsl = hue(bg);
+		if (hsl.s < 0.18) continue;
+		const near = (a, b) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b)) < 14;
+		if (brandHue && near(hsl.h, brandHue.h)) continue; // brand accent is allowed for active state
+		if (stateHues.some((st) => near(hsl.h, st.h))) push('state-fill', el, `podbarvení v barvě stavu (odstín ${Math.round(hsl.h)}°)`);
+	}
+
+	// ── 14. Tab styles: one tab language per page (DESIGN.md › Komponenty)
+	const tabGroups = new Set();
+	for (const el of root.querySelectorAll('[role=tab],[class*="tab"]:is(button,a)')) {
+		if (!visible(el) || isBrandMaterial(el)) continue;
+		const group = el.closest('[role=tablist]') || el.parentElement;
+		if ([...group.children].filter((k) => k.matches('button,a')).length >= 2) tabGroups.add(group);
+	}
+	const signatures = new Map();
+	for (const g of tabGroups) {
+		const active = g.querySelector('[aria-selected=true],.active,[aria-current]') || g.querySelector('button,a');
+		if (!active) continue;
+		const a = getComputedStyle(active), gs = getComputedStyle(g);
+		const filled = (parseColor(a.backgroundColor)?.a ?? 0) > 0.1;
+		const underline = parseFloat(a.borderBottomWidth) > 0 && !filled;
+		const boxed = parseFloat(gs.borderTopWidth) > 0 || (parseColor(gs.backgroundColor)?.a ?? 0) > 0.1;
+		const sig = filled ? (boxed ? 'segmented' : 'filled') : underline ? 'underline' : 'text';
+		if (!signatures.has(sig)) signatures.set(sig, g);
+	}
+	if (signatures.size > 1)
+		for (const [sig, g] of signatures) push('tab-styles', g, `styl „${sig}“ (na stránce ${[...signatures.keys()].join(' + ')})`);
 
 	return { url: location.pathname, width: innerWidth, scheme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', findings };
 })();

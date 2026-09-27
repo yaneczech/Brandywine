@@ -47,6 +47,8 @@ Pravidla:
 - **Prázdný kontejner nemá rozměr.** Prvek bez obsahu nesmí držet padding,
   min-height ani rámeček.
 - **Mřížka 4 px.** Všechny mezery a rozměry ovládacích prvků jsou násobky 4.
+  Výjimka: optické dorovnání pod 4 px (popisek ↔ hodnota, překryv linky
+  o −1 px) a mezery v jednotkách `em`, které sledují velikost písma.
 
 ## Typografie
 

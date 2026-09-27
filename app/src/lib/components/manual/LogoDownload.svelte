@@ -249,7 +249,7 @@
 		border-bottom: 1px solid var(--manual-border); scrollbar-width: none;
 	}
 	.ld-variants button {
-		padding: 0 0 8px; margin-bottom: -4px; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--manual-muted);
+		padding: 0 0 8px; margin-bottom: -1px; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--manual-muted);
 		font-family: inherit; font-size: var(--text-sm); font-weight: 500; white-space: nowrap; cursor: pointer;
 		transition: color .15s ease, border-color .15s ease;
 	}
@@ -298,7 +298,7 @@
 	}
 	.ld-zip :global(svg) { flex: 0 0 auto; color: var(--manual-muted); transition: color .15s ease, transform .2s var(--manual-ease, ease); }
 	.ld-zip:hover :global(svg) { color: var(--manual-ink); transform: translateY(1px); }
-	.ld-zip span { display: flex; flex-direction: column; gap: 4px; }
+	.ld-zip span { display: flex; flex-direction: column; gap: .1rem; }
 	.ld-zip strong { font-size: var(--text-md); font-weight: 500; }
 	.ld-zip small { color: var(--manual-muted); font-size: var(--text-sm); }
 	.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

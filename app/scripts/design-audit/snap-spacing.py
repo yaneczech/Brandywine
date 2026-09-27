@@ -1,16 +1,17 @@
 # Snaps spacing declarations (gap, margin, padding) in <style> blocks to the
-# 4px grid (DESIGN.md › Rytmus). Values inside clamp()/calc()/var() and
-# non-length keywords are left alone. Usage: python3 snap-spacing.py FILE...
+# 4px grid (DESIGN.md › Rytmus). Values inside clamp()/calc()/var(), em units,
+# negative and sub-4px values (optical adjustments) are left alone. Usage: python3 snap-spacing.py FILE...
 import re, sys
 PROP = re.compile(r'(?P<prop>(?:row-|column-)?gap|margin(?:-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?)?|padding(?:-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?)?)\s*:\s*(?P<val>[^;{}]+);')
 LEN = re.compile(r'(?<![\w.-])(-?\d*\.?\d+)(rem|em|px)\b')
 def snap(m):
     num, unit = float(m.group(1)), m.group(2)
-    px = num * 16 if unit in ('rem', 'em') else num
-    if px == 0: return m.group(0)
-    sign = -1 if px < 0 else 1
-    out = max(4, round(abs(px) / 4) * 4) * sign
-    return f'{out}px'
+    # em follows the element's font size, negatives and sub-4px values are
+    # optical adjustments (hairline overlaps, badge insets) — leave them alone
+    if unit == 'em' or num <= 0: return m.group(0)
+    px = num * 16 if unit == 'rem' else num
+    if px < 4: return m.group(0)
+    return f'{round(px / 4) * 4}px'
 def fix_value(v):
     if re.search(r'clamp|calc|var|min\(|max\(', v): return v
     return LEN.sub(snap, v)

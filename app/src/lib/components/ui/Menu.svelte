@@ -68,7 +68,7 @@
 		z-index: 60;
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
+		gap: 1px;
 		padding: 4px;
 		border-radius: var(--radius-lg);
 		background: var(--color-surface);
