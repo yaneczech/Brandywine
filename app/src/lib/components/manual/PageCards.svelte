@@ -79,7 +79,7 @@
 	.page-cards {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
-		gap: 2.25rem 1.25rem;
+		gap: 36px 20px;
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -143,8 +143,8 @@
 		display: flex;
 		flex: 1;
 		flex-direction: column;
-		gap: 6px;
-		padding: 14px 32px 0 0;
+		gap: 8px;
+		padding: 16px 32px 0 0;
 	}
 	.card-title {
 		font-size: var(--text-lg);

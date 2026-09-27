@@ -340,37 +340,37 @@
 
 <style>
 .page { max-width: 860px; }
-.header-actions { display: flex; align-items: center; gap: .5rem; }
+.header-actions { display: flex; align-items: center; gap: 8px; }
 
 .tree-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xs); }
-.tree-row { display: flex; align-items: center; gap: 6px; padding: 0 var(--space-3); min-height: 44px; border-bottom: 1px solid var(--color-border); }
+.tree-row { display: flex; align-items: center; gap: 8px; padding: 0 var(--space-3); min-height: 44px; border-bottom: 1px solid var(--color-border); }
 .tree-row:last-child { border-bottom: none; }
 .tree-row:hover { background: var(--color-hover); }
 .tree-row.disabled { opacity: 0.5; }
 .root-row { background: var(--color-bg); font-weight: 500; }
 .subtree { border-top: 1px solid var(--color-border); }
-.expand-btn { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border: none; background: none; cursor: pointer; color: var(--color-muted); border-radius: var(--radius-sm); flex-shrink: 0; padding: 0; }
+.expand-btn { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: none; background: none; cursor: pointer; color: var(--color-muted); border-radius: var(--radius-sm); flex-shrink: 0; padding: 0; }
 .expand-btn:hover { background: var(--color-hover); color: var(--color-text); }
 .expand-placeholder { width: 20px; flex-shrink: 0; }
 .page-icon { display: flex; align-items: center; color: var(--color-muted); flex-shrink: 0; }
 .root-icon { color: var(--color-accent); }
 .page-title-text { font-size: var(--text-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
-.page-title-link { font-size: var(--text-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; color: var(--color-text); text-decoration: none; }
+.page-title-link { display: inline-flex; align-items: center; min-height: 24px; font-size: var(--text-base); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; color: var(--color-text); text-decoration: none; }
 .page-title-link:hover { text-decoration: underline; text-decoration-color: var(--color-border-strong); text-underline-offset: 3px; }
 .page-slug { font-size: var(--text-xs); color: var(--color-placeholder); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
 .indent { flex-shrink: 0; }
 .spacer { flex: 1; }
 .muted { color: var(--color-muted); }
-.rename-input { flex: 1; border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: .2rem .5rem; font-size: var(--text-base); outline: none; background: var(--color-surface); color: var(--color-text); }
+.rename-input { flex: 1; border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 4px 8px; font-size: var(--text-base); outline: none; background: var(--color-surface); color: var(--color-text); }
 
 /* Buttons */
 .audit-link { text-decoration: none; gap: 8px; }
-.audit-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--radius-xs); font-size: var(--text-2xs); font-weight: 500; font-variant-numeric: tabular-nums; }
+.audit-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--radius-xs); font-size: var(--text-2xs); font-weight: 500; font-variant-numeric: tabular-nums; }
 .audit-badge.error { background: var(--color-danger-subtle); color: var(--color-danger); }
 .audit-badge.warning { background: var(--color-warning-subtle); color: var(--color-warning); }
-.btn-ghost { display: flex; align-items: center; gap: .3rem; padding: .3rem .5rem; background: none; border: none; border-radius: var(--radius-sm); font-size: var(--text-sm); cursor: pointer; color: var(--color-muted); }
+.btn-ghost { display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: none; border: none; border-radius: var(--radius-sm); font-size: var(--text-sm); cursor: pointer; color: var(--color-muted); }
 .btn-ghost:hover { background: var(--color-hover); color: var(--color-text); }
-.btn-ghost.sm { padding: .2rem .4rem; }
+.btn-ghost.sm { min-width: 24px; min-height: 24px; padding: 4px 8px; }
 .btn-ghost.danger:hover { color: var(--color-danger); }
 a.btn-ghost { text-decoration: none; }
 

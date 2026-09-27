@@ -81,7 +81,7 @@
 						<!-- eslint-disable-next-line svelte/no-at-html-tags -- toRichItems() sanitizes this HTML. -->
 						<div class="intro-text">{@html item.html}</div>
 						{:else}
-							<div class="intro-callout" class:alert={item.type === 'alert'}>
+							<div class="intro-callout" class:is-alert={item.type === 'alert'}>
 								<div class="callout-icon" aria-hidden="true">
 									{#if item.type === 'alert'}
 										<IconCancel size={15} stroke={1.9} />
@@ -97,7 +97,7 @@
 				</div>
 			{/if}
 			{#if hasCallout}
-				<div class="block-callout" class:alert={calloutType === 'alert'}>
+				<div class="block-callout" class:is-alert={calloutType === 'alert'}>
 					<div class="callout-icon" aria-hidden="true">
 						{#if calloutType === 'alert'}
 							<IconCancel size={18} stroke={1.9} />
@@ -120,7 +120,7 @@
 		scroll-margin-top: calc(var(--manual-topbar, 60px) + 28px);
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 1.5rem;
+		gap: 24px;
 		align-items: start;
 	}
 	/* Wide containers: context in a sticky side column, content beside it */
@@ -137,7 +137,7 @@
 	.block-context {
 		display: flex;
 		flex-direction: column;
-		gap: .85rem;
+		gap: 12px;
 		min-width: 0;
 		max-width: 68ch;
 	}
@@ -145,7 +145,7 @@
 		position: relative;
 		display: flex;
 		align-items: center;
-		gap: .4rem;
+		gap: 8px;
 		margin: 0;
 		color: var(--manual-ink);
 		font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem);
@@ -175,7 +175,7 @@
 	.block-intro {
 		display: flex;
 		flex-direction: column;
-		gap: .7rem;
+		gap: 12px;
 	}
 	.intro-text {
 		max-width: 60ch;
@@ -184,10 +184,10 @@
 		line-height: 1.6;
 		text-wrap: pretty;
 	}
-	.intro-text :global(p)         { margin: 0 0 .6em; }
+	.intro-text :global(p)         { margin: 0 0 8px; }
 	.intro-text :global(p:last-child) { margin-bottom: 0; }
 	.intro-text :global(ul),
-	.intro-text :global(ol)        { margin: .3em 0 .3em 1.1em; padding: 0; }
+	.intro-text :global(ol)        { margin: 4px 0 4px 16px; padding: 0; }
 	.intro-text :global(strong)    { font-weight: 500; color: var(--manual-ink); }
 	.intro-text :global(a)         { color: var(--manual-ink); text-decoration-color: var(--manual-border-strong); text-underline-offset: 3px; }
 	.intro-text :global(a:hover)   { text-decoration-color: currentColor; }
@@ -198,16 +198,16 @@
 		--note: var(--manual-warning);
 		display: grid;
 		grid-template-columns: 16px minmax(0, 1fr);
-		gap: .65rem;
-		padding: .1rem 0 .1rem .9rem;
+		gap: 12px;
+		padding: 4px 0 4px 16px;
 		border-left: 1px solid var(--note);
 		color: var(--manual-ink);
 		font-size: var(--text-md);
 		line-height: 1.55;
 	}
 	.block-callout { white-space: pre-wrap; }
-	.intro-callout.alert,
-	.block-callout.alert { --note: var(--manual-danger); }
+	.intro-callout.is-alert,
+	.block-callout.is-alert { --note: var(--manual-danger); }
 	.callout-icon {
 		width: 16px;
 		height: 1.55em;

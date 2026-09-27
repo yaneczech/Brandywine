@@ -116,12 +116,12 @@
 		align-items: center;
 		justify-content: space-between;
 		height: 60px;
-		padding: 0 14px 0 20px;
+		padding: 0 16px 0 20px;
 		color: rgba(255,255,255,.8);
 		font-size: var(--text-sm);
 		font-variant-numeric: tabular-nums;
 	}
-	.lb-actions { display: flex; gap: 6px; margin-left: auto; }
+	.lb-actions { display: flex; gap: 8px; margin-left: auto; }
 	.lb-btn, .lb-nav {
 		display: grid;
 		place-items: center;
@@ -141,7 +141,7 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 14px;
+		gap: 16px;
 		max-width: 100%;
 		max-height: 100%;
 		margin: 0;

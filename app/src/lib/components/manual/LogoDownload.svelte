@@ -235,21 +235,21 @@
 {/if}
 
 <style>
-	.ld { display: flex; flex-direction: column; gap: 1rem; }
+	.ld { display: flex; flex-direction: column; gap: 16px; }
 	.ld-min {
-		display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem;
-		padding: .7rem 0; border-block: 1px solid var(--manual-border);
+		display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+		padding: 12px 0; border-block: 1px solid var(--manual-border);
 		color: var(--manual-muted); font-size: var(--text-sm);
 	}
-	.ld-min span { display: inline-flex; align-items: center; gap: .3rem; }
+	.ld-min span { display: inline-flex; align-items: center; gap: 4px; }
 	.ld-min strong { color: var(--manual-ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 	/* Variants as underlined text tabs — the product's single tab style */
 	.ld-variants {
-		display: inline-flex; align-self: flex-start; gap: 1.5rem; max-width: 100%; overflow-x: auto;
+		display: inline-flex; align-self: flex-start; gap: 24px; max-width: 100%; overflow-x: auto;
 		border-bottom: 1px solid var(--manual-border); scrollbar-width: none;
 	}
 	.ld-variants button {
-		padding: 0 0 .6rem; margin-bottom: -1px; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--manual-muted);
+		padding: 0 0 8px; margin-bottom: -4px; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--manual-muted);
 		font-family: inherit; font-size: var(--text-sm); font-weight: 500; white-space: nowrap; cursor: pointer;
 		transition: color .15s ease, border-color .15s ease;
 	}
@@ -272,19 +272,19 @@
 	.ld-logo { position: absolute; }
 	.ld-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
 	.ld-loading { display: block; max-width: 100%; max-height: 160px; margin: auto; }
-	.ld-controls { display: flex; flex-direction: column; gap: 1.1rem; padding: 1.25rem 0 0; }
-	.ld-sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: .75rem 1.5rem; }
-	.ld-sliders label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .35rem .75rem; font-size: var(--text-sm); color: var(--manual-muted); }
+	.ld-controls { display: flex; flex-direction: column; gap: 16px; padding: 20px 0 0; }
+	.ld-sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px 24px; }
+	.ld-sliders label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; font-size: var(--text-sm); color: var(--manual-muted); }
 	.ld-sliders label span { grid-column: 1 / -1; }
-	.ld-sliders input { width: 100%; accent-color: var(--manual-brand); }
+	.ld-sliders input { width: 100%; height: 24px; accent-color: var(--manual-brand); }
 	.ld-sliders output { min-width: 3.2em; color: var(--manual-ink); font-size: var(--text-sm); font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
-	.ld-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
-	.ld-png { display: inline-flex; align-items: center; gap: .5rem; margin-right: auto; }
-	.ld-width { display: inline-flex; align-items: center; gap: .4rem; height: 36px; padding: 0 .7rem; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: transparent; }
+	.ld-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+	.ld-png { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; }
+	.ld-width { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--manual-border); border-radius: var(--manual-radius); background: transparent; }
 	.ld-width input { width: 64px; border: 0; background: transparent; color: var(--manual-ink); font-family: inherit; font-size: var(--text-base); font-variant-numeric: tabular-nums; outline: none; }
 	.ld-unit { color: var(--manual-muted); font-size: var(--text-xs); white-space: nowrap; font-variant-numeric: tabular-nums; }
 	.ld-btn {
-		display: inline-flex; align-items: center; gap: .4rem; height: 36px; padding: 0 .85rem;
+		display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px;
 		border: 1px solid var(--manual-border); border-radius: var(--manual-radius);
 		background: transparent; color: var(--manual-ink); font-family: inherit; font-size: var(--text-sm); font-weight: 500;
 		text-decoration: none; cursor: pointer; transition: border-color .15s ease;
@@ -292,13 +292,13 @@
 	.ld-btn:hover:not(:disabled) { border-color: var(--manual-border-strong); }
 	.ld-btn:disabled { opacity: .45; cursor: default; }
 	.ld-zip {
-		display: flex; align-items: center; gap: .85rem; padding: .9rem 0;
+		display: flex; align-items: center; gap: 12px; padding: 16px 0;
 		border-block: 1px solid var(--manual-border);
 		color: var(--manual-ink); text-decoration: none;
 	}
 	.ld-zip :global(svg) { flex: 0 0 auto; color: var(--manual-muted); transition: color .15s ease, transform .2s var(--manual-ease, ease); }
 	.ld-zip:hover :global(svg) { color: var(--manual-ink); transform: translateY(1px); }
-	.ld-zip span { display: flex; flex-direction: column; gap: .1rem; }
+	.ld-zip span { display: flex; flex-direction: column; gap: 4px; }
 	.ld-zip strong { font-size: var(--text-md); font-weight: 500; }
 	.ld-zip small { color: var(--manual-muted); font-size: var(--text-sm); }
 	.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

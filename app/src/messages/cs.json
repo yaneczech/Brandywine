@@ -127,7 +127,7 @@
 	"manual_not_configured": "Brand manuál zatím není nakonfigurován.",
 	"manual_toc_label": "Na této stránce",
 	"manual_empty_blocks": "Stránka je připravena, ale obsah ještě nebyl přidán.",
-	"manual_admin_link": "Admin ->",
+	"manual_admin_link": "Admin",
 	"manual_made_with": "Vytvořeno pomocí",
 	"manual_open_section": "Otevřít",
 	"manual_color_system_placeholder": "Barevný systém - připojen z brand palety",
@@ -932,5 +932,6 @@
 	"be_remove_language_confirm": "Odebrat jazyk „{name}“ i s jeho pravidly?",
 	"be_title": "Nadpis",
 	"be_choose_image": "Vybrat obrázek",
-	"be_choose_image_hint": "Z knihovny assetů, nebo nahrajte nový"
+	"be_choose_image_hint": "Z knihovny assetů, nebo nahrajte nový",
+	"assets_select_item": "Vybrat"
 }

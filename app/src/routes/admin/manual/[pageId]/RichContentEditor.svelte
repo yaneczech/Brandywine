@@ -181,7 +181,7 @@
 
 	<div class="rich-items">
 		{#each items as item, index (item.id)}
-			<div class="rich-item" class:callout={item.type !== 'text'} class:alert={item.type === 'alert'} class:active={activeIndex === index}>
+			<div class="rich-item" class:callout={item.type !== 'text'} class:is-alert={item.type === 'alert'} class:active={activeIndex === index}>
 				{#if item.type !== 'text'}
 					<div class="callout-head">
 						{#if item.type === 'alert'}
@@ -218,7 +218,7 @@
 	.rich-editor {
 		display: flex;
 		flex-direction: column;
-		gap: .6rem;
+		gap: 8px;
 	}
 	.rich-toolbar {
 		position: sticky;
@@ -226,9 +226,9 @@
 		z-index: 2;
 		display: flex;
 		align-items: center;
-		gap: .3rem;
+		gap: 4px;
 		flex-wrap: wrap;
-		padding: .45rem;
+		padding: 8px;
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius);
 		background: color-mix(in srgb, var(--color-surface) 92%, transparent);
@@ -236,9 +236,9 @@
 	.rich-toolbar button {
 		display: inline-flex;
 		align-items: center;
-		gap: .3rem;
+		gap: 4px;
 		min-height: 30px;
-		padding: .3rem .5rem;
+		padding: 4px 8px;
 		border: 1px solid transparent;
 		border-radius: var(--radius);
 		background: transparent;
@@ -259,7 +259,7 @@
 	.rich-items {
 		display: flex;
 		flex-direction: column;
-		gap: .55rem;
+		gap: 8px;
 	}
 	.rich-item {
 		position: relative;
@@ -279,16 +279,16 @@
 		background: color-mix(in srgb, var(--color-accent) 4%, var(--color-surface));
 		border-color: color-mix(in srgb, var(--color-accent) 25%, var(--color-border));
 	}
-	.rich-item.callout.alert {
+	.rich-item.callout.is-alert {
 		background: var(--color-danger-subtle);
 		border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
 	}
 	.callout-head {
 		display: flex;
 		align-items: center;
-		gap: .4rem;
+		gap: 8px;
 		width: 100%;
-		padding: .55rem .7rem 0;
+		padding: 8px 12px 0;
 		color: var(--color-accent);
 		font-size: var(--text-2xs);
 		font-weight: 500;
@@ -296,12 +296,12 @@
 		letter-spacing: var(--tracking-eyebrow);
 		white-space: nowrap;
 	}
-	.rich-item.alert .callout-head {
+	.rich-item.is-alert .callout-head {
 		color: var(--color-danger);
 	}
 	.editable {
 		min-height: 96px;
-		padding: .7rem .8rem;
+		padding: 12px 12px;
 		outline: none;
 		color: var(--color-text);
 		font-size: var(--text-base);
@@ -314,7 +314,7 @@
 		min-height: 58px;
 	}
 	.editable :global(p) {
-		margin: 0 0 .65rem;
+		margin: 0 0 12px;
 	}
 	.editable :global(p:last-child),
 	.editable :global(ul:last-child),
@@ -323,7 +323,7 @@
 	}
 	.editable :global(ul),
 	.editable :global(ol) {
-		margin: .4rem 0 .4rem 1.2rem;
+		margin: 8px 0 8px 20px;
 		padding: 0;
 	}
 	.remove-item {

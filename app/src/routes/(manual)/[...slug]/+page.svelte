@@ -223,12 +223,12 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 4px 6px;
+		gap: 4px 8px;
 		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
-	.breadcrumbs li { display: inline-flex; align-items: center; gap: 6px; opacity: .92; }
+	.breadcrumbs li { display: inline-flex; align-items: center; gap: 8px; opacity: .92; }
 	.breadcrumbs a { color: inherit; text-decoration: none; }
 	.breadcrumbs a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
@@ -276,8 +276,8 @@
 	.toc-link {
 		position: relative;
 		display: block;
-		margin-left: -1px;
-		padding: 6px 0 6px 14px;
+		margin-left: -4px;
+		padding: 8px 0 8px 16px;
 		border-left: 1px solid transparent;
 		color: var(--manual-muted);
 		text-decoration: none;
@@ -286,7 +286,7 @@
 		transition: color .15s ease, border-color .15s ease;
 	}
 	.toc-link:hover { color: var(--manual-ink); }
-	.toc-link.active { color: var(--manual-brand); border-left-color: var(--manual-brand); font-weight: 600; }
+	.toc-link.active { color: var(--manual-ink); border-left-color: var(--manual-brand); font-weight: 500; }
 
 	.toc-mobile { display: none; }
 
@@ -299,7 +299,7 @@
 	.empty p { margin: 0; }
 
 	/* ── Sub-pages ───────────────────────────────────────────────────────── */
-	.subpages { margin-top: clamp(3.5rem, 6vw, 5.5rem); }
+	.subpages { margin-top: var(--manual-section-gap); }
 	.subpages-heading {
 		margin: 0 0 20px;
 		font-size: var(--text-lg);
@@ -313,15 +313,15 @@
 		grid-template-columns: 1fr 1fr;
 		gap: 12px;
 		margin-top: clamp(4rem, 7vw, 6rem);
-		padding-top: 2rem;
+		padding-top: 32px;
 		border-top: 1px solid var(--manual-border);
 	}
 	.page-nav-item {
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
+		gap: 8px;
 		min-width: 0;
-		padding: 18px 20px;
+		padding: 16px 20px;
 		border: 1px solid var(--manual-border);
 		border-radius: calc(var(--manual-radius) + 4px);
 		text-decoration: none;
@@ -336,7 +336,7 @@
 	.page-nav-dir {
 		display: inline-flex;
 		align-items: center;
-		gap: 6px;
+		gap: 8px;
 		font-size: var(--text-xs);
 		font-weight: 500;
 		color: var(--manual-muted);
@@ -384,11 +384,11 @@
 			flex-direction: column;
 			max-height: 50vh;
 			overflow-y: auto;
-			padding: 4px 6px 8px;
+			padding: 4px 8px 8px;
 			border-top: 1px solid var(--manual-border);
 		}
 		.toc-mobile nav a {
-			padding: 10px 10px;
+			padding: 8px 8px;
 			border-radius: var(--radius);
 			color: var(--manual-muted);
 			font-size: var(--text-base);

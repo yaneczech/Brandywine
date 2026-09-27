@@ -190,7 +190,7 @@
 	.logo-link {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		min-width: 0;
 		border-radius: var(--radius-sm);
 	}
@@ -223,7 +223,7 @@
 	.nav-group {
 		display: flex;
 		flex-direction: column;
-		gap: 1px;
+		gap: 4px;
 	}
 
 	.nav-group-label {
@@ -240,7 +240,7 @@
 		position: relative;
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		height: 32px;
 		padding: 0 var(--space-2);
 		border-radius: var(--radius);
@@ -282,7 +282,7 @@
 	.manual-link {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		height: 32px;
 		padding: 0 var(--space-2);
 		border-radius: var(--radius);
@@ -307,7 +307,7 @@
 	.user-block {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 8px;
 		padding: var(--space-1) var(--space-2);
 	}
 	.user-avatar {
@@ -442,7 +442,7 @@
 		flex-wrap: wrap;
 	}
 	:global(.ap-title) {
-		margin: 0 0 6px;
+		margin: 0 0 8px;
 		font-size: var(--text-2xl);
 		font-weight: 600;
 		letter-spacing: var(--tracking-tight);

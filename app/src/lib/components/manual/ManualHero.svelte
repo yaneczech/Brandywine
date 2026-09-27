@@ -131,7 +131,7 @@
 		max-width: 880px;
 	}
 	.hero-eyebrow {
-		margin-bottom: 14px;
+		margin-bottom: 16px;
 		color: var(--hero-muted);
 		font-size: var(--text-sm);
 		font-weight: 500;
@@ -150,7 +150,7 @@
 	.hero.landing h1 { font-size: clamp(2.5rem, 6vw, 5.4rem); max-width: 16ch; }
 	.hero-desc {
 		max-width: 62ch;
-		margin: 18px 0 0;
+		margin: 16px 0 0;
 		color: var(--hero-muted);
 		font-size: clamp(1rem, 1.25vw, 1.2rem);
 		line-height: 1.55;

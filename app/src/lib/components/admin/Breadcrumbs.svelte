@@ -75,7 +75,7 @@
 		text-overflow: ellipsis;
 		border: 0;
 		background: none;
-		padding: 2px 0;
+		padding: 4px 0;
 		color: var(--color-muted);
 		font: inherit;
 		line-height: 1.35;

@@ -69,7 +69,7 @@
 	.ui-tab {
 		display: inline-flex;
 		align-items: center;
-		gap: 6px;
+		gap: 8px;
 		flex-shrink: 0;
 		border: 0;
 		background: none;
@@ -88,21 +88,21 @@
 
 	/* underline */
 	.underline { gap: var(--space-5); border-bottom: 1px solid var(--color-border); }
-	.underline .ui-tab { position: relative; padding: 10px 0; margin-bottom: -1px; border-bottom: 2px solid transparent; }
+	.underline .ui-tab { position: relative; padding: 8px 0; margin-bottom: -4px; border-bottom: 2px solid transparent; }
 	.underline .ui-tab.active { border-bottom-color: var(--color-accent); }
-	.underline.size-sm .ui-tab { padding: 7px 0; font-size: var(--text-xs); }
+	.underline.size-sm .ui-tab { padding: 8px 0; font-size: var(--text-xs); }
 
 	/* segmented */
 	.segmented {
 		display: inline-flex;
-		gap: 2px;
-		padding: 2px;
+		gap: 4px;
+		padding: 4px;
 		border-radius: var(--radius);
 		background: var(--color-surface-raised);
 		box-shadow: inset 0 0 0 1px var(--color-border);
 		max-width: 100%;
 	}
-	.segmented .ui-tab { height: 28px; padding: 0 10px; border-radius: calc(var(--radius) - 2px); }
+	.segmented .ui-tab { height: 28px; padding: 0 8px; border-radius: calc(var(--radius) - 2px); }
 	.segmented.size-sm .ui-tab { height: 24px; padding: 0 8px; font-size: var(--text-xs); }
 	.segmented .ui-tab.active { background: var(--color-surface); box-shadow: var(--shadow-sm), 0 0 0 1px var(--color-border); }
 	.ui-tab:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -2px; border-radius: var(--radius-sm); }

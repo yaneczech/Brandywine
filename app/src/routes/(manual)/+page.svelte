@@ -99,7 +99,7 @@
 		display: inline-flex;
 		align-items: center;
 		min-height: 34px;
-		padding: 0 14px;
+		padding: 0 16px;
 		border-radius: var(--radius-full);
 		border: 1px solid color-mix(in srgb, var(--hero-text) 20%, transparent);
 		background: color-mix(in srgb, var(--hero-text) 6%, transparent);

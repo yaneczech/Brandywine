@@ -127,7 +127,7 @@
 	"manual_not_configured": "Brand Manual is not configured yet.",
 	"manual_toc_label": "On this page",
 	"manual_empty_blocks": "This page is ready, but no content blocks have been published yet.",
-	"manual_admin_link": "Admin ↗",
+	"manual_admin_link": "Admin",
 	"manual_made_with": "Made with",
 	"manual_open_section": "Open",
 	"manual_color_system_placeholder": "Color system — connected from brand palette",
@@ -932,5 +932,6 @@
 	"be_remove_language_confirm": "Remove the language “{name}” and its rules?",
 	"be_title": "Title",
 	"be_choose_image": "Choose an image",
-	"be_choose_image_hint": "From the asset library, or upload a new one"
+	"be_choose_image_hint": "From the asset library, or upload a new one",
+	"assets_select_item": "Select"
 }

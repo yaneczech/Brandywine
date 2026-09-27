@@ -82,7 +82,7 @@
 </div>
 
 <style>
-	.imf { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+	.imf { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 	.imf-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 	.imf-label { font-size: var(--text-sm); font-weight: 500; color: var(--color-text); }
 	.imf-hint { font-weight: 400; color: var(--color-muted); }
@@ -119,7 +119,7 @@
 	.imf-preview.graphic img { object-fit: contain; padding: 10%; }
 	.imf-preview:hover { box-shadow: inset 0 0 0 1px var(--color-border-strong); }
 
-	.imf-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; padding: 4px 4px 2px 0; }
+	.imf-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; padding: 4px 4px 4px 0; }
 	.imf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); font-weight: 500; color: var(--color-text); }
 	.imf-ext { font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: 0.04em; color: var(--color-muted); }
 	.imf-actions { display: flex; gap: 4px; margin-top: auto; }
@@ -138,7 +138,7 @@
 		border-radius: var(--radius); background: var(--color-surface-raised); color: var(--color-muted);
 	}
 	.imf-empty:hover .imf-empty-icon { color: var(--color-accent); }
-	.imf-empty-text { display: flex; flex-direction: column; gap: 1px; }
+	.imf-empty-text { display: flex; flex-direction: column; gap: 4px; }
 	.imf-empty-text strong { font-size: var(--text-sm); font-weight: 500; color: var(--color-text); }
 	.imf-empty-text small { font-size: var(--text-xs); color: var(--color-muted); }
 	.imf-url { font-family: var(--font-mono); font-size: var(--text-xs); }
