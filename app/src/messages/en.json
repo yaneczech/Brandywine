@@ -1055,5 +1055,8 @@
 	"email_reset_body": "You asked to reset your Brandywine password. Click the button to set a new one. The link is valid for 15 minutes.",
 	"email_reset_action": "Set a new password",
 	"email_reset_footer": "If you did not ask for a password reset, ignore this email. Your password stays unchanged.",
-	"be_palette_unavailable": "Unavailable palette ({name})"
+	"be_palette_unavailable": "Unavailable palette ({name})",
+	"editor_card_image": "Card image",
+	"editor_card_image_hint": "Shown on page cards. Without it the hero image is used, or an automatic preview.",
+	"audit_page_card_image_missing": "The page's card image does not exist."
 }

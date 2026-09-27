@@ -19,6 +19,7 @@
 		enabled: boolean;
 		isLanding: boolean;
 		featureImage: string | null;
+		cardImage: string | null;
 		bgColor: string | null;
 		textColor: string | null;
 	};

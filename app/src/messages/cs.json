@@ -1055,5 +1055,8 @@
 	"email_reset_body": "Požádali jste o obnovení hesla v Brandywine. Kliknutím na tlačítko nastavíte nové heslo. Odkaz je platný 15 minut.",
 	"email_reset_action": "Nastavit nové heslo",
 	"email_reset_footer": "Pokud jste o obnovení hesla nepožádali, ignorujte tento email. Vaše heslo zůstane nezměněno.",
-	"be_palette_unavailable": "Nedostupná paleta ({name})"
+	"be_palette_unavailable": "Nedostupná paleta ({name})",
+	"editor_card_image": "Obrázek karty",
+	"editor_card_image_hint": "Náhled stránky v přehledech. Bez něj se použije hero obrázek, případně automatický náhled.",
+	"audit_page_card_image_missing": "Obrázek karty stránky neexistuje."
 }

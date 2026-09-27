@@ -23,6 +23,7 @@ export const load: PageServerLoad = async () => {
 				enabled: manualPages.enabled,
 				isLanding: manualPages.isLanding,
 				featureImage: manualPages.featureImage,
+				cardImage: manualPages.cardImage,
 				bgColor: manualPages.bgColor,
 				textColor: manualPages.textColor,
 			})

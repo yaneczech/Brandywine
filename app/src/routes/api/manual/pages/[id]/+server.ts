@@ -36,6 +36,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 		sortOrder: number;
 		parentId: string | null;
 		featureImage: string | null;
+		cardImage: string | null;
 		heroBgSize: string | null;
 		bgColor: string | null;
 		textColor: string | null;
@@ -70,6 +71,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	if (body.sortOrder !== undefined)   updates.sortOrder   = body.sortOrder;
 	if ('parentId' in body)             updates.parentId    = body.parentId ?? null;
 	if ('featureImage' in body)         updates.featureImage = body.featureImage ?? null;
+	if ('cardImage' in body)            updates.cardImage    = body.cardImage?.trim() || null;
 	if ('heroBgSize' in body)           updates.heroBgSize   = body.heroBgSize   ?? null;
 	if ('bgColor' in body)              updates.bgColor      = body.bgColor ?? null;
 	if ('textColor' in body)            updates.textColor    = body.textColor ?? null;

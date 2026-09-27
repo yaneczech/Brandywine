@@ -13,6 +13,7 @@ export const manualPages = pgTable('manual_pages', {
 	enabled:      boolean('enabled').notNull().default(true),
 	isLanding:    boolean('is_landing').notNull().default(false),
 	featureImage: text('feature_image'),   // asset path or URL
+	cardImage:    text('card_image'),      // cover on page cards; falls back to featureImage, then an auto preview
 	heroBgSize:   text('hero_bg_size'),    // 'cover' | 'contain' | 'tile' — default cover when null
 	bgColor:      text('bg_color'),        // hex — full card + hero background
 	textColor:    text('text_color'),      // hex — text on bgColor (WCAG-checked)

@@ -190,6 +190,13 @@
       "when": 1780817683295,
       "tag": "0025_manual_fonts",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1780817683296,
+      "tag": "0026_page_card_image",
+      "breakpoints": true
     }
   ]
 }

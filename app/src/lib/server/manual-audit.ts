@@ -104,6 +104,9 @@ export async function auditManual(): Promise<AuditIssue[]> {
 		if (!page.isLanding && !str(page.description)) {
 			add('info', 'page_no_description', m.audit_page_no_description(), page.id);
 		}
+		if (page.cardImage && !fileExists(page.cardImage)) {
+			add('error', 'page_card_image_missing', m.audit_page_card_image_missing(), page.id);
+		}
 		if (page.featureImage && !fileExists(page.featureImage)) {
 			add('error', 'page_image_missing', m.audit_page_image_missing(), page.id);
 		}

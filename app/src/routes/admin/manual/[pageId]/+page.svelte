@@ -16,6 +16,7 @@
 	import BlockConfigPanel from './BlockConfigPanel.svelte';
 	import BlockPrimaryEditor from './BlockPrimaryEditor.svelte';
 	import AssetPickerModal from '$lib/components/admin/AssetPickerModal.svelte';
+	import ImageField from '$lib/components/admin/ImageField.svelte';
 
 	const { data }: { data: PageData } = $props();
 
@@ -44,6 +45,8 @@
 	let pageDescription = $state<string>(page.description ?? '');
 	// svelte-ignore state_referenced_locally
 	let pageFeatureImage = $state<string>(page.featureImage ?? '');
+	// svelte-ignore state_referenced_locally
+	let pageCardImage = $state<string>(page.cardImage ?? '');
 	// svelte-ignore state_referenced_locally
 	let pageHeroBgSize = $state<string>(page.heroBgSize ?? 'cover');
 	// svelte-ignore state_referenced_locally
@@ -78,6 +81,8 @@
 
 	// Asset picker for feature image
 	let showAssetPicker = $state(false);
+	// Which image the asset picker fills
+	let assetPickerFor = $state<'hero' | 'card'>('hero');
 
 	function blockConfigText(block: Block, key: string): string {
 		const value = block.config?.[key];
@@ -270,6 +275,7 @@
 					title: pageTitle.trim() || page.title,
 					description: pageDescription.trim() || null,
 					featureImage: pageFeatureImage.trim() || null,
+					cardImage: pageCardImage.trim() || null,
 					heroBgSize: pageFeatureImage.trim() ? (pageHeroBgSize || 'cover') : null,
 					bgColor: pageBgColor || null,
 					textColor: pageTextColor || null,
@@ -363,7 +369,7 @@
 						<span class="field-label">{m.editor_hero_image()}</span>
 						<div class="fi-input-row">
 							<input type="text" bind:value={pageFeatureImage} placeholder="/uploads/…" class="fi-url-input" />
-							<button class="btn-ghost fi-pick-btn" onclick={() => showAssetPicker = true} title={m.editor_pick_asset()}>
+							<button class="btn-ghost fi-pick-btn" onclick={() => { assetPickerFor = 'hero'; showAssetPicker = true; }} title={m.editor_pick_asset()}>
 								<IconPhoto size={15} stroke={1.5} /> {m.be_choose()}
 							</button>
 						</div>
@@ -386,6 +392,17 @@
 								{/each}
 							</div>
 						{/if}
+						<!-- Card cover, independent of the hero -->
+						<div class="card-image-field">
+							<ImageField
+								label={m.editor_card_image()}
+								hint={m.editor_card_image_hint()}
+								value={pageCardImage}
+								compact
+								onChoose={() => { assetPickerFor = 'card'; showAssetPicker = true; }}
+								onChange={(v) => (pageCardImage = v)}
+							/>
+						</div>
 					</div>
 
 					<!-- Colors column: bg + text stacked -->
@@ -606,11 +623,11 @@
 	</div>
 </Modal>
 
-<!-- Asset picker modal (hero image) -->
+<!-- Asset picker modal (hero or card image) -->
 <AssetPickerModal
 	open={showAssetPicker}
 	mimeFilter="image"
-	onPick={(url) => { pageFeatureImage = url; showAssetPicker = false; }}
+	onPick={(url) => { if (assetPickerFor === 'card') pageCardImage = url; else pageFeatureImage = url; showAssetPicker = false; }}
 	onClose={() => (showAssetPicker = false)}
 />
 
@@ -701,6 +718,7 @@
 .field-hint { font-size: var(--text-xs); color: var(--color-muted); }
 /* feature image field */
 .fi-field { min-width: 280px; }
+.card-image-field { margin-top: var(--space-5); }
 .fi-input-row { display: flex; gap: 8px; }
 .fi-url-input { flex: 1; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: var(--text-base); background: var(--color-surface); color: var(--color-text); outline: none; min-width: 0; }
 .fi-url-input:focus { border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
