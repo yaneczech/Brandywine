@@ -28,7 +28,7 @@
 	"auth_setup_sub": "Jste první. Nastavte si účet a začněte pracovat.",
 	"auth_name": "Celé jméno",
 	"auth_name_placeholder": "Jan Novák",
-	"auth_email_placeholder": "jan@studio.cz",
+	"auth_email_placeholder": "you@example.com",
 	"auth_password_hint": "min. 12 znaků",
 	"auth_create_account": "Vytvořit účet",
 	"admin_dashboard": "Přehled",

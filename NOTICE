@@ -2,7 +2,7 @@ Brandywine — Open-source brand platform
 Copyright 2025 Brandywine Contributors
 
 This product includes software developed as part of the Brandywine project
-(https://github.com/brandywine/brandywine).
+(https://github.com/yaneczech/Brandywine).
 
 ATTRIBUTION REQUIREMENT
 -----------------------
@@ -12,7 +12,7 @@ as a hosted service accessible to third parties — you must:
   1. Retain this NOTICE file in its entirety.
   2. Display the text "Powered by Brandywine" (or equivalent acknowledgement)
      in a visible location of the user interface (e.g. footer, about page,
-     or login screen), with a link to https://github.com/brandywine/brandywine.
+     or login screen), with a link to https://github.com/yaneczech/Brandywine.
 
 This attribution requirement ensures that Brandywine remains findable and that
 the broader design community can benefit from the project.

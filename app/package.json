@@ -1,7 +1,14 @@
 {
-	"name": "app",
+	"name": "brandywine",
+	"description": "Self-hosted brand manual and asset platform — web app",
 	"private": true,
 	"version": "0.0.1",
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/yaneczech/Brandywine.git",
+		"directory": "app"
+	},
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",

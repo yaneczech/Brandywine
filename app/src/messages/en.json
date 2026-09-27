@@ -28,7 +28,7 @@
 	"auth_setup_sub": "You're the first here. Set up your account to get started.",
 	"auth_name": "Full name",
 	"auth_name_placeholder": "Jan Novák",
-	"auth_email_placeholder": "jan@studio.cz",
+	"auth_email_placeholder": "you@example.com",
 	"auth_password_hint": "min. 12 characters",
 	"auth_create_account": "Create account",
 	"admin_dashboard": "Dashboard",
